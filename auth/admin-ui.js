@@ -9,8 +9,7 @@ var adminSections = [
 	{ id: "dashboard", label: "Dashboard", render: function (h) { adminRenderDashboard(h) } },
 	{ id: "reports",   label: "Reports",   render: function (h) { adminRenderReports(h) } },
 	{ id: "users",     label: "Users",     render: function (h) { adminRenderUsers(h) } },
-	{ id: "audit",     label: "Audit log", render: function (h) { adminRenderAudit(h) } },
-	{ id: "flags",     label: "Flags",     render: function (h) { adminRenderFlags(h) } }
+	{ id: "audit",     label: "Audit log", render: function (h) { adminRenderAudit(h) } }
 ]
 
 var adminSection = "dashboard"
@@ -480,47 +479,3 @@ function adminRenderAudit(host) {
 }
 
 
-// ---- flags ------------------------------------------------------------
-//
-// The paywall switch lives here rather than in a config file so it can be
-// thrown without a deploy. Both the browser and match_list() read the same
-// row, so there is no window where the page and the server disagree about
-// whether Matching costs money.
-
-function adminRenderFlags(host) {
-	var tok = adminSeq
-	adminFlags().then(function (rows) {
-		var o = '<div class="adminNote">These are read by the site on load and by the database on every ' +
-			'call. A change takes effect for a member on their next page load.</div>'
-
-		if (!rows.length) { adminWrite(host, o + '<div class="adminNote">No flags defined.</div>', tok); return }
-
-		o += '<div class="adminFlagList">'
-		for (var i = 0; i < rows.length; i++) {
-			var f = rows[i]
-			o += '<div class="adminFlagRow' + (f.enabled ? ' adminFlagOn' : '') + '" ' +
-				'onclick="adminToggleFlag(this,&quot;' + adminEsc(f.key) + '&quot;)">'
-			o += '<span class="adminFlagBody">'
-			o += '<span class="adminFlagTitle">' + adminEsc(f.label || f.key) + '</span>'
-			o += '<span class="adminFlagKey">' + adminEsc(f.key) + '</span>'
-			if (f.note) o += '<span class="adminFlagNote">' + adminEsc(f.note) + '</span>'
-			o += '</span>'
-			o += '<span class="adminFlagSwitch"><span class="adminFlagKnob"></span></span>'
-			o += '</div>'
-		}
-		o += '</div>'
-		adminWrite(host, o, tok)
-	}).catch(function (err) { adminWrite(host, adminError(err), tok) })
-}
-
-function adminToggleFlag(row, key) {
-	var on = !row.classList.contains("adminFlagOn")
-	row.classList.toggle("adminFlagOn", on)
-	adminSetFlag(key, on).then(function () {
-		adminNotify(adminEsc(key) + (on ? " on" : " off"))
-		if (typeof flagsInvalidate === "function") flagsInvalidate()
-	}).catch(function (err) {
-		row.classList.toggle("adminFlagOn", !on)
-		adminNotify(err.message || "Could not change that", true)
-	})
-}

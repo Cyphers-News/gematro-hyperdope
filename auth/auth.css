@@ -1499,91 +1499,6 @@
 	.profileTab.profileTabRun { margin-left: 0; }
 }
 
-/* ---- social feed ---- */
-
-.soBar { display: flex; align-items: center; gap: 0.3em; flex-wrap: wrap; padding-bottom: 0.7em; }
-.profileMiniBtn.soShareBtn { margin-left: auto; }
-
-.soFeed { display: flex; flex-direction: column; gap: 0.6em; max-height: 460px; overflow-y: auto; padding-right: 0.2em;
-	scrollbar-width: thin; scrollbar-color: var(--border-accent) transparent; }
-.soFeed::-webkit-scrollbar { width: 8px; }
-.soFeed::-webkit-scrollbar-thumb { background-color: var(--border-accent); border-radius: 999px; }
-
-.soPost {
-	background-color: var(--input-bg-accent);
-	border: 1px solid var(--border-dark-accent);
-	padding: 0.7em 0.8em;
-}
-.soHead { display: flex; align-items: center; gap: 0.5em; padding-bottom: 0.5em; }
-.soWho { display: flex; align-items: center; gap: 0.45em; cursor: pointer; min-width: 0; }
-.soName { font-weight: 600; color: var(--font-white-2); font-size: 90%; }
-.soWho:hover .soName { color: hsl(140 60% 66%); text-decoration: underline; }
-.soWhen { margin-left: auto; font-size: 76%; color: var(--font-white-3); white-space: nowrap; }
-
-/* the finding is the loudest thing in the card, because it is the point */
-.soPhrase {
-	font-size: 112%;
-	font-weight: 600;
-	color: var(--font-white-1);
-	cursor: pointer;
-	padding-bottom: 0.45em;
-	overflow-wrap: anywhere;
-}
-.soPhrase:hover { color: hsl(140 60% 70%); }
-
-.soReadings { display: flex; flex-wrap: wrap; gap: 0.3em; padding-bottom: 0.5em; }
-.soReading {
-	display: inline-flex;
-	align-items: baseline;
-	gap: 0.35em;
-	border: 1px solid var(--border-accent);
-	border-left-width: 3px;
-	padding: 0.12em 0.5em;
-	font-size: 80%;
-}
-.soCipher { font-weight: 600; color: var(--font-white-2); }
-.soValue { font-family: var(--font-family-mono), monospace; font-weight: 700; color: var(--font-white-1); }
-
-.soCaption {
-	font-size: 88%;
-	color: var(--font-white-2);
-	line-height: 1.5em;
-	padding-bottom: 0.5em;
-	overflow-wrap: anywhere;
-}
-
-.soFoot { display: flex; align-items: center; gap: 0.3em; border-top: 1px solid var(--separator-accent2); padding-top: 0.45em; }
-.soAct {
-	font-family: var(--font-family), "Arial", sans-serif;
-	font-size: 80%;
-	color: var(--font-white-3);
-	background: none;
-	border: 1px solid transparent;
-	padding: 0.15em 0.5em;
-	cursor: pointer;
-	outline: none;
-	transition: color 0.15s ease;
-}
-.soAct:hover:not(:disabled) { color: hsl(140 60% 66%); }
-.soAct.soActOn { color: hsl(5 75% 68%); }
-.soAct.soActOn:hover { color: hsl(5 80% 76%); }
-.soAct.soActSoon { opacity: 0.4; cursor: default; }
-.soAct.soActDel { margin-left: auto; }
-.soAct.soActDel:hover { color: hsl(5 75% 70%); }
-.soHeart { font-size: 105%; }
-@media (prefers-reduced-motion: reduce) { .soAct { transition: none; } }
-
-.soCompose {
-	background-color: var(--menu-bg-accent);
-	border: 1px solid var(--border-accent);
-	padding: 0.8em;
-	margin-bottom: 0.7em;
-}
-.soComposeLab { font-size: 82%; font-weight: 600; color: var(--font-white-2); padding: 0.5em 0 0.35em 0; }
-.soComposeLab:first-child { padding-top: 0; }
-.soPhrasePick { max-width: 100%; width: 100%; }
-.soCaption2 { width: 100%; box-sizing: border-box; }
-.profileMiniBtn.soPostBtn { margin-top: 0.4em; }
 
 /* ---- report dialog ---- */
 .frReportBack {
@@ -1671,10 +1586,3 @@
 .obNav .authBtnPrimary { flex: 0 0 auto; }
 .obBtnWide { flex: 1 1 auto !important; width: 100% !important; }
 
-/* a membership tab that leads to another page */
-.profileTab.profileTabAway {
-	display: inline-block;
-	text-decoration: none;
-	line-height: normal;
-}
-.profileTab.profileTabAway::after { content: " \2197"; opacity: 0.55; }

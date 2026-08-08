@@ -13,8 +13,11 @@ function saveCalcSettingsLocalStorage(saveDef = false) {
 }
 
 function restoreCalcSettingsLocalStorage(silentMode = false) {
-	if (window.localStorage.getItem('userCalcSettings') === null) {
-		if (window.localStorage.getItem('defCalcSettings').length > 0) {
+	var userSettings = window.localStorage.getItem('userCalcSettings')
+	var defaultSettings = window.localStorage.getItem('defCalcSettings')
+
+	if (userSettings === null) {
+		if (typeof defaultSettings === "string" && defaultSettings.length > 0) {
 			sItem = "defCalcSettings" // restore default settings if no user settings found
 		} else { return }
 	} else {

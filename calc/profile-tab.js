@@ -70,20 +70,7 @@ function renderProfilePanel() {
 	o += profileTabBtn("chart", "🔮 Chart")
 
 	o += profileTabBtn("friends", "📧 Friends", "profileTabRun")
-	o += profileTabBtn("social", "🌐 Social")
-	// Matching is its own page rather than a tab: it needs the ephemeris and
-	// the whole cypher list to set up, and it is the one paid thing on the
-	// site, so it gets somewhere of its own to explain itself.
-	// siteMatchUrl(), not a literal — Matching is the half most likely to move
-	// to its own origin, and this is the only place that has to know.
-	//
-	// The label carries the offer. On the free side of the site this tab IS the
-	// call to action, so it says what is on the other side of the click rather
-	// than making somebody find out by clicking.
-	o += profileTabLink(siteMatchUrl("match.html"),
-		(typeof flagEnabled === "function" && flagEnabled("matching_force_free"))
-			? "✨ Matching · free now"
-			: "✨ Matching")
+
 
 	o += profileTabBtn("account", "⚙ Account", "profileTabRun")
 	o += '</div>'
@@ -101,14 +88,7 @@ function renderProfilePanel() {
 	else if (profileTabActive === "chart") renderProfileChart()
 	else if (profileTabActive === "leaderboard") renderProfileLeaderboard()
 	else if (profileTabActive === "friends") renderProfileFriends()
-	else if (profileTabActive === "social") renderProfileSocial()
 	else renderProfileAccount()
-}
-
-// A tab that leaves the panel. Drawn as a tab because that is where a member
-// looks for it, marked with an arrow because it is a different page.
-function profileTabLink(href, label) {
-	return '<a class="intBtn3 profileTab profileTabAway" href="' + href + '">' + label + '</a>'
 }
 
 // extra is for profileTabRun, which puts a gap before the first tab of a run
