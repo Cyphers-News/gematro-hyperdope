@@ -6,3 +6,6 @@ node_modules/
 *.key
 .DS_Store
 Thumbs.db
+
+# stray copies the desktop app leaves when a file is sent to chat
+notion-rebuild-tasks-with-descriptions.csv

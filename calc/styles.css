@@ -1746,16 +1746,6 @@ body {
 	text-align: center;
 }
 
-/* Credit line at the top of the About menu - text, not a link */
-.aboutCredit {
-	font-size: 82%;
-	color: var(--font-white-3);
-	text-align: center;
-	padding: 0.15em 0.4em 0.55em 0.4em;
-	margin-bottom: 0.35em;
-	border-bottom: 1px solid var(--separator-accent2);
-}
-
 .dropdown:hover .dropdown-content, .dropdown:hover .dropdown-content-opt {display: block;}
 
 .dropdown:hover .dropbtn {background-color: var(--btn-active-accent);}
@@ -2412,6 +2402,26 @@ body {
 	text-wrap: balance;
 	max-width: 46ch;
 }
+/* Gematro credit - two short paragraphs, so it sizes to them rather than
+   being stretched down 80% of the screen with the rest left empty */
+.quickGuide.creditPanel {
+	height: auto;
+	max-height: 80%;
+	top: 14%;
+}
+@media (max-width: 911px) { /* mobile - matches the contact panel's exception */
+	.quickGuide.creditPanel {
+		height: auto !important;
+		max-height: 80% !important;
+	}
+}
+.creditPanel p {
+	text-wrap: pretty;
+	text-wrap: balance;
+	max-width: 46ch;
+}
+.creditPanel a { color: var(--font-white-1); }
+
 .contactField { padding-bottom: 0.8em; }
 .contactLabel {
 	display: block;

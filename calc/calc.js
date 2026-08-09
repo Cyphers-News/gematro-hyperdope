@@ -425,11 +425,15 @@ function createAboutMenu() { // create menu with all cipher catergories
 	// o += '</center>'
 	// o += '<div style="margin: 1em;"></div>'
 	
-	// Credit line, not a link: Gematro took their site down, so this is plain
-	// text at the top rather than a button that leads nowhere.
-	o += '<div class="aboutCredit"><b>Coded by Gematro in 2021</b></div>'
-
 	o += '<input class="intBtn" type="button" value="&#9989; Quickstart Guide" onclick="displayQuickstartGuide()">'
+	o += '<div style="margin: 0.5em;"></div>'
+	// The credit used to sit above as plain text, because Gematro took their
+	// site down and a button that leads nowhere is worse than none. It opens a
+	// panel instead of a link, so the credit is now somewhere it can actually
+	// say who wrote this and where to reach him.
+	// U+1F4DC, chosen for the same reason as the envelope below: it has an
+	// emoji presentation and will not fall back to a tofu box.
+	o += '<input class="intBtn" type="button" value="&#128220; Coded by Gematro in 2021" onclick="displayGematroCredit()">'
 	o += '<div style="margin: 0.5em;"></div>'
 	// U+1F4E7, not U+2709: the latter is a text-presentation glyph and falls
 	// back to a tofu box wherever the font has no colour emoji for it

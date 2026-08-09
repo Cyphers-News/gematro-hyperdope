@@ -784,6 +784,36 @@ cipherList = [
 		false
 	),
 
+	// Units, tens, hundreds - the classical arrangement, with i/j sharing 9 and
+	// u/v sharing 200 the way both pairs were a single letter in Latin. That is
+	// also why the values run to 600 across 26 letters rather than 800: two of
+	// the steps are spent twice.
+	new cipher(
+		"Archaic Standard",
+		"Archaic",
+		48, 49, 72,
+		[97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
+		[1,2,3,4,5,6,7,8,9,9,10,20,30,40,50,60,70,80,90,100,200,200,300,400,500,600],
+		true,
+		false,
+		false
+	),
+
+	// The same scale read from z back to a. Written as a reversed character
+	// list against rising values rather than the rising list against falling
+	// values the other Archaic reverses use - the mapping is what matters and
+	// this way the shared pairs stay visible as pairs (v/u at 5, j/i at 70).
+	new cipher(
+		"Archaic R Standard",
+		"Archaic",
+		50, 78, 63,
+		[122,121,120,119,118,117,116,115,114,113,112,111,110,109,108,107,106,105,104,103,102,101,100,99,98,97],
+		[1,2,3,4,5,5,6,7,8,9,10,20,30,40,50,60,70,70,80,90,100,200,300,400,500,600],
+		true,
+		false,
+		false
+	),
+
 
 	new cipher(
 		"Bacon Kaye",

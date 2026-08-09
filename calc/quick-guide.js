@@ -383,6 +383,40 @@ function displayQuickstartGuide() {
 	$('body').addClass('noScroll') // prevent scrolling
 }
 
+// ========================= Gematro credit =========================
+//
+// Opened from the About menu, where this was a plain line of text. It is the
+// attribution for the whole calculator, so it says plainly what is original
+// work and what is ours, and it routes feedback to the right person: notes on
+// the original software go to Mikhail, everything else comes to us.
+//
+// Same shell as the guide and the contact panel - .quickGuide carries the
+// overlay, the sizing and the close behaviour, and closePanel(".quickGuide")
+// therefore closes this too.
+
+var GEMATRO_EMAIL = "mmiikh96@gmail.com"
+
+function displayGematroCredit() {
+	$('<div id="darkOverlay" onclick="closePanel(&quot;.quickGuide&quot;)"></div>').appendTo('body');
+
+	var o = '<div class="quickGuide creditPanel">'
+	o += '<p><span class="qgBold2">Coded by Gematro in 2021</span></p>'
+
+	o += '<p>This calculator that you&rsquo;re using is based entirely on the original '
+	o += '<span class="qgBold">GEMATRO</span> calculator by Mikhail, with some changes and '
+	o += 'additions by Cyphers News.</p>'
+
+	o += '<p>Send any suggestions or feedback about the original software to '
+	o += '<a href="mailto:' + GEMATRO_EMAIL + '">' + GEMATRO_EMAIL + '</a> '
+	o += '(Mikhail, the original author of this software). Otherwise contact: '
+	o += '<a href="mailto:' + CONTACT_EMAIL + '">' + CONTACT_EMAIL + '</a>.</p>'
+
+	o += '</div>'
+
+	$(o).appendTo('body');
+	$('body').addClass('noScroll') // prevent scrolling
+}
+
 // ========================== Contact panel =========================
 //
 // Opens the visitor's own mail app with the subject already set, rather than
