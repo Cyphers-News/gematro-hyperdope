@@ -57,6 +57,32 @@ $(window).on("load", function(){
 <div id="loader"></div>
 <canvas id="canv"></canvas>
 
+<!-- Fixed so it survives whichever menu is rebuilding #calcOptionsPanel, and
+     stays reachable even once focus mode has hidden that whole row. -->
+<button id="focusModeBtn" class="focusModeBtn" type="button" title="Focus mode: hide the menu and phrase box for a clean screenshot (tap again to restore)" aria-label="Toggle focus mode" aria-pressed="false" onclick="toggleFocusMode()">
+	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<path d="M12 15V3"></path>
+		<path d="M7.5 7.5L12 3l4.5 4.5"></path>
+		<path d="M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"></path>
+	</svg>
+</button>
+
+<!-- Mirrors #focusModeBtn on the opposite corner - opens a small panel
+     choosing what Focus Mode shows besides the equation. -->
+<button id="focusOptionsBtn" class="focusOptionsBtn" type="button" title="Choose what Focus Mode shows" aria-label="Focus mode display options" onclick="toggleFocusOptionsPanel()">
+	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<line x1="4" y1="21" x2="4" y2="14"></line>
+		<line x1="4" y1="10" x2="4" y2="3"></line>
+		<line x1="12" y1="21" x2="12" y2="12"></line>
+		<line x1="12" y1="8" x2="12" y2="3"></line>
+		<line x1="20" y1="21" x2="20" y2="16"></line>
+		<line x1="20" y1="12" x2="20" y2="3"></line>
+		<line x1="1" y1="14" x2="7" y2="14"></line>
+		<line x1="9" y1="8" x2="15" y2="8"></line>
+		<line x1="17" y1="16" x2="23" y2="16"></line>
+	</svg>
+</button>
+
 <!-- preload font -->
 <span style="font-family: 'Roboto Mono';"></span>
 

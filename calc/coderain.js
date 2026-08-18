@@ -715,9 +715,16 @@ function updateCodeRainToggleBtn() {
 //
 // Density and speed multipliers applied on top of whichever style is running,
 // so the hover panel tunes all three styles rather than needing its own set of
-// numbers per style. 1.0 is the tuned default for each.
-
-var coderainDensity = 1.0   // 0.2 sparse .. 2.0 heavy
+// numbers per style. 1.0 is the "full" tuned value for each, and is what
+// coderainResetIntensity() below restores.
+//
+// coderainDensity starts lower than that "full" value: a lot of people
+// screenshot the calculator the instant it loads (before typing anything),
+// and full-density rain competes with the calculator underneath for
+// attention in that shot. Anyone who wants it heavier can turn it up with
+// the density slider, same as always - this only changes what a cold load
+// looks like before anyone has touched the slider.
+var coderainDensity = 0.5   // 0.2 sparse .. 2.0 heavy
 var coderainSpeedMul = 1.0  // 0.3 slow .. 2.5 fast
 
 function coderainSetDensity(v) {
@@ -740,6 +747,7 @@ function coderainResetIntensity() {
 	var hu = document.getElementById("rainHueSlider")
 	if (d !== null) d.value = 1
 	if (sp !== null) sp.value = 1
+	coderainSetDensity(1)
 	coderainSetSpeed(1)
 	coderainHue = coderainHueDefault
 	coderainSat = coderainSatDefault

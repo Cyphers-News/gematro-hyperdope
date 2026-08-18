@@ -133,7 +133,34 @@ var profileRenderSeq = 0
 function profileBody(html, token) {
 	if (token !== undefined && token !== profileRenderSeq) return // stale response
 	var el = document.getElementById("profileBody")
-	if (el !== null) el.innerHTML = html
+	if (el === null) return
+
+	// Every tab here re-renders by replacing this whole element, including
+	// whatever input the user is mid-typing into (most noticeably the Saved
+	// search box, which re-renders on a debounce timer while typing is still
+	// going). That drops focus and the cursor position, so the id and
+	// selection are captured before the swap and restored on the new node
+	// after - otherwise every pause in typing kicks the cursor out and the
+	// next character has to be preceded by clicking back in.
+	var active = document.activeElement
+	var restoreId = null, selStart = null, selEnd = null
+	if (active && el.contains(active) && active.id && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
+		restoreId = active.id
+		selStart = active.selectionStart
+		selEnd = active.selectionEnd
+	}
+
+	el.innerHTML = html
+
+	if (restoreId !== null) {
+		var revived = document.getElementById(restoreId)
+		if (revived !== null) {
+			revived.focus()
+			if (typeof selStart === "number" && typeof revived.setSelectionRange === "function") {
+				revived.setSelectionRange(selStart, selEnd)
+			}
+		}
+	}
 }
 
 function profileErr(err) {

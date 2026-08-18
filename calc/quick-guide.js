@@ -106,10 +106,7 @@ var quickGuideTopics = [
 	+ '<li>Save your settings afterwards, or the changes are lost on reload.</li>'
 	+ '</ul>'
 
-	+ '<p class="qgNote">Full write-ups and bibliography for every cypher live under the <span class="qgBold">Cyphers (Info)</span> topic below - open a category, then open a cypher name to read about it.</p>'
-},
-
-{ id: "ciphersInfo", label: "📖 Cyphers (Info)", render: cipherInfoTopicHtml
+	+ '<p class="qgNote">Full write-ups and bibliography for every cypher are under <span class="qgBold">Cyphers (Info)</span> in the About menu - open a category, then open a cypher name to read about it.</p>'
 },
 
 { id: "highlighter", label: "🔎 Matching", html:
@@ -604,11 +601,7 @@ function quickGuideTopicBtn(t) {
 
 function quickGuideBody() {
 	for (var i = 0; i < quickGuideTopics.length; i++) {
-		var t = quickGuideTopics[i]
-		// "Cyphers (Info)" builds its html from the live cCat / cipherList at
-		// open time (via .render) instead of a fixed .html string, so its
-		// categories can never drift out of sync with the real Cyphers menu.
-		if (t.id === quickGuideTopic) return t.render ? t.render() : t.html
+		if (quickGuideTopics[i].id === quickGuideTopic) return quickGuideTopics[i].html
 	}
 	return ""
 }
@@ -632,13 +625,10 @@ function quickGuideThanks() {
 	return '<p><span class="qgBold2">Special Thanks</p>\n<ul><li><span class="qgBold"> Spawn From</span> - <span class="qgBold"><a href="https://gematrinator.com/calculator" target="_blank">@Gematrinator</a></span> & <span class="qgBold"><a href="https://gematro.github.io/" target="_blank">@Gematro</a></span>.</li> Cyphers is possible due to their original code. <br> Gematro is considered a Cyphers co-founder.<br> His username was @Saun_Virroco back then. <br> Cyphers News = [155 Ordinal] = Saun_Virroco. <br><br> <li><span class="qgBold">Cyphers - suggestions by</span> <span class="qgBold"><a href="https://gematriaresearch.blogspot.com/" target="_blank">@GematriaResearch.</a> <br> Known as Alektryon and our third co-founder. </span></li><br><li><span class="qgBold">Cyphers News</span> - by Net Void. Calculator by: <br> Gematro. Contributors: Gematria Research, <br> Lake Onyx, Truth Audit, and Hyperdope. <br><br><li> <span class="qgBold">Gematria Club</span> - for actively promoting the site.</li><br><li><span class="qgBold">The CCRU</span> - Cybernetic Culture Research Unit.<br>Thanks to legend <span class="qgBold"><a href="https://x.com/xenocosmography" target="_blank">@Xenocosmography</a></span> and <br> scholar Gematria Research for the list:<br> Alphanumeric Qabbala & QWERTY cyphers. <br> Spawned since computer era - 1990s & Y2K. <br><br></li><li><span class="qgBold">[Disclaimer]</span> - <span class="qgBold">Synx</span> was discovered in 2024 <br>by <span class="qgBold"><a href="https://gematriaresearch.blogspot.com/" target="_blank">@GematriaResearch.</a></span> It is used in tandem.</li><br><li><span class="qgBold">Contact Us</span> - <span class="qgBold"><a href="https://x.com/CyphersNews" target="_blank">@CyphersNews</a></span> for more. </a></li></ul>'
 }
 
-// startTopic lets the About menu's "Cyphers (Info)" button jump straight to
-// that topic instead of always landing on Basics, without needing a second,
-// near-identical panel of its own.
-function displayQuickstartGuide(startTopic) {
+function displayQuickstartGuide() {
 	$('<div id="darkOverlay" onclick="closePanel(&quot;.quickGuide&quot;)"></div>').appendTo('body'); // overlay
 
-	quickGuideTopic = startTopic || "basics"
+	quickGuideTopic = "basics" // always open on the first topic
 
 	var o = '<div class="quickGuide">'
 	o += '<p><span class="qgBold2">Quickstart Guide</p>'
@@ -658,6 +648,28 @@ function displayQuickstartGuide(startTopic) {
 	o += '</div>'
 
 	$(o).appendTo('body'); // guide
+	$('body').addClass('noScroll') // prevent scrolling
+}
+
+// ===================== Cyphers (Info) panel ========================
+//
+// Its own popup rather than a tab inside the Quickstart Guide - it has 18
+// categories and 171 cyphers to browse, which fought with the guide's small
+// per-topic body height and made switching topics gone digging back through
+// an unrelated tab bar. Reuses the guide's shell (.quickGuide) and close
+// behaviour, same as the credit/contact panels, but skips the topic bar and
+// Special Thanks footer since neither applies here.
+function displayCyphersInfoPanel() {
+	$('<div id="darkOverlay" onclick="closePanel(&quot;.quickGuide&quot;)"></div>').appendTo('body'); // overlay
+
+	var o = '<div class="quickGuide cyphersInfoPanel">'
+	o += '<p><span class="qgBold2">Cyphers (Info)</span></p>'
+	o += '<div class="qgBody cyphersInfoBody">'
+	o += cipherInfoTopicHtml()
+	o += '</div>'
+	o += '</div>'
+
+	$(o).appendTo('body');
 	$('body').addClass('noScroll') // prevent scrolling
 }
 

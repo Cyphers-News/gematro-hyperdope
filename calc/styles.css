@@ -62,6 +62,12 @@
 	--border-dark-accent: hsl(var(--font-hue) calc(100% * var(--font-sat)) calc(23% * var(--font-lit)));
 	--focus-outline: hsl(var(--font-hue) calc(100% * var(--font-sat)) calc(75% * var(--font-lit)));
 	--break-val-accent: hsl(var(--font-hue) calc(100% * var(--font-sat)) calc(41% * var(--font-lit)));
+	/* Word Breakdown's own committed accent for word sums / the grand total -
+	   fixed, not derived from --global-hue/--font-hue, the same way the CCRU
+	   rain has its own committed palette (coderain.js). Letters went back to
+	   the per-cypher colour (curCiphCol in breakdown.js), so only the numbers
+	   keep this fixed look now. */
+	--break-sum-accent: hsl(145 60% 53%);
 }
 
 html, body { /* full <body> height for <!DOCTYPE html> */
@@ -1042,33 +1048,57 @@ body {
 	text-align: center;
 }
 #BreakTableContainer {
-	padding: 0.4em 0.4em 0.4em 0.8em;
-	border: 1px solid var(--border-dark-accent);
+	position: relative;
+	padding: 0.6em 0.8em;
+	border: 1px solid transparent; /* real colour only while .breakdownGlowing - see below */
 	width: -webkit-fit-content;
 	width: -moz-fit-content;
+	cursor: pointer; /* the whole box is the glow toggle - see onclick in breakdown.js */
+	transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+/* Glow is opt-in: click the box (breakdown.js) to toggle it on. Off by
+   default so the everyday breakdown doesn't change its look on its own. */
+#BreakTableContainer.breakdownGlowing {
+	border-color: var(--break-sum-accent);
+	box-shadow: 0 0 18px 2px hsl(145 60% 53% / 0.35);
 }
 .BreakRTL {
 	padding: 0.4em 0.8em 0.4em 0.4em !important;
 }
+/* Letters take the current cypher's own colour again (curCiphCol, set
+   inline per cell in breakdown.js) - only the numbers (word sums, the grand
+   total) keep the fixed green accent below. Letter and value cells share
+   the same faint background - table cells sit flush against each other
+   (border-spacing: 0 below), so this reads as one quiet block behind each
+   word rather than two separate rows. */
 .BreakChar {
-	font-size: 115%;
+	font-size: 130%;
 	font-weight: 500;
-	padding-right: 2px;
-	padding-left: 2px;
+	padding: 3px 3px 1px 3px;
+	background: hsl(0 0% 100% / 0.05);
 	font-family: var(--font-family-mono), "Arial", sans-serif;
+}
+.BreakEqualsSign {
+	font-size: 65%;
+	font-weight: 500;
+	color: var(--font-white-3);
 }
 .breakCipher {
 	font-size: 115%;
 	font-weight: 500;
 	display: inline-block;
 }
-.breakSum, .breakSumDark {
-	font-size: 125%;
+.breakSum {
+	font-size: 155%;
 	color: var(--font-white-1);
-	font-weight: 600;
+	font-weight: 700;
 }
+/* the in-box long-phrase total - cypher-coloured inline (breakdown.js), this
+   is just the size/weight and a fallback for when that colour is off */
 .breakSumDark {
+	font-size: 140%;
 	color: var(--font-white-2);
+	font-weight: 700;
 }
 .breakPhrase {
 	font-size: 125%;
@@ -1085,11 +1115,13 @@ body {
 	font-weight: 500;
 	display: inline-block;
 }
+/* cypher-coloured inline via the <font> tag breakdown.js wraps it in - sized
+   to sit inline with the words rather than towering over them */
 .BreakPhraseSum {
-	font-weight: 500;
-	font-size: 175%;
+	font-weight: 700;
+	font-size: 140%;
 	padding-left: 10px;
-	padding-right: 10px;
+	padding-right: 8px;
 }
 .BreakTable, .BreakTableRow {
 	text-align: center;
@@ -1104,21 +1136,22 @@ body {
 .BreakTableRow {
 	padding: 0em 0.75em;
 }
+.BreakWordSum {
+	font-size: 130%;
+	font-weight: 700;
+	color: var(--font-white-1);
+	padding-right: 5px;
+	padding-left: 5px;
+}
 .BreakVal, .BreakValDark {
 	color: var(--focus-outline);
     font-weight: 600;
 	font-size: 74%;
-	padding-right: 3px;
-	padding-left: 3px;
+	padding: 1px 3px 3px 3px;
+	background: hsl(0 0% 100% / 0.05);
 }
 .BreakValDark {
 	color: var(--break-val-accent);
-}
-.BreakWordSum {
-	font-size: 115%;
-	padding-right: 5px;
-	padding-left: 5px;
-	font-weight: 500;
 }
 #ChartTable {
 	border-spacing: 0px;
@@ -1162,17 +1195,6 @@ body {
 	.ChartVal {
 		font-size: 110%;
 	}
-}
-.CipherEnd, .CipherEndRTL {
-	font-size: 90%;
-	padding-top: 2px;
-	padding-bottom: 2px;
-	font-weight: 500;
-	padding-right: 0.5em;
-}
-.CipherEndRTL {
-	padding-right: 0em;
-	padding-left: 0.5em;
 }
 .LetterCounts {
 	color: var(--font-white-2);
@@ -2499,6 +2521,12 @@ body {
 }
 .creditPanel a { color: var(--font-white-1); }
 
+/* Cyphers (Info) - no topic bar or Special Thanks footer eating into the
+   panel's height here, so its body can use nearly all of it. */
+.cyphersInfoBody {
+	max-height: 68vh;
+}
+
 /* the three addresses at the top of the Contact panel - see contactEmailList() */
 .contactEmails {
 	display: flex;
@@ -2715,4 +2743,137 @@ input[type=checkbox] {
 	width: 0px;
 	height: 0px;
 	border: solid 4px var(--checkmark-accent);
+}
+
+/* ===================== Focus mode (screenshot-friendly) =====================
+   #focusModeBtn is a fixed element outside #calcMain (index.html) so it is
+   never wiped by a menu rebuild and stays reachable even once the nav row
+   underneath it is hidden. toggleFocusMode() (calc.js) just flips one class
+   on <body> - nothing here deletes or resets anything, so turning it back
+   off restores the page exactly as it was. */
+.focusModeBtn {
+	position: fixed;
+	top: 0.6em;
+	right: 0.6em;
+	z-index: 600;
+	width: 2.2em;
+	height: 2.2em;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: transparent;
+	border: none;
+	color: var(--font-white-2);
+	cursor: pointer;
+	opacity: 0.55;
+	transition: opacity 0.2s ease, color 0.2s ease;
+	filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6)); /* keeps the glyph readable over light rain/backdrops, background stays transparent */
+}
+.focusModeBtn svg { width: 65%; height: 65%; }
+.focusModeBtn:hover { opacity: 1; }
+body.focusMode .focusModeBtn {
+	opacity: 0.85;
+	color: var(--focus-outline);
+}
+
+/* Mirrors .focusModeBtn on the opposite corner - opens #focusOptionsPanel,
+   which chooses what Focus Mode shows besides the equation. */
+.focusOptionsBtn {
+	position: fixed;
+	top: 0.6em;
+	left: 0.6em;
+	z-index: 600;
+	width: 2.2em;
+	height: 2.2em;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: transparent;
+	border: none;
+	color: var(--font-white-2);
+	cursor: pointer;
+	opacity: 0.55;
+	transition: opacity 0.2s ease, color 0.2s ease;
+	filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+}
+.focusOptionsBtn svg { width: 65%; height: 65%; }
+.focusOptionsBtn:hover { opacity: 1; }
+body.focusMode .focusOptionsBtn { opacity: 0.85; }
+
+.focusOptionsPanel {
+	position: fixed;
+	top: 3em;
+	left: 0.6em;
+	z-index: 601;
+	background: var(--menu-bg-accent2);
+	border: 1px solid var(--border-dark-accent);
+	border-radius: 6px;
+	padding: 0.6em 0.9em;
+	min-width: 165px;
+}
+.focusOptionsTitle {
+	font-size: 85%;
+	font-weight: 600;
+	color: var(--font-white-2);
+	padding-bottom: 0.4em;
+	margin-bottom: 0.3em;
+	border-bottom: 1px solid var(--separator-accent2);
+}
+/* combined with .chkLabel, which sets display/position/padding-left for the
+   custom checkbox - only adding vertical spacing here so that is not undone */
+.focusOptionRow {
+	font-size: 90%;
+	padding-top: 0.25em;
+	padding-bottom: 0.25em;
+}
+
+body.focusMode #calcOptionsPanel,
+body.focusMode #inputArea {
+	display: none !important;
+}
+body.focusMode #calcMain {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+}
+body.focusMode #BreakdownDetails {
+	transform: scale(1.12);
+}
+@media (max-width: 600px) {
+	body.focusMode #BreakdownDetails { transform: scale(1.05); }
+}
+
+/* Focus mode always keeps the equation ("hello = 52 (Ordinal)") - without it
+   there is nothing answering the phrase at all - plus the enabled-cyphers
+   badges and letter/word count are noise next to it, so those stay hidden
+   unconditionally. Everything else (word sums, the letter-by-letter grid,
+   the Cipher Chart, the History Table) is opt-in per #focusOptionsPanel,
+   toggled by the focusHide* classes below (applyFocusModeVisibility() in
+   calc.js) - defaults match what focus mode always showed before that panel
+   existed, so nobody sees a change until they open it. */
+body.focusMode #enabledCiphTable,
+body.focusMode .LetterCounts {
+	display: none !important;
+}
+body.focusMode #BreakTableContainer {
+	border: none;
+	box-shadow: none;
+	background: none;
+	padding: 0;
+	cursor: default;
+}
+body.focusMode.focusHideWordSums #BreakTableContainer .BreakWordSum {
+	display: none !important;
+}
+body.focusMode.focusHideBreakdown #BreakTableContainer .BreakChar,
+body.focusMode.focusHideBreakdown #BreakTableContainer .BreakVal,
+body.focusMode.focusHideBreakdown #BreakTableContainer .BreakValDark,
+body.focusMode.focusHideBreakdown #BreakTableContainer .BreakPhraseSum {
+	display: none !important;
+}
+body.focusMode.focusHideCipherChart #ChartSpotScroll {
+	display: none !important;
+}
+body.focusMode.focusHideHistoryTable #HistoryTableArea {
+	display: none !important;
 }

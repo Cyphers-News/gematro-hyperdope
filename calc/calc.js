@@ -149,7 +149,11 @@ var calcOptionsArr = [ // used to export/import settings
 	'"encDefAlphArr"+" = \x27"+String(encPrevAlphStr).replace(/,/g,"")+"\x27"',
 	'"encDefVowArr"+" = \x27"+String(encPrevVowStr).replace(/,/g,"")+"\x27"',
 	'"encDefExcLetArr"+" = \x27"+String(encPrevExcLetStr).replace(/,/g,"")+"\x27"',
-	"'optImageScale'+' = '+optImageScale"
+	"'optImageScale'+' = '+optImageScale",
+	"'optFocusShowWordSums'+' = '+optFocusShowWordSums",
+	"'optFocusShowBreakdown'+' = '+optFocusShowBreakdown",
+	"'optFocusShowCipherChart'+' = '+optFocusShowCipherChart",
+	"'optFocusShowHistoryTable'+' = '+optFocusShowHistoryTable"
 ]
 
 var runOnceRestoreCalcSet = true
@@ -504,7 +508,7 @@ function createAboutMenu() { // create menu with all cipher catergories
 	// first, rather than making them scroll past credits and repo links.
 	o += '<input class="intBtn" type="button" value="&#9989; Quickstart Guide" onclick="displayQuickstartGuide()">'
 	o += '<div style="margin: 0.5em;"></div>'
-	o += '<input class="intBtn" type="button" value="&#128214; Cyphers (Info)" onclick="displayQuickstartGuide(&quot;ciphersInfo&quot;)">'
+	o += '<input class="intBtn" type="button" value="&#128214; Cyphers (Info)" onclick="displayCyphersInfoPanel()">'
 	o += '<div style="margin: 0.5em;"></div>'
 	// U+1F4AC (speech balloon): a "get in touch" glyph reads better here than
 	// the envelope, which now sits on Cyphers Discord instead
@@ -597,6 +601,71 @@ function gotoDoomcryptSubdecadence() { window.open("https://doomcrypt.github.io/
 
 function gematroSvgLogo() {
 	return '<svg xmlns="http://www.w3.org/2000/svg" width="802.4" height="76.4" viewBox="0 0 2006 191"><defs><style>.cls-1 {fill: #bababa;fill-rule: evenodd;}</style></defs><path id="gematro_svg" data-name="gematroSVG" class="cls-1" d="M192.556,55.8L238,56l0.143-12.972q0-24.223-10.351-33.474T188.592,0.3H50.512q-29.07,0-39.31,9.47T0.961,45.23V145.873q0,26.21,10.24,35.676t39.31,9.47h138.08q29.07,0,39.31-9.47t10.241-35.676V80.026H116.8V113.94h75.757v40.522H47.429V35.32H192.556V55.8Zm332.1,135.218V155.343h-160.1V108.435h91.833V75.621H364.552V34h157.68V0.3H317.644V191.019H524.655Zm104.386,0V62.848l86.328,105.268h9.03L809.625,59.765V191.019h43.164V0.3H815.351L722.417,113.5,629.041,0.3H591.823V191.019h37.218Zm326.153,0,24-41.843H1105.39l24,41.843h52.19L1066.63,0.3h-44.71L908.726,191.019h46.468ZM1041.96,34.88l44.49,79.5H999.018Zm368.44-.44V0.3H1179.6V34.439h92.06v156.58h46.46V34.439h92.28Zm228.7,2.2q4.515,3.525,4.52,11.892V70.556q0,8.372-4.52,11.892t-16.63,3.524H1516.33V33.118h106.14Q1634.59,33.118,1639.1,36.642ZM1516.33,191.019V118.785h43.82l79.94,72.234h66.73l-90.73-72.234h26.2q23.565,0,34.14-8.588T1687,82.228V37.3q0-19.6-10.57-28.3t-34.14-8.7H1470.52V191.019h45.81Zm289.15-155.7H1959.2V154.462H1805.48V35.32Zm-46.47,110.553q0,26.21,10.13,35.676t39.42,9.47h147.55q29.07,0,39.31-9.47t10.24-35.676V45.23q0-25.983-10.02-35.456T1956.11,0.3H1808.56q-29.28,0-39.42,9.47T1759.01,45.23V145.873Z"/></svg>'
+}
+
+// =========================== Focus Mode ============================
+//
+// A lot of shares of this calculator turn out to just be a plain screenshot
+// of the page as it stands, nav row and phrase box included - not the
+// dedicated PNG export. Rather than fighting that, this hides the
+// persistent chrome (the nav row and the phrase box) so that screenshot is
+// already clean by the time someone takes it. Nothing is deleted or reset -
+// #focusModeBtn (index.html) toggles one class on <body>, everything else
+// still exists underneath and reappears exactly as it was.
+function toggleFocusMode() {
+	document.body.classList.toggle("focusMode")
+	var on = document.body.classList.contains("focusMode")
+	applyFocusModeVisibility()
+	var btn = document.getElementById("focusModeBtn")
+	if (btn === null) return
+	btn.title = on ? "Exit focus mode" : "Focus mode: hide the menu and phrase box for a clean screenshot (tap again to restore)"
+	btn.setAttribute("aria-pressed", on ? "true" : "false")
+}
+
+// What optionally appears alongside the equation ("phrase = total (cipher)")
+// in Focus Mode - the equation itself always shows, since without it there
+// is nothing answering the phrase. These are ordinary calcOptionsArr entries
+// (see the array near the top of this file), so they save to localStorage,
+// a synced workspace, and any named preset exactly like every other option -
+// no extra plumbing needed to make them "part of the preset save".
+var optFocusShowWordSums = false
+var optFocusShowBreakdown = false
+var optFocusShowCipherChart = true
+var optFocusShowHistoryTable = false
+
+// Re-applied on every checkbox change, and whenever Focus Mode itself is
+// turned on - the focusHide* classes only do anything combined with
+// body.focusMode (styles.css), so calling this while focus mode is off is
+// harmless and keeps the two from ever getting out of sync.
+function applyFocusModeVisibility() {
+	document.body.classList.toggle("focusHideWordSums", !optFocusShowWordSums)
+	document.body.classList.toggle("focusHideBreakdown", !optFocusShowBreakdown)
+	document.body.classList.toggle("focusHideCipherChart", !optFocusShowCipherChart)
+	document.body.classList.toggle("focusHideHistoryTable", !optFocusShowHistoryTable)
+}
+
+function focusOptionSet(varName, checked) {
+	window[varName] = checked
+	applyFocusModeVisibility()
+}
+
+function focusOptionRow(label, varName, checked) {
+	return '<label class="chkLabel focusOptionRow">'+label+'<input type="checkbox" onchange="focusOptionSet(&quot;'+varName+'&quot;, this.checked)"'+(checked ? ' checked' : '')+'><span class="custChkBox"></span></label>'
+}
+
+function toggleFocusOptionsPanel() {
+	var existing = document.getElementById("focusOptionsPanel")
+	if (existing !== null) { existing.remove(); return }
+
+	var o = '<div id="focusOptionsPanel" class="focusOptionsPanel">'
+	o += '<div class="focusOptionsTitle">Show in Focus Mode</div>'
+	o += focusOptionRow("Word sums", "optFocusShowWordSums", optFocusShowWordSums)
+	o += focusOptionRow("Breakdown chart", "optFocusShowBreakdown", optFocusShowBreakdown)
+	o += focusOptionRow("Cipher chart", "optFocusShowCipherChart", optFocusShowCipherChart)
+	o += focusOptionRow("History table", "optFocusShowHistoryTable", optFocusShowHistoryTable)
+	o += '</div>'
+
+	$(o).appendTo('body')
 }
 
 // ========================= Options Menu ===========================
@@ -1058,7 +1127,7 @@ function createFindMatchesMenu() {
 	if (optShowOnlyMatching) SOMstate = "checked"
 
 	o += '<div class="dropdown">'
-	o += '<button class="dropbtn findMatchesTab" onclick="findMatchesFlash(this);updateHistoryTableAutoHlt()"><span class="labFull">Find Matches</span><span class="labShort">Match</span></button>'
+	o += '<button class="dropbtn findMatchesTab" onclick="findMatchesFlash(this);updateHistoryTableAutoHlt()"><span class="labFull">Matches</span><span class="labShort">Matches</span></button>'
 	o += '<div class="dropdown-content" style="width: 210px; left: -55px;">'
 
 	// no Find Matches button here, the tab itself runs the search
@@ -1100,7 +1169,7 @@ function createBgToggleButton() {
 function createDateCalcMenu() {
 	var o = document.getElementById("calcOptionsPanel").innerHTML
 	o += '<div class="dropdown">'
-	o += '<button class="dropbtn dateCalcTab" onclick="toggleDateCalcMenu()"><span class="labFull">Date Calculator</span><span class="labShort">Date Calc</span></button>'
+	o += '<button class="dropbtn dateCalcTab" onclick="toggleDateCalcMenu()"><span class="labFull">Date Calc</span><span class="labShort">Date Calc</span></button>'
 	o += '</div>'
 	document.getElementById("calcOptionsPanel").innerHTML = o
 }
@@ -1131,7 +1200,7 @@ function createAuthNavArea() {
 function createAstrologyMenu() {
 	var o = document.getElementById("calcOptionsPanel").innerHTML
 	o += '<div class="dropdown">'
-	o += '<button class="dropbtn dateCalcTab" onclick="toggleAstroMenu()"><span class="labFull">Astrology</span><span class="labShort">Astro</span></button>'
+	o += '<button class="dropbtn dateCalcTab" onclick="toggleAstroMenu()"><span class="labFull">Astro</span><span class="labShort">Astro</span></button>'
 	o += '</div>'
 	document.getElementById("calcOptionsPanel").innerHTML = o
 }
