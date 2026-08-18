@@ -1,12 +1,22 @@
 // ================ Code rain (HTML5 canvas) =================
 //
-// Two styles share this canvas:
-//   "new"   - multi-script glyph rain, subtle, colour follows the active cipher
-//   "retro" - the original upstream matrix rain, kept verbatim in behaviour
+// Four styles share this canvas:
+//   "matrix" - the film's white-headed green columns on solid black. The default.
+//   "new"    - multi-script glyph rain, subtle, blends with the page background.
+//              Displayed to the user as "Decode".
+//   "retro"  - the original upstream matrix rain: solid near-black backdrop,
+//              matrix-font glyphs, coderainHue/Sat/Lit for colour.
+//   "ccru"   - dense neon grid, its own committed palette
 // optMatrixCodeRain is the on/off switch (themes still set it); coderainStyle
-// picks which of the two runs. The nav button cycles Off -> On -> Retro.
+// picks which style runs. The nav button cycles Matrix -> Off -> Decode ->
+// Retro -> CCRU -> back to Matrix.
 
-var coderainStyle = "new" // "new" or "retro"
+// "matrix" by default: it is what a fresh visitor and a fresh login now see
+// first. coderainHue/Sat/Lit (calc.js) are shared by every style and by the
+// Color Controls / rain-colour-picker sliders - retro reads them directly, so
+// the slider still controls that style even though it is no longer the one
+// shown on arrival.
+var coderainStyle = "matrix" // "matrix", "new" ("Decode"), "retro" or "ccru"
 
 // ---- glyph pool (new style) -------------------------------------------
 
@@ -215,9 +225,11 @@ function initCodeRain() {
 		w = canvas.width = document.body.offsetWidth
 		h = canvas.height = height_html
 
-		// starts clear: the fade erases alpha, so #canv's CSS background is what
-		// shows through rather than a painted copy of it
-		ctx.clearRect(0, 0, w, h)
+		// starts solid black - matrixRetro() repaints this every frame anyway,
+		// but without it the page's own background shows for the one frame
+		// before the interval below fires
+		ctx.fillStyle = "#000"
+		ctx.fillRect(0, 0, w, h)
 
 		cols = Math.floor(w / 14) + 1 // px
 		ypos = Array(cols).fill(0)
@@ -586,7 +598,19 @@ function matrixRetro() {
 	// Same story as matrixNew(): fading in place leaves a permanent sliver of
 	// colour in every cell a glyph ever touched, so the trail is kept as state
 	// and the canvas is cleared and repainted each frame.
-	ctx.clearRect(0, 0, w, h)
+	//
+	// Repainted with solid black, not cleared to transparent. A transparent
+	// canvas lets #canv's CSS background (the page's blue-grey body colour)
+	// show through everywhere a glyph isn't, which is what actually made this
+	// look washed-out and foggy rather than the dark, high-contrast backdrop
+	// the original had - the original repainted a near-opaque black rectangle
+	// every frame too (a straight "#00000010" wash, left out here because
+	// accumulating a wash like that over hundreds of frames rounds to a fixed
+	// point above zero alpha and bakes in a permanent blocky residue; a solid
+	// fill has none of that and reads the same to the eye). Same technique
+	// matrixFilm() already uses for the same reason.
+	ctx.fillStyle = "#000"
+	ctx.fillRect(0, 0, w, h)
 	ctx.globalCompositeOperation = "source-over"
 
 	ctx.fillStyle = "hsl("+coderainHue+","+(coderainSat*100)+"%,"+(coderainLit*100)+"%)"
@@ -667,6 +691,7 @@ function coderainStateLabel() {
 	if (coderainStyle === "retro") return coderainGlyphIcon + " Retro"
 	if (coderainStyle === "ccru") return coderainGlyphIcon + " CCRU"
 	if (coderainStyle === "matrix") return coderainGlyphIcon + " Matrix"
+	if (coderainStyle === "new") return coderainGlyphIcon + " Decode"
 	return coderainGlyphIcon + " On"
 }
 
@@ -675,7 +700,7 @@ function updateCodeRainToggleBtn() {
 	var btn = document.getElementById("bgToggleBtn")
 	if (btn !== null) {
 		btn.textContent = coderainStateLabel()
-		btn.title = "Background code rain: " + (optMatrixCodeRain ? coderainStyle : "off") + " (click to cycle On, Matrix, CCRU, Retro, Off)"
+		btn.title = "Background code rain: " + (optMatrixCodeRain ? coderainStyle : "off") + " (click to cycle Matrix, Off, Decode, Retro, CCRU)"
 		btn.classList.remove("bgToggleOff", "bgToggleRetro", "bgToggleCCRU", "bgToggleMatrix")
 		if (!optMatrixCodeRain) btn.classList.add("bgToggleOff")
 		else if (coderainStyle === "retro") btn.classList.add("bgToggleRetro")
@@ -794,20 +819,6 @@ function coderainApplyBackdrop() {
 	root.style.setProperty("--rain-backdrop", "hsl(" + coderainHue + " " + sat + "% 11%)")
 }
 
-// Called when a cypher is selected: the rain goes back to following it.
-//
-// Picking a colour by hand turns following off, which is right until the next
-// cypher is chosen - at that point the manual colour is stale and the rain
-// should track the new selection again. Only the standard style is switched
-// back; Retro and CCRU are colour schemes in their own right.
-function coderainFollowSelectedCipher() {
-	if (coderainStyle !== "new") return
-	if (typeof optCoderainFollowCipher !== "undefined" && optCoderainFollowCipher) return // already following
-	coderainSetFollow(true)
-	var fc = document.getElementById("rainFollowChk")
-	if (fc !== null) fc.checked = true
-}
-
 function coderainSetFollow(on) {
 	optCoderainFollowCipher = !!on
 	var chk = document.getElementById("chkbox_CFC")
@@ -878,9 +889,11 @@ function coderainIntensityPanel() {
 	o += '<span class="rainTuneVal" id="rainSpeedVal">'+coderainSpeedMul.toFixed(2)+'x</span></div>'
 
 	// hue slider for a quick sweep, plus a real colour input like the per-cipher
-	// swatches in Color Controls for picking an exact shade
+	// swatches in Color Controls for picking an exact shade. Drives every
+	// style, retro included - coderainHue/Sat/Lit are shared, and retro reads
+	// them directly (see matrixRetro()).
 	o += '<div class="rainTuneRow"><span class="rainTuneLabel">Colour</span>'
-	o += '<input type="range" id="rainHueSlider" class="rainTuneSlider rainHueSlider" min="0" max="359" step="1" value="'+coderainHue+'" oninput="coderainSetHue(this.value)">'
+	o += '<input type="range" id="rainHueSlider" class="rainTuneSlider rainHueSlider" min="0" max="359" step="1" value="'+coderainHue+'" oninput="coderainSetHue(this.value)" title="Pick a rain colour">'
 	o += '<span class="rainTuneVal"><input type="color" id="rainColorPicker" class="rainColorPicker" value="'+hslToHex(coderainHue, coderainSat * 100, 55)+'" title="Pick a rain colour" oninput="coderainSetColorFromPicker(this.value)" onfocus="rainTunePin(true)" onblur="rainTunePin(false)"></span></div>'
 
 	o += '<div class="rainTuneRow rainTuneFoot">'
@@ -892,17 +905,13 @@ function coderainIntensityPanel() {
 	return o
 }
 
-// nav button: On (standard) -> Matrix -> CCRU -> Retro -> Off -> back round
-//
-// Ordered by how far each one is from the calculator's own look, so clicking
-// through walks steadily away from the default rather than jumping about:
-// standard, then the film, then CCRU's green wash, then the original.
+// nav button: Matrix -> Off -> Decode -> Retro -> CCRU -> back round to Matrix
 function toggleCodeRainBtn() {
-	if (!optMatrixCodeRain) { optMatrixCodeRain = true; coderainStyle = "new" }
-	else if (coderainStyle === "new") { coderainStyle = "matrix" }
-	else if (coderainStyle === "matrix") { coderainStyle = "ccru" }
-	else if (coderainStyle === "ccru") { coderainStyle = "retro" }
-	else { optMatrixCodeRain = false; coderainStyle = "new" }
+	if (optMatrixCodeRain && coderainStyle === "matrix") { optMatrixCodeRain = false }
+	else if (!optMatrixCodeRain) { optMatrixCodeRain = true; coderainStyle = "new" }
+	else if (coderainStyle === "new") { coderainStyle = "retro" }
+	else if (coderainStyle === "retro") { coderainStyle = "ccru" }
+	else { coderainStyle = "matrix" }
 	toggleCodeRain()
 }
 

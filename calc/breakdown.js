@@ -20,11 +20,17 @@ function updateWordBreakdown(impName = breakCipher, impBool = false, chartUpd = 
 
 	if (impBool == true) {
 		breakCipher = impName // lock to a specific cipher
-		// Choosing a cypher puts the rain back on that cypher's colour, even if
-		// a colour was picked by hand earlier. Picking a colour is a decision
-		// about right now; picking a cypher is a decision about what you are
-		// looking at, and the rain follows what you are looking at.
-		if (typeof coderainFollowSelectedCipher === "function") coderainFollowSelectedCipher()
+		// Deliberately does not touch the rain colour here any more. This runs
+		// for every automatic re-selection too (e.g. updateTables() falling back
+		// to "the first enabled cipher" after a toggle, or on initial load), not
+		// just a deliberate click - so turning "follow cipher" on from here made
+		// the rain colour drift on its own before the user had picked anything.
+		// Follow-cipher is now only ever turned on from its own checkbox.
+
+		// The Saved tab's live preview reads whichever cipher this just locked
+		// in, so a cipher change made anywhere else keeps that number honest
+		// without needing the Saved tab to be re-opened.
+		if (typeof profilePreviewUpdate === "function") profilePreviewUpdate()
 	}
 		
 	if (!optShowCipherChart) $("#ChartSpot").attr("style", "border: none;"); // reset gradient for cipher chart

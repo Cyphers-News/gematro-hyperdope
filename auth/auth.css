@@ -396,6 +396,28 @@
 }
 .profileSearchInput:focus { border-color: var(--focus-outline); }
 .profileCount { font-size: 80%; color: var(--font-white-4); min-width: 3em; text-align: right; }
+/* Enabled only once the box holds a phrase not already saved verbatim - see
+   profileAddFromSearch() - so it never reads as a second search button. */
+.profileAddBtn { flex: 0 0 auto; white-space: nowrap; }
+/* Live gematria preview under the search/add box - see profilePreviewUpdate().
+   Reserves its line even when empty so the row above it does not jump. */
+.profilePreview {
+	min-height: 1.3em;
+	padding: 0 0.1em 0.6em 0.1em;
+	font-size: 85%;
+	color: var(--font-white-3);
+}
+.profilePreview b { color: var(--font-white-1); }
+/* Collapsed by default - see profileHidePublishedGet(). One line, not a
+   button, so it reads as part of the list rather than another control. */
+.profilePublishedToggle {
+	font-size: 82%;
+	color: var(--font-white-3);
+	cursor: pointer;
+	padding: 0.5em 0.2em;
+	user-select: none;
+}
+.profilePublishedToggle:hover { color: var(--font-white-1); }
 
 .profileList {
 	max-height: 340px;

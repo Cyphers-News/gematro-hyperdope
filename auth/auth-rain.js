@@ -14,14 +14,23 @@ var interfaceHue = 222
 var interfaceSat = 1.0
 var interfaceLit = 1.0
 
-// rain colour, a touch brighter than the calculator's so it reads through the
-// darker auth backdrop
+// rain colour - the exact original retro green (see calc.js), matching the
+// calculator exactly rather than a brighter approximation, so the rain looks
+// the same whether you are signed in or on the way to sign in
 var coderainHue = 148
-var coderainSat = 0.35
-var coderainLit = 0.22
+var coderainSat = 0.2
+var coderainLit = 0.19
 
 var optMatrixCodeRain = true
 var optCoderainFollowCipher = false // no ciphers on this page to follow
+
+// coderainApplyBackdrop() (coderain.js) reads this directly, unguarded by a
+// typeof check like the rest of that file's shared state - referencing it
+// while undefined throws, which toggleCodeRain() below hits immediately on
+// every one of these pages. No colour has been picked here, so false is
+// always correct on load; the localStorage restore above only ever touches
+// style/density/speed, never this.
+var coderainColorPicked = false
 
 // engine state that init-variables.js would normally declare
 var code_rain

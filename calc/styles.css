@@ -1330,6 +1330,72 @@ body {
 	padding: 0em 0.5em 0em 0.5em;
 	font-size: 110%;
 }
+/* Per-row delete x. .histRow carries position:relative so this positions
+   against the whole row (true top-right corner of the entry) even though it
+   lives inside .hP - .hP itself is left position:static on purpose, or the
+   containing block would be just that cell. position:absolute takes it out
+   of flow entirely, so revealing it never moves, resizes or reflows the
+   table - see updateHistoryTable() in calc.js. */
+.histRow { position: relative; }
+/* themed rather than left as the browser default blue ring, but still a
+   real outline - tapping/tabbing to an entry should look focused, not just
+   quietly reveal a × with no other feedback. .hP (per-row) and .histClearTab
+   (the header row's whole-table equivalent, see updateHistoryTable()) are
+   the two tabindex holders this can land on. */
+.hP:focus,
+.histClearTab:focus {
+	outline: 2px solid var(--focus-outline);
+	outline-offset: -2px;
+}
+.histDelX {
+	position: absolute;
+	top: -0.4em;
+	right: -0.4em;
+	z-index: 1;
+	background: var(--menu-bg-accent);
+	border: 1px solid var(--border-dark-accent);
+	border-radius: 50%;
+	color: hsl(5 70% 68%);
+	cursor: pointer;
+	font-size: 85%;
+	line-height: 1;
+	/* the hit area is a generous touch target; the glyph inside it stays small */
+	width: 1.7em;
+	height: 1.7em;
+	opacity: 0;
+	/* auto, not none, even while invisible - hovering this exact spot (the
+	   far right of the row, where it sits) is what reveals it below. A plain
+	   opacity-only hide would leave it unreachable by the mouse until already
+	   visible, which never happens. */
+	pointer-events: auto;
+	transition: opacity 0.12s ease;
+}
+/* Hovering the x's own spot at the far right of the row reveals it - not
+   hovering anywhere in the row, which read as it popping up unpredictably
+   while just mousing over phrase or cypher values. Keyboard focus (Tab, or
+   a tap on a touch device - .hP or .histClearTab has tabindex="0", see
+   updateHistoryTable()) still reveals it too, since there is no separate
+   control for a phone to reach it with any more. Scoped to .histRow, not
+   the specific tabindex holder, so the same rule covers both the per-row x
+   and the header row's whole-table x. */
+.histDelX:hover,
+.histRow:focus-within .histDelX {
+	opacity: 1;
+}
+.histDelX:hover { background-color: hsla(5 60% 45% / 0.3); color: hsl(5 70% 78%); }
+/* armed: the next tap deletes. Same idea and colour as .profileArmed - one
+   more click carries it out, rather than leaning on window.confirm(), which
+   browsers can silently suppress. */
+.histDelX.profileArmed {
+	width: auto;
+	border-radius: 4px;
+	padding: 0.2em 0.5em;
+	background-color: hsl(5 60% 42%);
+	border-color: hsl(5 65% 58%);
+	color: #fff;
+	font-weight: 600;
+	font-size: 78%;
+}
 .mP, .mPQ { /* history table - top left cell */
 	font-weight: 500;
 	font-size: 125%;
@@ -1467,7 +1533,18 @@ body {
 	float: left;
 	width: 70%;
 }
+/* blank gap between the category groups - see createCiphersMenu() in calc.js */
+.ciphCatDivider { height: 0.6em; }
 .ciphDetailCol #menuCiphCatDetailsArea { margin: 0em 0.25em 0em 1.25em; }
+/* per-category lead-in note text, also reused between the pinned-cypher
+   tables further down the same list - see cipherCatSpecial in calc.js */
+.ciphCatNote {
+	font-style: italic;
+	font-size: 85%;
+	color: var(--separator-accent);
+	padding-bottom: 0.5em;
+}
+.ciphCatNote:not(:first-child) { margin-top: 0.5em; }
 .ciphToolRow {
 	clear: both;
 	padding-top: 0.5em;
@@ -2422,6 +2499,28 @@ body {
 }
 .creditPanel a { color: var(--font-white-1); }
 
+/* the three addresses at the top of the Contact panel - see contactEmailList() */
+.contactEmails {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35em;
+	padding: 0.2em 0 1em 0;
+	margin-bottom: 0.8em;
+	border-bottom: 1px solid var(--separator-accent2);
+}
+.contactEmailRow { display: flex; align-items: baseline; gap: 0.6em; font-size: 92%; }
+.contactEmailLabel {
+	flex: 0 0 7em;
+	font-weight: 600;
+	color: var(--font-white-3);
+}
+.contactEmailRow a { color: var(--font-white-1); }
+.contactEmailRow a:hover { text-decoration: underline; }
+@media (max-width: 911px) { /* mobile: label above address rather than a cramped row */
+	.contactEmailRow { flex-direction: column; gap: 0.1em; }
+	.contactEmailLabel { flex-basis: auto; }
+}
+
 .contactField { padding-bottom: 0.8em; }
 .contactLabel {
 	display: block;
@@ -2474,6 +2573,44 @@ body {
 .noScroll {
 	overflow: hidden;
 }
+
+/* Cipher Information & Suggested Bibliography, inside the Ciphers guide topic
+   - see quickGuideTopics in quick-guide.js. Native <details>/<summary>, not a
+   custom widget: no JS needed for the expand/collapse itself, it is keyboard
+   operable for free, and it is the closest thing to an existing "accordion"
+   this guide has to be consistent with. */
+.qgAcc {
+	border: 1px solid var(--border-dark-accent);
+	border-radius: 4px;
+	margin-bottom: 0.6em;
+	padding: 0.3em 0.7em;
+}
+.qgAcc summary {
+	cursor: pointer;
+	font-weight: 600;
+	font-size: 95%;
+	color: var(--font-white-1);
+	padding: 0.3em 0;
+	list-style: revert;
+}
+.qgAcc summary::marker { color: var(--font-white-3); }
+.qgAcc[open] summary { border-bottom: 1px solid var(--separator-accent2); margin-bottom: 0.5em; }
+.qgAccBody { font-size: 92%; padding: 0.2em 0 0.4em 0; }
+.qgAccBody p { margin: 0.3em 0 0.6em 0; }
+.qgAccBody ul { margin: 0.3em 0; padding-left: 1.2em; }
+.qgAccBody li { margin-bottom: 0.7em; }
+.qgAccBody .qgNote { display: block; margin-top: 0.15em; }
+
+/* per-cypher toggle nested inside a category's .qgAcc, in "Cyphers (Info)" -
+   smaller and less boxy than its parent so the category/cypher hierarchy
+   stays readable at a glance. */
+.qgAccNested {
+	border-color: var(--separator-accent2);
+	margin: 0.4em 0;
+	padding: 0.15em 0.6em;
+}
+.qgAccNested summary { font-size: 90%; font-weight: 500; padding: 0.2em 0; }
+.qgAccNested .qgAccBody { font-size: 95%; }
 .qgBold, .qgBold2, .qgBoldCoin {
 	font-size: 100%;
 	font-weight: 500;

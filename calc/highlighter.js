@@ -101,12 +101,13 @@ function removeNotMatchingPhrases() {
 		
 		// mark all phrases to false
 		// search each column for unique
-		// for each unique, if more than 1 match mark phrases as true, if none are found remove cipher
+		// for each unique, mark matching phrases as true, if none are found remove cipher
 		// build new history with phrases marked as true
 		
 		// check each entered value for each cipher column (all phrases)
-		// if number matches in that column twice or more mark XY coordinates for highlighter
-		// if number is found only once ignore it in that column, repeat for all columns
+		// if a phrase's value in that column is one of the searched numbers, mark XY
+		// coordinates for the highlighter - one phrase carrying the value is enough,
+		// it does not need another phrase alongside it with the same value
 		// openHistory table and adjust alpha channel color for each cell based on XY
 		// it will be a 2D array of true/false, true are bright, false are darkened
 		
@@ -136,7 +137,7 @@ function removeNotMatchingPhrases() {
 				
 				var cipher_has_no_matches = true
 				for (n = 0; n < ciph_matches.length; n++) { // for each value in cipher column
-					if (ciph_matches[n][1] > 1) { // if 2 or more matches are available
+					if (ciph_matches[n][1] > 0) { // any occurrence counts - a lone phrase's value is still a valid match
 						for (x = 0; x < sHistory.length; x++) { // for each phrase
 							if (gemForMatching(cipherList[i], sHistory[x]) == ciph_matches[n][0] &&
 							highlt_num.indexOf(gemForMatching(cipherList[i], sHistory[x])) > -1) { // if gematria for phrase matches given number and number is in highlight box
@@ -202,9 +203,11 @@ function removeNotMatchingPhrases() {
 		for (n = 0; n < v_grid_col.length; n++) { // for each column (cipher)
 			for (m = 0; m < v_grid_col[n].length; m++) { // for each value in column (phrase)
 				if (highlt_num.indexOf(v_grid_col[n][m]) > -1) { // if value is in highlight box
-					for (z = m+1; z < v_grid_col[n].length; z++) { // compare vs other values in same column
-						if (v_grid_col[n][m] == v_grid_col[n][z]) { // if value matches another value
-							hltBoolArr[m][n] = true // mark both as values to be highlighted
+					// this phrase's own value is one of the searched numbers - a match on its
+					// own, it does not need another phrase to share it
+					hltBoolArr[m][n] = true
+					for (z = m+1; z < v_grid_col[n].length; z++) { // also mark any other phrase that shares the value
+						if (v_grid_col[n][m] == v_grid_col[n][z]) {
 							hltBoolArr[z][n] = true // [phrase][cipher]
 						}
 					}
@@ -264,10 +267,11 @@ function updateHistoryTableSameCiphMatch() {
 	for (n = 0; n < v_grid_col.length; n++) { // for each column (cipher)
 		for (m = 0; m < v_grid_col[n].length; m++) { // for each value in column (phrase)
 			if (highlt_num.indexOf(v_grid_col[n][m]) > -1) { // if value is in highlight box
-				for (z = m+1; z < v_grid_col[n].length; z++) { // compare vs other values in same column
-					// if value matches another value in the same column and is present in highlight box
-					if (v_grid_col[n][m] == v_grid_col[n][z]) { 
-						hltBoolArr[m][n] = true // mark both as values to be highlighted
+				// this phrase's own value is one of the searched numbers - a match on its
+				// own, it does not need another phrase to share it
+				hltBoolArr[m][n] = true
+				for (z = m+1; z < v_grid_col[n].length; z++) { // also mark any other phrase that shares the value
+					if (v_grid_col[n][m] == v_grid_col[n][z]) {
 						hltBoolArr[z][n] = true // [phrase][cipher]
 					}
 				}
@@ -708,6 +712,12 @@ function getHistDisplayOrder() {
 
 // restore the History Table to the order phrases were entered in
 function clearHistMatchSort() {
+	// Find Matches is the only thing that writes into the Highlight box on its
+	// own (see updateHistoryTableAutoHlt()); Reset Order is its undo, so it
+	// takes those numbers back out too rather than leaving a stale filter
+	// sitting in the box. Only when there is actually a match order to undo -
+	// text typed in by hand, with Find Matches never run, is left alone.
+	if (histDisplayOrder !== null) $("#highlightBox").val("")
 	histDisplayOrder = null
 	if (typeof sHistory !== "undefined" && sHistory.length > 0) updateHistoryTable()
 }

@@ -2,12 +2,29 @@
 <head>
 <title>Calculator</title>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://nominatim.openstreetmap.org https://maps.googleapis.com; form-action 'self'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://nominatim.openstreetmap.org https://maps.googleapis.com https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com; form-action 'self'; base-uri 'none'; object-src 'none'">
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-29C7RM73G7"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-29C7RM73G7');
+</script>
 <meta name="viewport" content="width=520, maximum-scale=1, user-scalable=no">
 <link rel="shortcut icon" type="image/x-icon" href="res/favicon.png">
 
 <!-- Android Web App - Add to Home Screen -->
 <link rel="manifest" href="manifest.json">
+
+<!-- Loaded before the scripts below so the stylesheets start downloading
+     immediately instead of queueing behind four blocking script fetches -
+     the scripts don't touch layout until later, but a <link> after them
+     used to wait its turn anyway. -->
+<link rel="stylesheet" type="text/css" href="calc/styles.css?v=20260809a">
+<link rel="stylesheet" type="text/css" href="auth/auth.css?v=20260809a">
 
 <script src="lib/jquery.min.js?v=20260809a"></script>
 <script src="lib/supabase.min.js?v=20260809a"></script>
@@ -17,9 +34,6 @@
 <script src="calc/calc.js?v=20260809a"></script>
 <script src="calc/init-variables.js?v=20260809a"></script>
 <script src="calc/ciphers.js?v=20260809a"></script>
-
-<link rel="stylesheet" type="text/css" href="calc/styles.css?v=20260809a">
-<link rel="stylesheet" type="text/css" href="auth/auth.css?v=20260809a">
 
 <script>
 window.onpaint = function() {
@@ -147,8 +161,12 @@ $(window).on("load", function(){
 <!-- To change the word matching database reference a different file in the script below or append lines to db.txt -->
 
 <script>
-	var database = loadFile('db.txt');
-	importFileAction(database, true);
+	// async: the calculator (and code rain, and login) is already interactive
+	// by the time this resolves, instead of the whole tab freezing until a
+	// multi-megabyte file finishes downloading. See loadFileAsync().
+	loadFileAsync('db.txt', function (database) {
+		if (database !== null) importFileAction(database, true);
+	});
 </script>
 
 <!-- AUTO LOAD THEME -->

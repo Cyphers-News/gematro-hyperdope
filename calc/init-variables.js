@@ -282,6 +282,21 @@ function loadFile(filePath) {
 	return result;
   }
 
+// Same as loadFile(), but non-blocking. The synchronous XHR above freezes the
+// whole tab - no paint, no input, nothing - for as long as the request takes,
+// which for the multi-megabyte word database is the single biggest hit to
+// perceived load time. This fetches the same way but hands the text to a
+// callback once it arrives instead of stalling the main thread to return it.
+function loadFileAsync(filePath, callback) {
+	fetch(filePath).then(function (res) {
+		return res.ok ? res.text() : null
+	}).then(function (text) {
+		callback(text)
+	}).catch(function () {
+		callback(null)
+	})
+}
+
 $(document).ready(function(){
 
 	$("body").on("click", "#btn-print-cipher-png", function () { // for future elements
