@@ -420,9 +420,16 @@ var ctrlIsPressed = false; // allow Ctrl modifier key
 var shiftIsPressed = false; // allow Shift modifier key
 
 // used inside highlighter.js
-var avail_match = []; // all matches found with auto highligher
+var avail_match = []; // all matches found with auto highligher, flattened across every enabled cipher (Highlight box display only - see avail_match_by_col)
 var avail_match_freq = []; // frequency of matches found with auto highligher
 var freq = []; // frequency of matches found with auto highlighter (combined)
+// Same Cipher Match only: avail_match_by_col[cipher column index] = {value: true, ...}
+// for values that genuinely repeat within that column. avail_match above
+// loses which cipher a match came from once flattened, which let a value
+// with a real match in one cipher "match" an unrelated lone occurrence of
+// the same number in a different cipher - this is what buildHistMatchOrder()
+// and the Same Cipher Match highlighting actually key off instead.
+var avail_match_by_col = [];
 
 var prevPhrID = -1 // index of previously selected phrase in history table
 var prevCiphIndex = -1 // index of previously selected cipher in enabled ciphers table
@@ -506,9 +513,12 @@ $(document).ready(function(){
 		}
 	});
 	
-	// breakdown or cipher table letter/number clicked
-	$("body").on("click", ".ChartVal, .BreakChar, .BreakVal, .BreakValDark, .BreakWordSum", function () {
-		$(this).toggleClass('highlightCipherTable'); 
+	// cipher chart letter/number clicked (the Word Breakdown's own letters,
+	// values and word sums are handled directly by breakdownBoxClick() -
+	// breakdown.js - since #BreakTableContainer has its own onclick that
+	// rebuilds the box, which would otherwise race this delegated handler)
+	$("body").on("click", ".ChartVal", function () {
+		$(this).toggleClass('highlightCipherTable');
 	});
 	// cipher chart letter click (keyboard)
 	$("body").on("click", ".ChartChar", function () { // letters
@@ -561,7 +571,8 @@ $(document).ready(function(){
 			$( "table.HistoryTable td.tC > span:contains('"+val+"')" ).toggleClass('highlightValueBlink'); // add blinking effect
 		}
 	});
-	
+
+
 	// Right click on cipher name in enabled cipher table
 	$("body").on("contextmenu", ".phraseGemCiphName", function (e) { // tC - history table cell
 		var val = $(this).text(); // get cipher name from element

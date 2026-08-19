@@ -356,37 +356,55 @@ function updateHistoryTableAutoHlt() {
 		// console.log("cols_arr:")
 		// console.log(cols_arr)
 		
+		// avail_match_by_col[q] keeps matches scoped to the column they were
+		// actually found in - a value repeating within one cipher's column is
+		// a real same-cipher match, but avail_match below flattens every
+		// column's matches into one list purely so the Highlight box has
+		// something readable to show. Deriving the highlighted cells from
+		// that flattened list (as this used to) let a value with a genuine
+		// match in one cipher "match" an unrelated lone occurrence of the
+		// same number in a completely different cipher - hltBoolArr is built
+		// straight from the per-column data instead, so that cannot happen.
+		avail_match_by_col = []
+		hltBoolArr = [] // [phrase][cipher], reused by updateHistoryTable() below
+		for (x = 0; x < sHistory.length; x++) hltBoolArr.push(new Array(cols_arr.length).fill(false))
+
 		var col_matches = [] // frequency of values within one cipher for all phrases
 		for (q = 0; q < cols_arr.length; q++) { // for each enabled cipher (column), using "i" created some impossible infinte loop bug
 			col_matches = []
 			col_matches = countMatches(cols_arr[q]) // find matches within the same cipher
 			// console.log(col_matches)
-			for (n = 0; n < col_matches.length; n++) { // for each value in match array
-				if (col_matches[n][1] > 1) { // if 2 or more matches are available
-					if (avail_match.indexOf(col_matches[n][0]) == -1) avail_match.push(col_matches[n][0]) // add new value to list of valid matches
+			var colSet = {}
+			for (n = 0; n < col_matches.length; n++) { // for each distinct value in this column
+				if (col_matches[n][0] > 0 && col_matches[n][1] > 1) { // ignore zero, need 2+ occurrences
+					colSet[col_matches[n][0]] = true
+					if (avail_match.indexOf(col_matches[n][0]) == -1) avail_match.push(col_matches[n][0]) // add new value to list of valid matches (Highlight box display)
 				}
+			}
+			avail_match_by_col.push(colSet)
+			for (x = 0; x < cols_arr[q].length; x++) { // mark every phrase sharing a genuine match, in this column only
+				if (colSet[cols_arr[q][x]] === true) hltBoolArr[x][q] = true
 			}
 		}
 		// console.log("avail_match:")
 		// console.log(avail_match)
-		
+
 		avail_match.sort(function(a, b) { // sort ascending order
 			return a - b; //  b - a, for descending sort
 		});
-		if (avail_match[0] == 0) avail_match.splice(0,1) // remove zero
-		
+
 		console.log(JSON.stringify(avail_match).replace(/,/g, " ").slice(1, -1)) // print available matches
 		//console.log(JSON.stringify(freq).replace(/\],\[/g, "\n").slice(2, -2)) // print frequency of available matches
-		
+
 		// paste available values inside Highlight textbox
 		str = JSON.stringify(avail_match).replace(/,/g, " ") // replace comma with space
 		substr = str.substring(1, str.length - 1) // remove brackets
-	    
+
 		document.getElementById("highlightBox").value = substr // populate highlight box
 
 		applyHistMatchOrder() // stack matches at the top, hide phrases with none
-		updateHistoryTableSameCiphMatch() // update table
-		
+		updateHistoryTable(hltBoolArr) // rebuild table with the correctly-scoped matches
+
 		//freq = [] // frequency of matches found with auto highlighter
 		// freq needs different logic for same cipher match
 		return
@@ -532,24 +550,43 @@ function buildHistMatchOrder() {
 	}
 	if (rows[0].length == 0) return null // no enabled ciphers, nothing to weigh
 
-	var matchSet = {} // fast lookup for "is this a matched value"
+	var matchSet = {} // fast lookup for "is this a matched value" - Cross Cipher Match only
 	for (i = 0; i < avail_match.length; i++) matchSet[avail_match[i]] = true
+
+	// Same Cipher Match keys everything by column ("y:value") instead of the
+	// bare value, using avail_match_by_col (updateHistoryTableAutoHlt()) -
+	// matchSet/avail_match are flattened across every enabled cipher, so a
+	// value with a genuine match in one cipher's column would otherwise also
+	// "match" an unrelated lone occurrence of the same number in a different
+	// column. Cross Cipher Match has no such column boundary to respect, so
+	// it keeps using the flat matchSet as before.
+	function matchKey(y, v) {
+		if (optFiltSameCipherMatch) {
+			return (avail_match_by_col[y] && avail_match_by_col[y][v] === true) ? (y + ":" + v) : null
+		}
+		return (matchSet[v] === true) ? v : null
+	}
 
 	// how many phrases carry each matched value (distinct phrases, not cells)
 	var valPhrases = {}
-	var phraseVals = [] // distinct matched values per phrase
+	var phraseVals = [] // distinct matched value keys per phrase
+	var phraseKeyCols = [] // key -> column, per phrase (which cipher produced it)
 	for (i = 0; i < rows.length; i++) {
 		var seen = {}
 		var mine = []
+		var cols = {}
 		for (y = 0; y < rows[i].length; y++) {
 			v = rows[i][y]
-			if (v > 0 && matchSet[v] === true && seen[v] !== true) {
-				seen[v] = true
-				mine.push(v)
-				valPhrases[v] = (valPhrases[v] || 0) + 1
+			var key = (v > 0) ? matchKey(y, v) : null
+			if (key !== null && seen[key] !== true) {
+				seen[key] = true
+				mine.push(key)
+				cols[key] = y
+				valPhrases[key] = (valPhrases[key] || 0) + 1
 			}
 		}
 		phraseVals.push(mine)
+		phraseKeyCols.push(cols)
 	}
 
 	// Which phrases earned a place in the result: a phrase is a match only if it
@@ -571,30 +608,75 @@ function buildHistMatchOrder() {
 
 	if (scored.length == 0) return null
 
-	// Ordered by the first column of the table - the leading enabled cipher -
-	// smallest value first, then alphabetically where that column ties.
-	//
-	// rows[] holds the values in enabled-cipher order, so column 0 is the
-	// leftmost one on screen. Sorting on the number you are actually reading is
-	// the point: grouping by the value a phrase happened to share with the most
-	// others put rows in an order that could not be followed down the column in
-	// front of you, because the number driving it was often in a different one.
-	var leadValue = function (idx) {
-		var v = rows[idx][0]
-		// wheel ciphers substitute symbols and have no value to sort on, so
-		// their rows fall to the end rather than scattering through the middle
-		return (typeof v === "number" && isFinite(v)) ? v : Infinity
+	// Group phrases that actually share a match into clusters, so a pair reads
+	// as a pair instead of landing wherever the leading column's raw value put
+	// them. Union-find over the matched keys: two phrases join the same
+	// cluster the moment they share one.
+	var parent = {}
+	for (i = 0; i < scored.length; i++) parent[scored[i].idx] = scored[i].idx
+	function find(x) { while (parent[x] !== x) x = parent[x] = parent[parent[x]]; return x }
+	function union(a, b) { var ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb }
+
+	var keyPhrases = {}
+	for (i = 0; i < scored.length; i++) {
+		var sIdx = scored[i].idx
+		for (y = 0; y < phraseVals[sIdx].length; y++) {
+			var k = phraseVals[sIdx][y]
+			if (!keyPhrases[k]) keyPhrases[k] = []
+			keyPhrases[k].push(sIdx)
+		}
+	}
+	for (var k in keyPhrases) {
+		var arr = keyPhrases[k]
+		for (i = 1; i < arr.length; i++) union(arr[0], arr[i])
 	}
 
-	scored.sort(function(a, b) {
-		var va = leadValue(a.idx), vb = leadValue(b.idx)
-		if (va !== vb) return va - vb
-		var c = histPhraseCompare(sHistory[a.idx], sHistory[b.idx])
-		return (c !== 0) ? c : a.idx - b.idx // identical text: order entered
+	var clusters = {} // root -> { members: [idx, ...] }
+	for (i = 0; i < scored.length; i++) {
+		var root = find(scored[i].idx)
+		if (!clusters[root]) clusters[root] = { members: [] }
+		clusters[root].members.push(scored[i].idx)
+	}
+
+	// Each cluster is ordered - and clusters against each other - by the
+	// leftmost enabled cipher (chronologically first, reading left to right)
+	// that produced any of the matches holding it together, then by that
+	// column's value.
+	var clusterList = []
+	for (var root in clusters) {
+		var c = clusters[root]
+		var bestCol = Infinity, bestVal = Infinity
+		for (i = 0; i < c.members.length; i++) {
+			var cols = phraseKeyCols[c.members[i]]
+			for (var key in cols) {
+				var col = cols[key]
+				var val = rows[c.members[i]][col]
+				if (col < bestCol || (col === bestCol && val < bestVal)) { bestCol = col; bestVal = val }
+			}
+		}
+		c.primaryCol = bestCol
+		c.primaryVal = bestVal
+		clusterList.push(c)
+	}
+
+	clusterList.sort(function(a, b) {
+		if (a.primaryCol !== b.primaryCol) return a.primaryCol - b.primaryCol
+		return a.primaryVal - b.primaryVal
 	})
 
 	var order = []
-	for (i = 0; i < scored.length; i++) order.push(scored[i].idx)
+	for (i = 0; i < clusterList.length; i++) {
+		var cl = clusterList[i]
+		cl.members.sort(function(a, b) {
+			var va = rows[a][cl.primaryCol], vb = rows[b][cl.primaryCol]
+			va = (typeof va === "number" && isFinite(va)) ? va : Infinity
+			vb = (typeof vb === "number" && isFinite(vb)) ? vb : Infinity
+			if (va !== vb) return va - vb
+			var c2 = histPhraseCompare(sHistory[a], sHistory[b])
+			return (c2 !== 0) ? c2 : a - b // identical text: order entered
+		})
+		for (y = 0; y < cl.members.length; y++) order.push(cl.members[y])
+	}
 
 	// A cipher that contributed no matched value among the surviving phrases is
 	// dead weight in the result: its column is all misses. Work out which of
@@ -609,7 +691,8 @@ function buildHistMatchOrder() {
 		var r = rows[order[i]]
 		for (y = 0; y < r.length; y++) {
 			v = r[y]
-			if (v > 0 && matchSet[v] === true && valPhrases[v] >= 2) ciphKeep[y] = true
+			var key = (v > 0) ? matchKey(y, v) : null
+			if (key !== null && valPhrases[key] >= 2) ciphKeep[y] = true
 		}
 	}
 

@@ -62,12 +62,6 @@
 	--border-dark-accent: hsl(var(--font-hue) calc(100% * var(--font-sat)) calc(23% * var(--font-lit)));
 	--focus-outline: hsl(var(--font-hue) calc(100% * var(--font-sat)) calc(75% * var(--font-lit)));
 	--break-val-accent: hsl(var(--font-hue) calc(100% * var(--font-sat)) calc(41% * var(--font-lit)));
-	/* Word Breakdown's own committed accent for word sums / the grand total -
-	   fixed, not derived from --global-hue/--font-hue, the same way the CCRU
-	   rain has its own committed palette (coderain.js). Letters went back to
-	   the per-cypher colour (curCiphCol in breakdown.js), so only the numbers
-	   keep this fixed look now. */
-	--break-sum-accent: hsl(145 60% 53%);
 }
 
 html, body { /* full <body> height for <!DOCTYPE html> */
@@ -1034,10 +1028,13 @@ body {
 	padding-bottom: 1em;
 	text-align: center;
 }
+/* inline-block, not block, so it can sit right after .BreakTableRowLast on
+   the same line when there's room - only drops to a line of its own when
+   there genuinely isn't, via ordinary inline wrapping. */
 #BreakSumLong {
-	margin: auto;
-	padding: 0.5em 0em;
-	text-align: center;
+	display: inline-block;
+	vertical-align: bottom;
+	padding: 0.5em 0 0.5em 0.6em;
 }
 .SimpleBreakChart {
 	max-width: 800px;
@@ -1050,41 +1047,78 @@ body {
 #BreakTableContainer {
 	position: relative;
 	padding: 0.6em 0.8em;
-	border: 1px solid transparent; /* real colour only while .breakdownGlowing - see below */
+	border: 1px solid transparent; /* visible only in the tinted look, see .breakdownTinted below - kept as a real (transparent) border rather than none so the box doesn't shift size when it toggles */
 	width: -webkit-fit-content;
 	width: -moz-fit-content;
-	cursor: pointer; /* the whole box is the glow toggle - see onclick in breakdown.js */
-	transition: border-color 0.25s ease, box-shadow 0.25s ease;
+	text-align: center; /* centers .BreakSumLong when it wraps onto a line by itself */
+	cursor: pointer; /* the whole box toggles the tinted background - see onclick in breakdown.js */
+	transition: background 0.25s ease, border-color 0.25s ease;
 }
-/* Glow is opt-in: click the box (breakdown.js) to toggle it on. Off by
-   default so the everyday breakdown doesn't change its look on its own. */
-#BreakTableContainer.breakdownGlowing {
-	border-color: var(--break-sum-accent);
-	box-shadow: 0 0 18px 2px hsl(145 60% 53% / 0.35);
+#BreakTableContainer.breakdownTinted {
+	border-color: var(--border-dark-accent); /* same border #ChartSpot (the Cipher Chart) uses */
+}
+/* Whichever row of a long breakdown ends up last (tagged in breakdown.js,
+   a plain string search rather than tracked through the LTR/RTL branches)
+   switches from block to inline-table, so #BreakSumLong immediately after it
+   can share its line when there is room instead of always starting a new
+   one - ordinary inline wrapping drops it to its own line only when it
+   genuinely does not fit. */
+.BreakTableRowLast {
+	display: inline-table;
+	vertical-align: bottom;
 }
 .BreakRTL {
 	padding: 0.4em 0.8em 0.4em 0.4em !important;
 }
-/* Letters take the current cypher's own colour again (curCiphCol, set
-   inline per cell in breakdown.js) - only the numbers (word sums, the grand
-   total) keep the fixed green accent below. Letter and value cells share
-   the same faint background - table cells sit flush against each other
-   (border-spacing: 0 below), so this reads as one quiet block behind each
-   word rather than two separate rows. */
+/* Letters take the current cypher's own colour (curCiphCol, set inline per
+   cell in breakdown.js) in the plainer look. No background of their own by
+   default; the plainer look (box unclicked) brings back a faint shared
+   block behind each letter/value pair instead - table cells sit flush
+   against each other (border-spacing: 0 below), so it reads as one quiet
+   block behind each word rather than two separate rows. */
 .BreakChar {
-	font-size: 130%;
+	font-size: 110%;
 	font-weight: 500;
 	padding: 3px 3px 1px 3px;
-	background: hsl(0 0% 100% / 0.05);
 	font-family: var(--font-family-mono), "Arial", sans-serif;
 }
+#BreakTableContainer:not(.breakdownTinted) .BreakChar,
+#BreakTableContainer:not(.breakdownTinted) .BreakVal,
+#BreakTableContainer:not(.breakdownTinted) .BreakValDark {
+	background: hsl(0 0% 100% / 0.05);
+}
+/* The classic gradient look (.breakdownTinted) keeps cypher-coloured letters
+   on a short phrase (.BreakShort, breakdown.js) - that's the whole point of
+   the tinted look - but a long phrase mostly green turns unreadable, so
+   .BreakLong forces letters white there instead and the word sums carry
+   green in their place. !important overrides the inline cypher colour
+   breakdown.js sets on each letter cell - simpler than threading a second
+   conditional through every render branch that builds one for the same
+   result. The short-phrase total (.BreakPhraseSum) takes the cypher colour
+   inline (breakdown.js); the long-phrase one (.breakSumDark) stays white
+   regardless, since it sits over more green already. */
+#BreakTableContainer.breakdownTinted.BreakLong .BreakChar {
+	color: var(--font-white-1) !important;
+}
+/* word sums run the opposite of whichever colour the letters took, so the two
+   never compete for the same colour: white letters (.BreakLong, above) get
+   cypher-coloured sums (set inline in breakdown.js, wordSumColStyle) : green
+   letters (.BreakShort) get white sums, which is just .BreakWordSum's base
+   colour below with no override needed here. */
+/* the cypher name under the grid - shown only in the classic (.breakdownTinted) look */
+.BreakCipherName {
+	text-align: center;
+	font-size: 100%;
+	font-weight: 600;
+	padding-top: 0.3em;
+}
 .BreakEqualsSign {
-	font-size: 65%;
+	font-size: 60%;
 	font-weight: 500;
 	color: var(--font-white-3);
 }
 .breakCipher {
-	font-size: 115%;
+	font-size: 100%;
 	font-weight: 500;
 	display: inline-block;
 }
@@ -1093,11 +1127,11 @@ body {
 	color: var(--font-white-1);
 	font-weight: 700;
 }
-/* the in-box long-phrase total - cypher-coloured inline (breakdown.js), this
-   is just the size/weight and a fallback for when that colour is off */
+/* the in-box long-phrase total - always white now (not cypher-coloured, see
+   breakdown.js), same as .BreakPhraseSum below */
 .breakSumDark {
-	font-size: 140%;
-	color: var(--font-white-2);
+	font-size: 115%;
+	color: var(--font-white-1);
 	font-weight: 700;
 }
 .breakPhrase {
@@ -1115,13 +1149,22 @@ body {
 	font-weight: 500;
 	display: inline-block;
 }
-/* cypher-coloured inline via the <font> tag breakdown.js wraps it in - sized
-   to sit inline with the words rather than towering over them */
+/* white by default (equation-line context etc); the tinted short-phrase look
+   below overrides this with the cypher colour, set inline in breakdown.js */
 .BreakPhraseSum {
 	font-weight: 700;
-	font-size: 140%;
+	font-size: 115%;
+	color: var(--font-white-1);
 	padding-left: 10px;
 	padding-right: 8px;
+}
+/* the tinted look drops the "=" (breakdown.js) and reads as a standalone
+   result, so it can afford to be a good deal bigger than the letters feeding
+   it - .BreakShort's total takes the cypher colour inline; .BreakLong's
+   (.breakSumDark) stays white regardless, set in the CSS rule above/below. */
+#BreakTableContainer.breakdownTinted .BreakPhraseSum,
+#BreakTableContainer.breakdownTinted .breakSumDark {
+	font-size: 190%;
 }
 .BreakTable, .BreakTableRow {
 	text-align: center;
@@ -1137,7 +1180,7 @@ body {
 	padding: 0em 0.75em;
 }
 .BreakWordSum {
-	font-size: 130%;
+	font-size: 108%;
 	font-weight: 700;
 	color: var(--font-white-1);
 	padding-right: 5px;
@@ -1146,9 +1189,8 @@ body {
 .BreakVal, .BreakValDark {
 	color: var(--focus-outline);
     font-weight: 600;
-	font-size: 74%;
+	font-size: 68%;
 	padding: 1px 3px 3px 3px;
-	background: hsl(0 0% 100% / 0.05);
 }
 .BreakValDark {
 	color: var(--break-val-accent);
@@ -2777,28 +2819,30 @@ body.focusMode .focusModeBtn {
 }
 
 /* Mirrors .focusModeBtn on the opposite corner - opens #focusOptionsPanel,
-   which chooses what Focus Mode shows besides the equation. */
+   which chooses what Focus Mode shows besides the equation. Only makes sense
+   once you are actually in Focus Mode, so unlike .focusModeBtn it stays
+   hidden the rest of the time rather than sitting there always-on. */
 .focusOptionsBtn {
+	display: none;
 	position: fixed;
 	top: 0.6em;
 	left: 0.6em;
 	z-index: 600;
 	width: 2.2em;
 	height: 2.2em;
-	display: flex;
 	align-items: center;
 	justify-content: center;
 	background: transparent;
 	border: none;
 	color: var(--font-white-2);
 	cursor: pointer;
-	opacity: 0.55;
+	opacity: 0.85;
 	transition: opacity 0.2s ease, color 0.2s ease;
 	filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
 }
 .focusOptionsBtn svg { width: 65%; height: 65%; }
 .focusOptionsBtn:hover { opacity: 1; }
-body.focusMode .focusOptionsBtn { opacity: 0.85; }
+body.focusMode .focusOptionsBtn { display: flex; }
 
 .focusOptionsPanel {
 	position: fixed;
@@ -2843,14 +2887,18 @@ body.focusMode #BreakdownDetails {
 	body.focusMode #BreakdownDetails { transform: scale(1.05); }
 }
 
-/* Focus mode always keeps the equation ("hello = 52 (Ordinal)") - without it
-   there is nothing answering the phrase at all - plus the enabled-cyphers
-   badges and letter/word count are noise next to it, so those stay hidden
-   unconditionally. Everything else (word sums, the letter-by-letter grid,
-   the Cipher Chart, the History Table) is opt-in per #focusOptionsPanel,
-   toggled by the focusHide* classes below (applyFocusModeVisibility() in
-   calc.js) - defaults match what focus mode always showed before that panel
-   existed, so nobody sees a change until they open it. */
+/* The enabled-cyphers badges and letter/word count are noise next to the
+   result no matter what else is showing, so those stay hidden
+   unconditionally. Everything else is opt-in per #focusOptionsPanel, toggled
+   by the focusHide* classes below (applyFocusModeVisibility() in calc.js):
+     - "Word sums" is the equation line - "phrase = total (cipher)" - not
+       the in-grid per-word totals (52, 71, 37), which are part of
+       "Breakdown" below along with the letters and grid total.
+     - "Breakdown" is the whole letter-by-letter grid: letters, their
+       values, the per-word totals, and the grid's own total.
+   Defaults match what Focus Mode always showed before this panel existed
+   (word sums shown, breakdown hidden), so nobody sees a change until they
+   open it. */
 body.focusMode #enabledCiphTable,
 body.focusMode .LetterCounts {
 	display: none !important;
@@ -2862,12 +2910,16 @@ body.focusMode #BreakTableContainer {
 	padding: 0;
 	cursor: default;
 }
-body.focusMode.focusHideWordSums #BreakTableContainer .BreakWordSum {
+body.focusMode.focusHideWordSums #SimpleBreak,
+body.focusMode.focusHideWordSums #BreakSumLong,
+body.focusMode.focusHideWordSums .SimpleBreakChart,
+body.focusMode.focusHideWordSums .SimpleBreakChartLong {
 	display: none !important;
 }
 body.focusMode.focusHideBreakdown #BreakTableContainer .BreakChar,
 body.focusMode.focusHideBreakdown #BreakTableContainer .BreakVal,
 body.focusMode.focusHideBreakdown #BreakTableContainer .BreakValDark,
+body.focusMode.focusHideBreakdown #BreakTableContainer .BreakWordSum,
 body.focusMode.focusHideBreakdown #BreakTableContainer .BreakPhraseSum {
 	display: none !important;
 }

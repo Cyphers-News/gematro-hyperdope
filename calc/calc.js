@@ -616,19 +616,29 @@ function toggleFocusMode() {
 	document.body.classList.toggle("focusMode")
 	var on = document.body.classList.contains("focusMode")
 	applyFocusModeVisibility()
+	// #focusOptionsBtn only shows while focus mode is on (styles.css), so its
+	// panel would otherwise be left stranded, open, with no way to close it.
+	if (!on) {
+		var panel = document.getElementById("focusOptionsPanel")
+		if (panel !== null) panel.remove()
+	}
 	var btn = document.getElementById("focusModeBtn")
 	if (btn === null) return
 	btn.title = on ? "Exit focus mode" : "Focus mode: hide the menu and phrase box for a clean screenshot (tap again to restore)"
 	btn.setAttribute("aria-pressed", on ? "true" : "false")
 }
 
-// What optionally appears alongside the equation ("phrase = total (cipher)")
-// in Focus Mode - the equation itself always shows, since without it there
-// is nothing answering the phrase. These are ordinary calcOptionsArr entries
-// (see the array near the top of this file), so they save to localStorage,
-// a synced workspace, and any named preset exactly like every other option -
-// no extra plumbing needed to make them "part of the preset save".
-var optFocusShowWordSums = false
+// What appears in Focus Mode, besides the enabled-cyphers badges and the
+// letter/word count, which are always hidden there. These are ordinary
+// calcOptionsArr entries (see the array near the top of this file), so they
+// save to localStorage, a synced workspace, and any named preset exactly
+// like every other option - no extra plumbing needed to make them "part of
+// the preset save".
+//
+// "Word sums" is the equation line - "phrase = total (cipher)" - not the
+// in-grid per-word totals (52, 71, 37), which live under "Breakdown"
+// instead, along with the letters, their values, and the grid's own total.
+var optFocusShowWordSums = true
 var optFocusShowBreakdown = false
 var optFocusShowCipherChart = true
 var optFocusShowHistoryTable = false
@@ -660,7 +670,7 @@ function toggleFocusOptionsPanel() {
 	var o = '<div id="focusOptionsPanel" class="focusOptionsPanel">'
 	o += '<div class="focusOptionsTitle">Show in Focus Mode</div>'
 	o += focusOptionRow("Word sums", "optFocusShowWordSums", optFocusShowWordSums)
-	o += focusOptionRow("Breakdown chart", "optFocusShowBreakdown", optFocusShowBreakdown)
+	o += focusOptionRow("Breakdown", "optFocusShowBreakdown", optFocusShowBreakdown)
 	o += focusOptionRow("Cipher chart", "optFocusShowCipherChart", optFocusShowCipherChart)
 	o += focusOptionRow("History table", "optFocusShowHistoryTable", optFocusShowHistoryTable)
 	o += '</div>'
