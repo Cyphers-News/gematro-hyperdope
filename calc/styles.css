@@ -1159,12 +1159,20 @@ body {
 	padding-right: 8px;
 }
 /* the tinted look drops the "=" (breakdown.js) and reads as a standalone
-   result, so it can afford to be a good deal bigger than the letters feeding
-   it - .BreakShort's total takes the cypher colour inline; .BreakLong's
-   (.breakSumDark) stays white regardless, set in the CSS rule above/below. */
-#BreakTableContainer.breakdownTinted .BreakPhraseSum,
+   result, so a short phrase's total (one row, nothing else competing for
+   attention) can afford to be bigger than the letters feeding it - lighter
+   than default bold, or it reads as too heavy at this size. Takes the cypher
+   colour inline (breakdown.js). */
+#BreakTableContainer.breakdownTinted .BreakPhraseSum {
+	font-size: 150%;
+	font-weight: 600;
+}
+/* a long phrase's total sits paired with the cypher name at the bottom of the
+   box (breakdown.js), so it stays close to that name's scale rather than
+   towering over it - stays white regardless of cypher colour, unlike the
+   short-phrase total above. */
 #BreakTableContainer.breakdownTinted .breakSumDark {
-	font-size: 190%;
+	font-size: 130%;
 }
 .BreakTable, .BreakTableRow {
 	text-align: center;

@@ -277,10 +277,10 @@ function updateWordBreakdown(impName = breakCipher, impBool = false, chartUpd = 
 				var lastRowMark = 'class="BreakTableRow"'
 				var lastRowAt = o.lastIndexOf(lastRowMark)
 				if (lastRowAt !== -1) o = o.slice(0, lastRowAt) + 'class="BreakTableRow BreakTableRowLast"' + o.slice(lastRowAt + lastRowMark.length)
-				// the cypher name always sits on its own line at the bottom of the
-				// box (cipherNameFooter, same as the short-phrase path below) rather
-				// than inline next to the total, regardless of how long the phrase is
-				o += '<div id="BreakSumLong">' + eqSign + '<span class="breakSumDark">' + curCipher.sumArr.reduce(getSum) + '</span></div>' + cipherNameFooter + '</div>'
+				// total and cypher name stay paired on the same line at the bottom of
+				// the box - sharing the last row's line when there's room, dropping to
+				// a line of their own together when there isn't (never separately)
+				o += '<div id="BreakSumLong">' + eqSign + '<span class="breakSumDark">' + curCipher.sumArr.reduce(getSum) + '</span>' + (breakdownTintOn ? ' <span class="breakCipher" style="'+curCiphCol+'">' + curCipher.cipherName + gemCalcModeLabel(curCipher) + '</span>' : '') + '</div></div>'
 			} else {
 				o += '<div style="padding: 0.5em"></div>'
 			}
