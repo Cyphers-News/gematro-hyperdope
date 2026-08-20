@@ -197,7 +197,8 @@ var FRIENDS_BADGE_POLL_MS = 20000
 function friendsBadgePollTick() {
 	Promise.all([
 		friendsBadgeCounts(true),
-		(typeof chatUnreadCached === "function") ? chatUnreadCached(true) : Promise.resolve(0)
+		(typeof chatUnreadCached === "function") ? chatUnreadCached(true) : Promise.resolve(0),
+		(typeof phraseNotifCountCached === "function") ? phraseNotifCountCached(true) : Promise.resolve(0)
 	]).then(function () {
 		if (typeof friendsRefreshBadge === "function") friendsRefreshBadge()
 	})

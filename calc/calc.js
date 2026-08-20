@@ -509,10 +509,15 @@ function createAboutMenu() { // create menu with all cipher catergories
 	o += '<div style="margin: 0.5em;"></div>'
 	o += '<input class="intBtn" type="button" value="&#128214; Cyphers (Info)" onclick="displayCyphersInfoPanel()">'
 	o += '<div style="margin: 0.5em;"></div>'
+	// Sits right under Cyphers (Info) rather than in Account - a menu anyone
+	// can find, member or not, instead of buried a login and a tab away.
+	o += '<input class="intBtn" type="button" value="&#127891; Guided Tour" onclick="tourRestart()">'
+	o += '<div style="margin: 0.5em;"></div>'
 	// U+1F4AC (speech balloon): a "get in touch" glyph reads better here than
 	// the envelope, which now sits on Cyphers Discord instead
 	o += '<input class="intBtn" type="button" value="&#128172; Contact Us" onclick="displayContactPanel()">'
-	o += '<div style="margin: 0.5em;"></div>'
+
+	o += '<div class="aboutGroupLabel">Check out co-founder sites here:</div>'
 	o += '<input class="intBtn" type="button" value="&#128218; Gematria Research" onclick="gotoAlektryonBlog()">'
 	o += '<div style="margin: 0.5em;"></div>'
 	o += '<input class="intBtn" type="button" value="&#128154; Ciphers News" onclick="gotoCiphersNews()">'
@@ -639,10 +644,10 @@ function toggleFocusMode() {
 // "Word sums" is the equation line - "phrase = total (cipher)" - not the
 // in-grid per-word totals (52, 71, 37), which live under "Breakdown"
 // instead, along with the letters, their values, and the grid's own total.
-var optFocusShowWordSums = true
+var optFocusShowWordSums = false
 var optFocusShowBreakdown = false
 var optFocusShowCipherChart = true
-var optFocusShowHistoryTable = false
+var optFocusShowHistoryTable = true
 
 // Re-applied on every checkbox change, and whenever Focus Mode itself is
 // turned on - the focusHide* classes only do anything combined with

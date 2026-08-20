@@ -542,9 +542,10 @@ function adminRenderPhraseQueue(host) {
 		;[
 			["recent",    "Most recent interaction"],
 			["total",     "Total reactions"],
-			["evergreen", "Most 💚 evergreen"],
-			["trending",  "Most 🔥 trending"],
-			["funny",     "Most 😂 funny"]
+			["evergreen", "Most 💚 loved"],
+			["trending",  "Most 🔥 trending news"],
+			["funny",     "Most 😂 funny"],
+			["ccru",      "Most 📖 CCRU"]
 		].forEach(function (p) {
 			o += '<button class="adminChip' + (adminPhraseSort === p[0] ? ' adminChipOn' : '') +
 				'" onclick="adminSetPhraseSort(&quot;' + p[0] + '&quot;)">' + p[1] + '</button>'
@@ -561,7 +562,7 @@ function adminRenderPhraseQueue(host) {
 		if (!rows.length) { adminWrite(host, o + '<div class="adminNote">Nothing here.</div>', tok); return }
 
 		o += '<table class="adminTable"><thead><tr>'
-		o += '<th>Phrase</th><th>By</th><th title="Evergreen / Trending / Funny / combined">💚 🔥 😂 Σ</th>'
+		o += '<th>Phrase</th><th>By</th><th title="Loved / Trending News / Funny / CCRU / combined">💚 🔥 😂 📖 Σ</th>'
 		o += '<th>First / last reaction</th>'
 		o += '<th>Suggested / final text</th><th>Status</th><th></th>'
 		o += '</tr></thead><tbody>'
@@ -575,12 +576,12 @@ function adminPhraseRow(r) {
 	var fieldId = "adminPhraseText-" + r.id
 	var suggestion = r.final_text || adminSuggestCapitalization(r.phrase)
 	var o = '<tr>'
-	o += '<td>' + adminEsc(r.phrase)
+	o += '<td class="adminPhraseCell">' + adminEsc(r.phrase)
 	if (r.cipher) o += '<div class="adminDim">' + adminEsc(r.cipher) + (r.value !== null ? ' = ' + r.value : '') + '</div>'
 	o += '</td>'
 	o += '<td class="adminDim">' + adminEsc(r.contributor_name) + '</td>'
-	o += '<td class="adminDim" title="Evergreen ' + (r.heart_count || 0) + ' &middot; Trending ' + (r.like_count || 0) + ' &middot; Funny ' + (r.laugh_count || 0) + '">'
-	o += (r.heart_count || 0) + ' 💚&nbsp; ' + (r.like_count || 0) + ' 🔥&nbsp; ' + (r.laugh_count || 0) + ' 😂&nbsp; &middot; Σ ' + (r.total_count || 0)
+	o += '<td class="adminDim" title="Loved ' + (r.heart_count || 0) + ' &middot; Trending News ' + (r.like_count || 0) + ' &middot; Funny ' + (r.laugh_count || 0) + ' &middot; CCRU ' + (r.ccru_count || 0) + '">'
+	o += (r.heart_count || 0) + ' 💚&nbsp; ' + (r.like_count || 0) + ' 🔥&nbsp; ' + (r.laugh_count || 0) + ' 😂&nbsp; ' + (r.ccru_count || 0) + ' 📖&nbsp; &middot; Σ ' + (r.total_count || 0)
 	o += '</td>'
 	o += '<td class="adminDim">' + adminWhen(r.first_reaction_at) + ' &middot; ' + adminWhen(r.last_reaction_at) + '</td>'
 	o += '<td><input type="text" class="adminSearch" id="' + fieldId + '" value="' + adminEsc(suggestion) + '"' +

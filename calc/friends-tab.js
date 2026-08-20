@@ -12,7 +12,7 @@
 // offer a button that then fails, which is the right way round: the failure is
 // a message, not a wrong friendship.
 
-var friendsSection = "chats"     // chats | discover | friends | profile
+var friendsSection = "chats"     // chats | forum | discover | friends | news | profile
 var friendsSort = "recent"
 var friendsDiscoverKind = "popular"
 var friendsSearchTerm = ""
@@ -33,7 +33,7 @@ function renderProfileFriends() {
 
 	// the unread count is fetched with the others rather than read from cache:
 	// a badge that is only right on a second visit is worse than none
-	Promise.all([friendsBadgeCounts(true), chatUnreadCached(true)]).then(function (both) {
+	Promise.all([friendsBadgeCounts(true), chatUnreadCached(true), phraseNotifCountCached(true)]).then(function (both) {
 		var counts = both[0]
 		var o = ''
 		var news = frNewsCounts(counts)
@@ -47,8 +47,10 @@ function renderProfileFriends() {
 
 		o += '<div class="frTabs">'
 		o += frSectionBtn("chats",    "&#128172;", "Chats",    news.chats)
+		o += frSectionBtn("forum",    "&#127760;", "Forum",    0)
 		o += frSectionBtn("discover", "&#128269;", "Discover", 0)
 		o += frSectionBtn("friends",  "&#128101;", "Friends",  news.friends + news.requests)
+		o += frSectionBtn("news",     "&#128240;", "News",     news.phrases)
 		o += frSectionBtn("profile",  "&#128274;", "Profile",  0)
 		o += '</div>'
 		o += '<div id="frBody"></div>'
@@ -56,7 +58,9 @@ function renderProfileFriends() {
 		friendsRefreshBadge()
 
 		if (friendsSection === "chats") frRenderChats(tok)
+		else if (friendsSection === "forum") frRenderForum(tok)
 		else if (friendsSection === "discover") frRenderDiscover(tok)
+		else if (friendsSection === "news") frRenderNews(tok)
 		else if (friendsSection === "profile") renderProfileProfileTab()
 		else frRenderFriends(tok)
 	}).catch(function (err) { profileBody(profileErr(err), tok) })
@@ -73,7 +77,7 @@ function frSectionBtn(id, icon, label, badge, pip) {
 	// message" is a different feeling from "somebody wants something from
 	// you" (Friends/Requests), and reads better in the app's own green.
 	var chatGlow = (id === "chats" && badge > 0) ? " frTabChatGlow" : ""
-	var o = '<button class="intBtn3 frTab' + on + chatGlow + '" onclick="frSetSection(&quot;' + id + '&quot;)" title="' + label + '">'
+	var o = '<button class="intBtn3 frTab' + on + chatGlow + '" id="frTab-' + id + '" onclick="frSetSection(&quot;' + id + '&quot;)" title="' + label + '">'
 	o += '<span class="frTabIcon">' + icon + '</span>'
 	o += '<span class="frTabLab">' + label + '</span>'
 	if (badge > 0) o += '<span class="frBadge' + (id === "chats" ? " frBadgeChat" : "") + '">' + (badge > 99 ? "99+" : badge) + '</span>'
@@ -91,20 +95,24 @@ function frNewsCounts(counts) {
 	return {
 		friends: Math.max(0, counts.friends - friendsSeenGet("friends")),
 		requests: counts.incoming,   // a pending request stays news until answered
-		chats: chatUnreadCache.n     // unread is "not seen" by definition
+		chats: chatUnreadCache.n,    // unread is "not seen" by definition
+		phrases: (typeof phraseNotifCache !== "undefined" ? phraseNotifCache.n : 0)
 	}
 }
 
 function frNewsTotal(counts) {
 	var n = frNewsCounts(counts)
-	return n.friends + n.requests + n.chats
+	return n.friends + n.requests + n.chats + n.phrases
 }
 
 function frSetSection(id) {
 	friendsSection = id
 	friendsViewing = null
 	chatOpenWith = null
+	forumOpenTopic = null
+	forumComposingTopic = false
 	if (typeof frStopChatPoll === "function") frStopChatPoll()
+	if (typeof forumStopPoll === "function") forumStopPoll()
 	renderProfileFriends()
 }
 
@@ -343,11 +351,80 @@ function frRenderFriends(tok) {
 	}).catch(function (err) { frBody(profileErr(err), tok) })
 }
 
+// ---- news ---------------------------------------------------------------
+//
+// "Something happened to a phrase you published" - someone reacted to it, or
+// an admin added it to the database. One list, newest-unseen-first
+// (phrase_notifications_list already orders unread before read), same row
+// for either kind (frNotifRowHtml/frNotifText).
+
+function frRenderNews(tok) {
+	frBody('<div class="profileLoading">Loading…</div>', tok)
+	phraseNotificationsList(50).then(function (notifs) {
+		var o = ''
+		if (!notifs.length) {
+			o += '<div class="profileNote">Nothing yet. This fills in when someone reacts to a phrase you published, or an admin adds one of yours to the database.</div>'
+			frBody(o, tok); return
+		}
+		var unread = notifs.filter(function (n) { return !n.read }).length
+		if (unread) o += '<div class="frNewsBar"><button class="profileMiniBtn" onclick="frMarkAllNewsRead()">Mark all ' + unread + ' read</button></div>'
+		o += '<div class="profileList">'
+		notifs.forEach(function (n) { o += frNotifRowHtml(n) })
+		o += '</div>'
+		frBody(o, tok)
+	}).catch(function (err) { frBody(profileErr(err), tok) })
+}
+
+function frMarkAllNewsRead() {
+	phraseNotifMarkAllRead().then(function () {
+		phraseNotifInvalidate()
+		if (typeof friendsRefreshBadge === "function") friendsRefreshBadge()
+		frRenderNews(profileRenderSeq)
+	}).catch(function (err) { displayCalcNotification(err.message || "Could not mark as read", 2400) })
+}
+
 function frSortOpt(id, label) {
 	return '<option value="' + id + '"' + (friendsSort === id ? ' selected' : '') + '>' + label + '</option>'
 }
 
 function frSetSort(s) { friendsSort = s; frRenderFriends(profileRenderSeq) }
+
+// "Someone reacted to a phrase you published" - one row per notification.
+// heart reads as "loved", the other three as "marked ... as LABEL", matching
+// the wording the feature was specified with.
+function frNotifText(n) {
+	var phrase = '&ldquo;' + authEsc(n.phrase) + '&rdquo;'
+	// Not a reaction at all - an admin decided the phrase belongs in the
+	// database. Reuses the same notification row/table as reactions
+	// (20260820050000_new_feed_and_approvals.sql) since it is the same
+	// thing to a member either way: something happened to a phrase you
+	// published, and you have not seen it yet.
+	if (n.reaction === "approved") return 'Your phrase ' + phrase + ' was added to the database! &#127881;'
+	var k = REACTION_KINDS[n.reaction]
+	var who = '<b>@' + authEsc(n.actor_name) + '</b>'
+	if (n.reaction === "heart") return who + ' loved your phrase ' + phrase + ' ' + k.icon
+	return who + ' marked your phrase ' + phrase + ' as ' + k.label + ' ' + k.icon
+}
+
+function frNotifRowHtml(n) {
+	var o = '<div class="profileRow frRow frRowClick' + (n.read ? '' : ' frThreadUnread') + '" onclick="frOpenNotif(&quot;' + n.id + '&quot;,&quot;' + authEsc(n.phrase).replace(/"/g, '&quot;') + '&quot;,&quot;' + authEsc(n.cipher || "").replace(/"/g, '&quot;') + '&quot;)">'
+	o += '<span class="frNotifText">' + frNotifText(n) + '</span>'
+	o += '<span class="profileWhen">' + frWhen(n.created_at) + '</span>'
+	o += '</div>'
+	return o
+}
+
+// Marks it read (server first, so a slow connection cannot leave it looking
+// read locally while still unread for the next visit) and opens the phrase
+// the same way every other phrase click in this feature does - into the
+// calculator, cipher enabled if it published with one.
+function frOpenNotif(id, phrase, cipher) {
+	phraseNotifMarkRead(id).then(function () {
+		phraseNotifInvalidate()
+		if (typeof friendsRefreshBadge === "function") friendsRefreshBadge()
+	}).catch(function () {})
+	profileUsePhrase(phrase, true, cipher)
+}
 
 // ---- discover ---------------------------------------------------------
 //

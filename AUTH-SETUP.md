@@ -603,3 +603,193 @@ queue's new sort chips show the same "needs its database migration" /
 feature in this app shows — nothing crashes, and the Leaderboard tab,
 Dashboard, Reports, Users and Audit log sections of the admin panel are
 unaffected either way.
+
+## CCRU reaction and phrase-reaction notifications
+
+`supabase/migrations/20260820040000_ccru_and_notifications.sql` — run after
+`20260820030000_reaction_leaders_redesign.sql`. Does not edit that file or
+any earlier one; every statement is additive or widens an existing
+constraint. Safe to re-run.
+
+Two real behaviour changes:
+
+1. **A fourth reaction, CCRU** (`ccru` in the database, 📖 in the UI) —
+   added to `phrase_reactions`' check constraint alongside the existing
+   heart/like/laugh.
+2. **Reactions are no longer mutually exclusive.** A member can now hold
+   Loved *and* CCRU (or any combination) on the same phrase at once, where
+   before picking a second reaction silently replaced the first. This
+   required widening `phrase_reactions`' unique key from
+   `(submission_id, user_id)` to `(submission_id, user_id, reaction)` — every
+   row that exists today already satisfies the wider constraint, so no
+   existing data is touched.
+
+### What it adds
+
+- **`phrase_reaction_notifications`** — new table. One row per (recipient,
+  actor, phrase, reaction), written only by a trigger on `phrase_reactions`
+  (`phrase_reactions_notify()`) that fires after a new reaction and skips
+  self-reactions. Toggling a reaction *off* never inserts anything — the
+  trigger is `AFTER INSERT` only. Reacting again with the same type after
+  removing it updates the same row back to unread rather than creating a
+  second one (`ON CONFLICT ... DO UPDATE`). RLS: a member can only read or
+  update (the `read` column only) their own notifications.
+- **`phrase_notif_unread_count()`, `phrase_notifications_list(lim)`,
+  `phrase_notif_mark_read(id)`, `phrase_notif_mark_all_read()`** — the read
+  side. The client's Social badge total (`frNewsTotal`, `calc/friends-tab.js`)
+  now includes this count alongside friend requests and unread chats, same
+  green indicator, no double-counting.
+- **`phrase_reaction_counts`, `admin_phrase_queue`, `trending_phrases`** —
+  all extended with a `ccru_count` column, and `phrase_reaction_counts`
+  replaces its old single `my_reaction` text with four independent booleans
+  (`heart_mine`/`like_mine`/`laugh_mine`/`ccru_mine`), matching reactions no
+  longer being mutually exclusive. All three dropped and recreated (return
+  shape changes). `phrases_by_reaction` (20260820030000) needed no change —
+  it already took `reaction_type` as a plain parameter, so `'ccru'` works
+  against it unchanged.
+- Same `PUBLIC`-execute-revoke hardening as `20260820020000`, scoped to the
+  functions this migration touches.
+
+### Client changes that go with it
+
+`phraseReact`/`phraseUnreact` (`auth/profile-features.js`) now upsert/delete
+on the three-part key and take a reaction type on unreact too (previously a
+phrase could only ever have one reaction removed, since there was only ever
+one to have). Every reaction button (`calc/profile-tab.js`) toggles
+independently. `auth/admin-ui.js`'s phrase queue table and sort chips gained
+a CCRU column/option. The reaction itself is still labelled "Trending News"
+(chip tooltips, filters, notifications); only the Leaders tab name reverted
+to plain "Trending" - see the next migration.
+
+Until this migration runs: reacting with CCRU, holding a second reaction on
+top of an existing one, and the phrase-reaction notifications fail
+gracefully (the existing reaction still works normally; notifications just
+do not appear). Nothing crashes either way.
+
+## Leaders' New tab, and "your phrase was added" notifications
+
+`supabase/migrations/20260820050000_new_feed_and_approvals.sql` — run after
+`20260820040000_ccru_and_notifications.sql`. Does not edit that file or any
+earlier one. Safe to re-run.
+
+### What it adds
+
+- **`newest_phrases(lim)`** — new. Backs Leaders' new 🆕 New tab, positioned
+  before Trending: every submission across every contributor, newest first,
+  no reaction required (unlike the other four tabs). The point is seeing
+  what just landed and reacting to it.
+- **`phrases_by_reaction`, extended** — the Leaders ranking-mode control
+  went from a two-state Recent/All-Time toggle to four chips (Recent, A–Z,
+  Low to High, and the tab's own top-of-all-time label), so the function
+  gained `az` (alphabetical) and `value` (cypher value, low to high)
+  ordering alongside its existing `recent`/`top`. Dropped and recreated.
+- **"Your phrase was added to the database" notifications** — reuses
+  `phrase_reaction_notifications` (20260820040000) rather than a parallel
+  table: `'approved'` widens that table's reaction check constraint as a
+  fifth value, not a real reaction, just a second kind of "something
+  happened to your phrase" event the same recipient/actor/read/created_at
+  shape already models correctly. `admin_phrase_decide()` inserts one (skip
+  if the admin approved their own phrase) the moment a queue entry is marked
+  approved. Everything that already reads notifications
+  (`phrase_notifications_list`, the unread count, mark-read) picks these up
+  with no changes of its own.
+
+### Client changes that go with it
+
+The old collapsible "🔔 Reactions" strip inside Social → Friends is gone,
+replaced by its own top-level section - Social now reads Chats / Discover /
+Friends / **News** / Profile, and News shows both reaction and
+"added to the database" notifications in one list (`frRenderNews`,
+`calc/friends-tab.js`). The News section's own badge shows just phrase
+notifications; the Friends badge is back to friend requests/activity only;
+the total on the Social tab and the username dot is still the sum of
+everything, unchanged.
+
+Until this migration runs: New shows the standard "needs its database
+migration" message: A-Z/Low-to-High ordering on the other four tabs falls
+back to whatever the old recent/top logic already did; no "added to the
+database" notification fires (approving a phrase from the queue still works
+exactly as before). Nothing crashes either way.
+
+## Forum
+
+`supabase/migrations/20260820060000_forum.sql` — no dependency on any of the
+migrations above; standalone. Safe to re-run.
+
+A topic-based public board, distinct from chat (private, friends-only) and
+from `public.posts`/`post_likes` (the old single-stream feed dropped in
+`20260808000000_remove_feed.sql`) - a member opens a topic, anyone signed in
+can read and reply inside it. Writes go through `forum_topic_create()` and
+`forum_post()` only - same shape as `chat_send_core()`: clean the text,
+rate-limit, catch an immediate repeat, run it past the existing `mod_check`,
+log and refuse if it fails. No table grant lets a client insert directly,
+same reasoning as chat and reports.
+
+### What it creates
+
+- **`public.forum_topics`**, **`public.forum_messages`** — RLS: `select` to
+  every authenticated member on both, no insert/update/delete grant on
+  either (writes are function-only, see above).
+- **`forum_topic_create(title, description)`**, **`forum_post(topic_id,
+  body)`** — the write path.
+- **`forum_topics_list(lim)`**, **`forum_messages_list(topic_id, lim)`** —
+  the read path.
+
+### Client changes that go with it
+
+New files: `auth/forum.js` (RPC wrappers), `calc/forum-tab.js` (topic list +
+thread view, modelled on `frRenderChatWindow`). Social gains a **Forum**
+section between Chats and Discover. Nothing existing was touched to add
+this - it is entirely new surface area.
+
+Until this migration runs: Forum shows "The forum is not set up on this
+database yet." Nothing crashes either way.
+
+## Member tour
+
+`supabase/migrations/20260820070000_member_tour.sql` — no dependency on any
+of the migrations above; standalone. Safe to re-run.
+
+A one-time guided walkthrough shown after someone becomes a member: a
+welcome prompt offers Start tour / Maybe later, then three short mini-tours
+(Calculator basics, Your member area, Social and privacy) can be run in any
+order from a picker, each stepping through a few real buttons with a green
+spotlight ring and a tooltip (Next/Back/Skip/Exit on every step). This is
+separate from `auth/onboarding.js`'s first-run setup wizard (name/friend
+policy/visibility), which is unchanged.
+
+### What it creates
+
+- **`public.member_tour_progress`** — one row per member: `tour_version`,
+  `prompted` (has the welcome prompt been shown), `sections_done` (which
+  mini-tours are complete). Pure personal data with no moderation or
+  cross-member visibility, so it follows the presets/history_entries pattern
+  rather than the function-only-write pattern above: self-row RLS
+  (`select`/`insert`/`update` own row only, no delete - a reset overwrites
+  the row instead of removing it) with a direct table grant, no RPC layer.
+
+### Client changes that go with it
+
+New files: `auth/tour-sync.js` (reads/writes `member_tour_progress` via
+read-modify-write upserts), `calc/tour.js` (the tour engine: welcome prompt,
+section picker, step runner, spotlight/tooltip rendering). `TOUR_VERSION` in
+`calc/tour.js` gates re-prompting - bump it if the tour's steps are
+rewritten badly enough that returning members should be offered it again;
+existing progress for the old version is not cleared, just no longer
+treated as "seen."
+
+**Guided Tour** lives in the About menu, right under Cyphers (Info) -
+`tourRestart()`, wired up in `createAboutMenu()` (`calc/calc.js`). It opens
+the same three-section picker regardless of sign-in state or prior
+completion; the member/social sections' steps quietly skip past anything
+that needs a signed-in member if nobody is signed in, rather than blocking
+the whole tour. The About menu also gained a "Check out co-founder sites
+here:" group label ahead of the existing Gematria Research / Ciphers News
+buttons, matching the "Github Repos:" and "Find us on social media:" labels
+already there.
+
+Until this migration runs: the welcome prompt and picker still work, but
+progress cannot be saved - `tourProgressGet()`/`tourProgressSave()` catch
+the failure and fall back to in-memory defaults, so the welcome prompt
+would reappear every page load instead of staying dismissed. Nothing
+crashes either way.

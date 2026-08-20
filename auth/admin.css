@@ -156,6 +156,17 @@
 .adminTable tbody tr:hover { background-color: var(--btn-hover-accent); }
 .adminTable tr.adminRowFlagged { background-color: hsla(5 60% 40% / 0.12); }
 .adminClip { max-width: 22em; overflow: hidden; text-overflow: ellipsis; }
+/* the phrase queue's own phrase column - the table around it is nowrap so a
+   wide row scrolls rather than crushing every column, but a long phrase is
+   the one thing an admin actually has to read in full to approve it, so it
+   wraps onto its own lines and caps its width instead of pushing the whole
+   table sideways for every row underneath it too */
+.adminPhraseCell {
+	white-space: normal;
+	word-break: break-word;
+	max-width: 280px;
+	min-width: 200px;
+}
 .adminActions { display: flex; gap: 0.25em; flex-wrap: wrap; }
 
 .adminBtn {

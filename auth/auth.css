@@ -326,6 +326,7 @@
 	border-radius: 50%;
 	background-color: var(--notif-green);
 	border: 1.5px solid var(--body-bg-accent);
+	box-shadow: 0 0 5px hsla(140 90% 55% / 0.7);
 	pointer-events: none;
 }
 .authNavAvatar {
@@ -505,6 +506,19 @@
 /* Leaderboard / Trending toggle, above the Leaders tab body */
 .profileViewToggle { display: flex; gap: 0.4em; padding-bottom: 0.7em; }
 .profileViewToggle .profileMiniBtn { font-size: 88%; padding: 0.3em 0.8em; }
+@media (max-width: 620px) {
+	/* Leaderboard + four phrase tabs do not comfortably fit one line on a
+	   phone - scrolls sideways rather than shrinking the labels down to
+	   something hard to read or hiding any of them in a dropdown */
+	.profileViewToggle {
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		padding-bottom: 0.5em;
+		-webkit-mask-image: linear-gradient(to right, black calc(100% - 18px), transparent 100%);
+		mask-image: linear-gradient(to right, black calc(100% - 18px), transparent 100%);
+	}
+	.profileViewToggle .profileMiniBtn { flex: 0 0 auto; white-space: nowrap; }
+}
 
 /* a trending phrase's byline - who published it, since the chip is no longer
    grouped under their name the way it is on the Leaderboard */
@@ -692,47 +706,50 @@
 	color: var(--font-white-3);
 	padding-right: 0.3em;
 }
-/* the Recent / All-Time slider under Leaders' phrase-ranking tabs - a single
-   connected pill with a sliding thumb, deliberately not the same button
-   style as the category tabs above it (Trending/Most Loved/Funniest), since
-   those are separate destinations and this is one on/off setting within
-   whichever of them is open. Two stacked buttons read as more tabs; a
-   slider reads as a switch. */
-.profileRankSlider {
+/* the four ordering options under Leaders' phrase-ranking tabs (Recent /
+   A–Z / Low→High / the tab's own top-of-all-time label), as one centred,
+   connected slider with a sliding thumb - four equal segments, so no two
+   labels ever compete for the same space the way the original two-state
+   version did. */
+.profileRankModesWrap { display: flex; justify-content: center; margin: 0.1em 0 0.7em 0; }
+.profileRankModes4 {
 	position: relative;
-	display: inline-flex;
-	margin: 0.1em 0 0.7em 0;
+	display: flex;
+	width: 100%;
+	max-width: 440px;
 	padding: 2px;
 	border-radius: 999px;
 	background: hsl(0 0% 100% / 0.05);
 	border: 1px solid var(--border-dark-accent);
 }
-.profileRankSliderThumb {
+.profileRankModes4Thumb {
 	position: absolute;
 	top: 2px; bottom: 2px; left: 2px;
-	width: calc(50% - 2px);
+	width: calc(25% - 2px);
 	border-radius: 999px;
 	background: var(--btn-active-accent);
 	box-shadow: inset 0 0 0 1px var(--focus-outline);
 	transition: transform 0.18s ease;
 }
-.profileRankSliderThumb.profileRankSliderThumbOn { transform: translateX(100%); }
-@media (prefers-reduced-motion: reduce) { .profileRankSliderThumb { transition: none; } }
-.profileRankSliderOpt {
+@media (prefers-reduced-motion: reduce) { .profileRankModes4Thumb { transition: none; } }
+.profileRankModes4Opt {
 	position: relative;
 	z-index: 1;
-	flex: 1 1 50%;
+	flex: 1 1 25%;
+	min-width: 0;
 	background: transparent;
 	border: none;
-	padding: 0.3em 0.9em;
-	font-size: 82%;
+	padding: 0.32em 0.3em;
+	font-size: 76%;
 	font-weight: 500;
 	color: var(--font-white-3);
 	cursor: pointer;
 	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 	transition: color 0.15s ease;
 }
-.profileRankSliderOpt.profileRankSliderOptOn { color: var(--font-white-1); font-weight: 600; }
+.profileRankModes4Opt.profileRankModes4OptOn { color: var(--font-white-1); font-weight: 700; }
 /* The cipher and its value, in that cipher's own colour. Bold because this is
    the reason the phrase was published, not a footnote to it - the grey it used
    to be read as disabled text. The inline colour comes from profileCipherColor. */
@@ -832,12 +849,11 @@
 	cursor: default;
 }
 
-/* Nothing reacted to yet: invisible until the phrase is hovered, then
-   greyscale, then full colour only on the one emoji actually pointed at - so
-   the row reads as "something is here" rather than a row of coloured icons
-   competing with the phrase itself. Never truly display:none, since that
-   would make it untappable on a touch screen with no hover to reveal it
-   first - opacity is as low as it goes. */
+/* Nothing reacted to yet: always visible, muted rather than hidden - a
+   member has to be able to tell a reaction is there and selectable without
+   hovering first, which touch has no way to do at all. Full colour and
+   opacity the moment it has a count (.profileReactLit below) or is hovered/
+   focused. */
 .profileReactBtn {
 	display: inline-flex;
 	align-items: center;
@@ -850,11 +866,11 @@
 	color: var(--font-white-3);
 	cursor: pointer;
 	line-height: 1.5em;
-	opacity: 0.16;
+	opacity: 0.55;
 	filter: grayscale(1);
 	transition: opacity 0.2s ease, filter 0.15s ease, background 0.15s ease, border-color 0.15s ease;
 }
-.profileChip:hover .profileReactBtn,
+.phraseRow:hover .profileReactBtn,
 .profileReactBtn:focus {
 	opacity: 1;
 }
@@ -892,6 +908,13 @@
 	border-color: hsl(48 85% 52%);
 	color: var(--font-white-1);
 }
+.profileReactBtn.profileReactCcru.profileReactLit {
+	opacity: 1;
+	filter: grayscale(0);
+	background: hsla(265 60% 55% / 0.22);
+	border-color: hsl(265 60% 62%);
+	color: var(--font-white-1);
+}
 /* the one you personally cast, on top of the shared colour above - an inner
    ring rather than a different colour, so it still reads as the same "lit"
    state everyone else sees, just with a mark that it was you. Matches each
@@ -899,6 +922,7 @@
 .profileReactBtn.profileReactHeart.profileReactMine { box-shadow: inset 0 0 0 1px hsl(140 80% 70%); }
 .profileReactBtn.profileReactFire.profileReactMine  { box-shadow: inset 0 0 0 1px hsl(22 90% 68%); }
 .profileReactBtn.profileReactLaugh.profileReactMine { box-shadow: inset 0 0 0 1px hsl(48 90% 68%); }
+.profileReactBtn.profileReactCcru.profileReactMine  { box-shadow: inset 0 0 0 1px hsl(265 85% 78%); }
 .profileReactCount { font-size: 88%; font-weight: 600; }
 
 /* the one-off pulse when a reaction is switched on (profileFlashReaction) -
@@ -1283,6 +1307,11 @@
 	border-top: 1px solid var(--separator-accent2);
 	margin: 0.8em 0;
 }
+/* one row of the Reactions strip (frNotifRowHtml) - reuses .frRow's unread
+   tint/hover, same as a chat thread row */
+.frNotifText { flex: 1 1 auto; min-width: 0; font-size: 92%; }
+.frNotifText b { color: var(--font-white-1); }
+.frNewsBar { display: flex; justify-content: flex-end; padding-bottom: 0.5em; }
 /* the collapsed default for Requests - a strip, not a section, so "Sent by
    you" (usually short or empty) does not sit permanently open above the
    friends list people actually came here for */
@@ -1509,6 +1538,25 @@
 .frChatBox:focus { border-color: var(--focus-outline); }
 .profileMiniBtn.frChatSend { flex: 0 0 auto; align-self: stretch; padding: 0 1em; }
 
+/* ---- forum ---- */
+
+.frForumHead { display: flex; align-items: center; justify-content: space-between; gap: 0.6em; padding-bottom: 0.6em; }
+.frForumHeadNote { font-size: 78%; color: var(--font-white-3); }
+.frForumCompose {
+	display: flex;
+	flex-direction: column;
+	gap: 0.4em;
+	padding: 0.6em;
+	margin-bottom: 0.6em;
+	background: hsl(0 0% 100% / 0.03);
+	border: 1px solid var(--border-dark-accent);
+}
+.frForumComposeRow { display: flex; align-items: center; gap: 0.6em; }
+/* who posted, above their bubble - a forum reply needs the name every time
+   (unlike a two-person chat, where "mine or not" already says who), except
+   on your own, which .frMsgMine already sets apart by side and colour */
+.frForumMsgWho { font-size: 76%; font-weight: 600; color: var(--font-white-3); padding: 0 0.2em 0.15em 0.2em; }
+
 .frChatWarn { font-size: 80%; color: var(--font-white-4); min-height: 1.2em; padding-top: 0.25em; }
 .frChatWarn.frChatWarnBad { color: hsl(5 75% 72%); }
 
@@ -1559,6 +1607,20 @@
 /* every order visible and one tap away, rather than a dropdown you have to
    open first to see what your choices even are */
 .profileSortChips { display: flex; flex-wrap: wrap; gap: 0.25em; }
+@media (max-width: 620px) {
+	/* the FILTER row (six buttons) is the one that stops fitting on a phone -
+	   scrolls sideways instead of wrapping into a third and fourth line, with
+	   a soft fade at the right edge as the "there's more" hint instead of a
+	   scrollbar competing with the outer page's own */
+	.profileFilterChips {
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		padding-bottom: 0.15em;
+		-webkit-mask-image: linear-gradient(to right, black calc(100% - 18px), transparent 100%);
+		mask-image: linear-gradient(to right, black calc(100% - 18px), transparent 100%);
+	}
+	.profileFilterChips .profileSortChip { flex: 0 0 auto; }
+}
 .profileSortChip {
 	font-size: 78%;
 	font-weight: 500;
@@ -1796,24 +1858,85 @@
 .frFavX { cursor: pointer; padding-left: 0.4em; opacity: 0.7; }
 .frFavX:hover { opacity: 1; }
 
-/* ---- leaderboard: a scroll box, and groups inside it ---- */
+/* ---- published phrases / Leaders: one full-width row per phrase ----
+   (profilePhraseRowHtml, calc/profile-tab.js)
 
-.profileChipScroll {
-	max-height: 300px;
-	overflow-y: auto;
-	padding-right: 0.2em;
-	/* a thin scrollbar rather than the platform's, so a long list does not
-	   suddenly grow a wide grey bar down the side of the panel */
-	scrollbar-width: thin;
-	scrollbar-color: var(--border-accent) transparent;
+   Deliberately not its own scroll box: the old .profileChipScroll fixed a
+   300px viewport with its own scrollbar inside a panel that already scrolls
+   with the page, which read as two nested scrollbars fighting each other.
+   This flows with the page instead - subtle row separators, no card border
+   around every phrase, no inner scrollbar to get confused with the outer
+   one. */
+.phraseList { border-top: 1px solid var(--border-dark-accent); }
+.phraseListGroup {
+	padding: 0.5em 0.2em 0.3em 0.2em;
+	font-size: 78%;
+	font-weight: 700;
+	color: var(--font-white-3);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
 }
-.profileChipScroll::-webkit-scrollbar { width: 8px; }
-.profileChipScroll::-webkit-scrollbar-track { background: transparent; }
-.profileChipScroll::-webkit-scrollbar-thumb {
-	background-color: var(--border-accent);
-	border-radius: 999px;
+.phraseRow {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1em;
+	padding: 0.6em 0.6em;
+	border-bottom: 1px solid var(--border-dark-accent);
+	cursor: pointer;
 }
-.profileChipScroll::-webkit-scrollbar-thumb:hover { background-color: var(--font-white-4); }
+.phraseRow:hover { background: hsl(0 0% 100% / 0.03); }
+/* phrase, cypher/value and "by who" are three stacked lines of one column -
+   text-align is stated explicitly (not just relying on the default) so a
+   short phrase's line is anchored to the same left edge as the longer lines
+   under it rather than only equal by coincidence of the default. */
+.phraseRowMain { flex: 1 1 auto; min-width: 0; text-align: left; }
+.phraseRowTop { display: flex; align-items: baseline; gap: 0.4em; }
+.phraseRowRank { font-size: 76%; font-weight: 700; color: var(--font-white-3); flex: 0 0 auto; }
+/* the largest text in the row, per the redesign brief - a phrase is the
+   reason the row exists, everything else is context around it */
+.phraseRowText {
+	font-size: 112%;
+	font-weight: 600;
+	color: var(--font-white-1);
+	overflow-wrap: anywhere;
+}
+.phraseRowMeta {
+	font-size: 82%;
+	font-weight: 600;
+	color: var(--font-white-2);
+	padding-top: 0.1em;
+}
+.phraseRowVal { font-family: var(--font-family-mono), monospace; color: inherit; }
+.phraseRowSub { font-size: 76%; color: var(--font-white-3); padding-top: 0.15em; }
+.phraseRowReactions {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	gap: 0.3em;
+}
+/* the reaction a Leaders tab is actually ranking by, ahead of the ordinary
+   four-button strip rather than lost inside it - a viewer should not have
+   to find the one number the list is sorted on */
+.phraseRowHighlight {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25em;
+	font-size: 105%;
+	font-weight: 700;
+	color: var(--font-white-1);
+	padding-right: 0.4em;
+	margin-right: 0.2em;
+	border-right: 1px solid var(--border-dark-accent);
+}
+.phraseRowHighlightCount { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 620px) {
+	/* phrase info on top, reactions underneath, full width - never a tiny
+	   side column squeezing four reaction buttons into a sliver */
+	.phraseRow { flex-direction: column; align-items: stretch; gap: 0.5em; }
+	.phraseRowReactions { justify-content: flex-start; flex-wrap: wrap; }
+}
 
 /* the value or cypher a run of chips belongs to */
 .profileChipGroup {
@@ -2093,4 +2216,96 @@
 .obBtnSkip { margin-left: auto !important; color: var(--font-white-4); }
 .obNav .authBtnPrimary { flex: 0 0 auto; }
 .obBtnWide { flex: 1 1 auto !important; width: 100% !important; }
+
+/* ---- guided member tour (calc/tour.js) ----
+   Distinct from first-run onboarding above - that is a self-contained
+   wizard collecting settings; this walks the real UI, spotlighting the
+   actual button or area rather than a copy of it. z-index sits above
+   everything else in the app, member panel included, since a tour step
+   often needs that panel open underneath it. */
+
+.tourOverlayBg {
+	position: fixed; inset: 0; z-index: 99990;
+	background: hsla(0 0% 0% / 0.72);
+}
+.tourWelcome {
+	position: fixed; z-index: 99991;
+	left: 50%; top: 50%; transform: translate(-50%, -50%);
+	width: min(24em, 92vw);
+	max-height: 88vh; overflow-y: auto;
+	box-sizing: border-box;
+	background-color: var(--menu-bg-accent);
+	border: 1px solid var(--border-accent);
+	padding: 1.3em 1.4em;
+	text-align: center;
+}
+.tourWelcomeTitle { font-size: 130%; font-weight: 700; color: var(--font-white-1); padding-bottom: 0.4em; }
+.tourWelcomeBody { color: var(--font-white-2); padding-bottom: 1.1em; line-height: 1.5em; }
+.tourWelcomeBtns { display: flex; gap: 0.5em; justify-content: center; }
+.tourWelcomeBtns .intBtn3 { width: auto; flex: 0 0 auto; padding: 0.5em 1.2em; }
+.tourBtnPrimary { background-color: var(--btn-active-accent); border-color: hsl(140 60% 50%); color: var(--font-white-1); }
+
+.tourPicker { text-align: left; }
+.tourPicker .tourWelcomeTitle, .tourPicker .tourWelcomeBody { text-align: center; }
+.tourSectionList { display: flex; flex-direction: column; gap: 0.5em; padding-bottom: 1.1em; }
+.tourSectionBtn {
+	display: flex; align-items: center; gap: 0.6em;
+	width: 100%; box-sizing: border-box;
+	padding: 0.6em 0.7em;
+	background: hsl(0 0% 100% / 0.04);
+	border: 1px solid var(--border-dark-accent);
+	color: var(--font-white-1);
+	cursor: pointer;
+	text-align: left;
+}
+.tourSectionBtn:hover { background: var(--btn-hover-accent); border-color: var(--font-white-3); }
+.tourSectionBtn.tourSectionDone { border-color: hsl(140 55% 45%); }
+.tourSectionIcon { font-size: 135%; flex: 0 0 auto; }
+.tourSectionBody { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
+.tourSectionLabel { font-weight: 600; }
+.tourSectionSteps { font-size: 76%; color: var(--font-white-3); }
+.tourSectionTick { color: hsl(140 70% 55%); font-weight: 700; flex: 0 0 auto; width: 1.2em; text-align: center; }
+
+/* the spotlight itself - a huge-spread box-shadow darkens everything
+   outside the target's own box, which reads as a hole cut in an overlay
+   without the clip-path math an actual hole would need, plus a neon green
+   ring so the target reads as "look here" even against a busy background */
+.tourSpotlight {
+	position: relative !important;
+	z-index: 99993 !important;
+	box-shadow:
+		0 0 0 9999px hsla(0 0% 0% / 0.74),
+		0 0 0 3px hsl(140 90% 55%),
+		0 0 22px 3px hsla(140 90% 55% / 0.65) !important;
+	border-radius: 6px;
+}
+/* sits just under the spotlighted element, just over everything else -
+   catches clicks on the darkened background so the tour cannot be broken by
+   tapping something else mid-step, without blocking the target itself */
+.tourScrim { position: fixed; inset: 0; z-index: 99992; background: transparent; }
+
+.tourTooltip {
+	position: fixed; z-index: 99994;
+	width: min(20em, 88vw);
+	box-sizing: border-box;
+	background-color: var(--menu-bg-accent);
+	border: 1px solid hsl(140 60% 45%);
+	box-shadow: 0 0 18px hsla(140 80% 50% / 0.35);
+	padding: 0.9em 1em;
+}
+/* on a narrow screen the tooltip cannot chase a target that may be near
+   either edge - it becomes a fixed bottom sheet instead, same as the rest
+   of this site's mobile menus */
+.tourTooltipSheet {
+	position: fixed !important;
+	left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important;
+	width: 100% !important;
+	border-left: none; border-right: none; border-bottom: none;
+}
+.tourTooltipStep { font-size: 74%; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: hsl(140 70% 60%); padding-bottom: 0.3em; }
+.tourTooltipTitle { font-size: 112%; font-weight: 700; color: var(--font-white-1); padding-bottom: 0.35em; }
+.tourTooltipBody { font-size: 90%; line-height: 1.5em; color: var(--font-white-2); padding-bottom: 0.8em; }
+.tourTooltipBtns { display: flex; align-items: center; justify-content: space-between; gap: 0.4em; flex-wrap: wrap; }
+.tourTooltipLeft, .tourTooltipRight { display: flex; gap: 0.35em; }
+.tourTooltipRight .tourBtnPrimary { border-color: hsl(140 70% 55%); }
 

@@ -1947,6 +1947,13 @@ body {
 }
 
 .dropdown:hover .dropdown-content, .dropdown:hover .dropdown-content-opt {display: block;}
+/* forces a dropdown open for a tour step (calc/tour.js) that needs a button
+   or field inside it visible on a device with no hover at all - the Matches
+   dropdown for "Enter As Words", the Cyphers dropdown for the cypher search
+   box. Any future tour step over another dropdown gets the same behaviour
+   for free by adding its own :has() clause here. */
+body.tourForceDropdown .dropdown:has(.findMatchesTab) .dropdown-content,
+body.tourForceDropdown .dropdown:has(.ciphersContent) .dropdown-content { display: block !important; }
 
 .dropdown:hover .dropbtn {background-color: var(--btn-active-accent);}
 

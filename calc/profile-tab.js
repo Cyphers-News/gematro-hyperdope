@@ -910,17 +910,15 @@ function profileWithdraw(id) {
 // reactions) lives only as a filter option on a contributor's own phrase
 // list (profileFilterOptions below), not as a Leaders tab of its own.
 
-var profileLeaderboardView = "ranking" // ranking | trending | loved | funny
-var profilePhraseRankMode = "recent"   // recent | top - shared by the three phrase tabs
+var profileLeaderboardView = "ranking" // ranking | new | trending | loved | funny | ccru
+var profilePhraseRankMode = "recent"   // recent | az | value | top - shared by the four phrase tabs
 
-// [view id, reaction type, icon, tab label, "all time" toggle label]
-// The toggle label does not repeat the tab label ("Funniest" tab / "Funniest
-// of All Time" toggle read as the same word twice) - the tab already says
-// which category, the toggle only needs to say which ordering.
+// [view id, reaction type, icon, tab label, "top" mode label]
 var PHRASE_RANK_TABS = [
-	["trending", "like",  "🔥", "Trending",   "Hottest"],
-	["loved",    "heart", "💚", "Most Loved", "Most Loved"],
-	["funny",    "laugh", "😂", "Funniest",   "Funniest"]
+	["trending", "like",  "🔥", "Trending", "Hottest"],
+	["loved",    "heart", "💚", "Loved",    "Loved"],
+	["funny",    "laugh", "😂", "Funny",    "Funny"],
+	["ccru",     "ccru",  "📖", "CCRU",     "CCRU"]
 ]
 
 function profilePhraseRankTab(id) {
@@ -938,35 +936,60 @@ function profileSetPhraseRankMode(m) {
 	renderProfileLeaderboard()
 }
 
+// The four ordering options shared by all four phrase-ranking tabs, as one
+// centred, connected slider - four fixed-width segments and a thumb that
+// slides to whichever is active, rather than left-aligned chips that sized
+// to their own text. The original two-state slider clipped because it only
+// ever had two segments to split a fixed width between; giving each of the
+// four its own quarter (and a shorter "Low→High" label) is what keeps
+// this one from doing the same.
+function profileRankModesHtml(activeTab) {
+	var modes = [
+		["recent", "🕒", "Recent"],
+		["az", "🔤", "A–Z"],
+		["value", "🔢", "Low→High"],
+		["top", activeTab[2], activeTab[4]]
+	]
+	var idx = 0
+	for (var i = 0; i < modes.length; i++) if (modes[i][0] === profilePhraseRankMode) idx = i
+
+	var o = '<div class="profileRankModesWrap">'
+	o += '<div class="profileRankModes4" role="group" aria-label="Order by">'
+	o += '<span class="profileRankModes4Thumb" style="transform:translateX('+(idx * 100)+'%)"></span>'
+	modes.forEach(function (m) {
+		var on = m[0] === profilePhraseRankMode
+		o += '<button class="profileRankModes4Opt'+(on ? ' profileRankModes4OptOn' : '')+'" aria-label="Order by '+m[2]+(on ? ', active' : '')+'" onclick="profileSetPhraseRankMode(&quot;'+m[0]+'&quot;)">'
+		o += m[1]+' '+m[2]+'</button>'
+	})
+	o += '</div></div>'
+	return o
+}
+
 function renderProfileLeaderboard() {
+	// Switching category (Leaderboard/New/Trending/.../CCRU) or ranking mode
+	// (Recent/A-Z/Low to High/top) does not go through profileSetTab, which
+	// is the only other place profileRenderSeq bumps - without this, a fetch
+	// from a tab you have already switched away from could still win the
+	// race and paint stale data into the one you are looking at now.
+	profileRenderSeq++
 	var tok = profileRenderSeq
 	var o = '<div class="profileViewToggle">'
 	o += '<button class="profileMiniBtn'+(profileLeaderboardView === "ranking" ? ' profileMiniBtnOn' : '')+'" onclick="profileSetLeaderboardView(&quot;ranking&quot;)">&#127942; Leaderboard</button>'
+	o += '<button class="profileMiniBtn'+(profileLeaderboardView === "new" ? ' profileMiniBtnOn' : '')+'" onclick="profileSetLeaderboardView(&quot;new&quot;)">&#127381; New</button>'
 	PHRASE_RANK_TABS.forEach(function (t) {
 		o += '<button class="profileMiniBtn'+(profileLeaderboardView === t[0] ? ' profileMiniBtnOn' : '')+'" onclick="profileSetLeaderboardView(&quot;'+t[0]+'&quot;)">'+t[2]+' '+t[3]+'</button>'
 	})
 	o += '</div>'
 
-	// A slider, not a second row of the same tab-style buttons above it - the
-	// category (Trending/Most Loved/Funniest) is a tab; Recent vs All-Time is
-	// an on/off order within whichever tab is open, and looking identical to
-	// the tabs made it read as a fifth and sixth tab rather than a setting
-	// belonging to the one already selected.
 	var activeTab = profilePhraseRankTab(profileLeaderboardView)
-	if (activeTab) {
-		var top = profilePhraseRankMode === "top"
-		o += '<div class="profileRankSlider" role="group" aria-label="Order by">'
-		o += '<span class="profileRankSliderThumb'+(top ? ' profileRankSliderThumbOn' : '')+'"></span>'
-		o += '<button class="profileRankSliderOpt'+(top ? '' : ' profileRankSliderOptOn')+'" onclick="profileSetPhraseRankMode(&quot;recent&quot;)">&#128337; Recent</button>'
-		o += '<button class="profileRankSliderOpt'+(top ? ' profileRankSliderOptOn' : '')+'" onclick="profileSetPhraseRankMode(&quot;top&quot;)">'+activeTab[2]+' '+activeTab[4]+'</button>'
-		o += '</div>'
-	}
+	if (activeTab) o += profileRankModesHtml(activeTab)
 
 	o += '<div id="profileLeaderboardBody"><div class="profileLoading">Loading…</div></div>'
 	profileBody(o, tok)
 	profileContribOpen = null // whichever view was open before, its panel is gone with it
 
 	if (activeTab) renderProfilePhraseRankBody(tok, activeTab)
+	else if (profileLeaderboardView === "new") renderProfileNewBody(tok)
 	else renderProfileRankingBody(tok)
 }
 
@@ -1005,13 +1028,47 @@ function renderProfileRankingBody(tok) {
 	})
 }
 
+// Every submission, across every contributor, newest first - no reaction
+// required, unlike the four ranking tabs below. The point is to see what
+// just landed and react to it, so there is no ranking-mode control here
+// either, just the list.
+function renderProfileNewBody(tok) {
+	newestPhrases(40).then(function (rows) {
+		var host = document.getElementById("profileLeaderboardBody")
+		if (host === null || tok !== profileRenderSeq) return
+		var o = ''
+		o += '<div class="profileNote">💚 🔥 😂 📖 Nominates a phrase for review &mdash; an admin decides.</div>'
+		if (rows.length === 0) {
+			o += '<div class="profileNote">Nobody has published a phrase yet. Be the first, over on Saved.</div>'
+			host.innerHTML = o; return
+		}
+		return phraseReactionCounts(rows.map(function (r) { return r.submission_id })).then(function (reactions) {
+			if (host === null || tok !== profileRenderSeq) return
+			profileContribReactions = reactions
+			o += '<div class="phraseList">'
+			rows.forEach(function (r) {
+				o += profilePhraseRowHtml({
+					id: r.submission_id, phrase: r.phrase, cipher: r.cipher, value: r.value,
+					sub: 'by '+authEsc(r.contributor_name)+' &middot; '+frWhen(r.created_at)
+				})
+			})
+			o += '</div>'
+			host.innerHTML = o
+		})
+	}).catch(function (err) {
+		var host = document.getElementById("profileLeaderboardBody")
+		if (host !== null && tok === profileRenderSeq) host.innerHTML = profileErr(err)
+	})
+}
+
 var PHRASE_RANK_EMPTY = {
 	trending: 'Nothing is trending yet. Be the first to react with 🔥.',
 	loved:    'Nothing has been loved yet. Be the first to react with 💚.',
-	funny:    'Nothing has been marked funny yet. Be the first to react with 😂.'
+	funny:    'Nothing has been marked funny yet. Be the first to react with 😂.',
+	ccru:     'No CCRU phrases have been nominated yet. Be the first to react with 📖.'
 }
 
-// One phrase-ranking tab (trending/loved/funny) - phrases_by_reaction
+// One phrase-ranking tab (trending/loved/funny/ccru) - phrases_by_reaction
 // (Supabase RPC) does the per-reaction-type aggregation and ordering
 // server-side, since pulling every submission client-side to sort it would
 // not scale. Reuses phraseReactionCounts for the interactive per-viewer
@@ -1022,11 +1079,12 @@ var PHRASE_RANK_EMPTY = {
 // counts.
 function renderProfilePhraseRankBody(tok, tab) {
 	var viewId = tab[0], reactionType = tab[1], icon = tab[2]
+	var label = REACTION_KINDS[reactionType].label
 	phrasesByReaction(reactionType, profilePhraseRankMode, 40).then(function (rows) {
 		var host = document.getElementById("profileLeaderboardBody")
 		if (host === null || tok !== profileRenderSeq) return
 		var o = ''
-		o += '<div class="profileNote">💚 🔥 😂 react to nominate a phrase for review.</div>'
+		o += '<div class="profileNote">💚 🔥 😂 📖 Nominates a phrase for review &mdash; an admin decides.</div>'
 		if (rows.length === 0) {
 			o += '<div class="profileNote">'+PHRASE_RANK_EMPTY[viewId]+'</div>'
 			host.innerHTML = o; return
@@ -1034,28 +1092,20 @@ function renderProfilePhraseRankBody(tok, tab) {
 		return phraseReactionCounts(rows.map(function (r) { return r.submission_id })).then(function (reactions) {
 			if (host === null || tok !== profileRenderSeq) return
 			profileContribReactions = reactions
-			o += '<div class="profileChipScroll"><div class="profileChips">'
+			o += '<div class="phraseList">'
 			rows.forEach(function (r, i) {
-				var hasVal = (r.value !== null && r.value !== undefined)
-				var arg = function (s) { return authEsc(String(s)).replace(/"/g,'&quot;') }
-				o += '<span class="profileChip profileTrendChip" onclick="profileUsePhrase(&quot;'+arg(r.phrase)+'&quot;, true, &quot;'+arg(r.cipher || "")+'&quot;)">'
-				// a rank number means "best of all time" - in newest-first order
-				// it would just be a count of rows, not a ranking, so it only
-				// shows in the all-time toggle
-				if (profilePhraseRankMode === "top") o += '<span class="profileChipRank">#'+(i+1)+'</span>'
-				o += '<span class="profileChipTerm">'+authEsc(r.phrase)+'</span>'
-				if (r.cipher) {
-					var col = profileCipherColor(r.cipher)
-					o += '<span class="profileChipCiph"'+(col ? ' style="color:'+col+'"' : '')+'>'
-					o += authEsc(r.cipher)
-					if (hasVal) o += ' <span class="profileChipVal">'+authEsc(String(r.value))+'</span>'
-					o += '</span>'
-				}
-				o += '<span class="profileTrendBy">by '+authEsc(r.contributor_name)+' &middot; '+icon+' '+r.reaction_count+' &middot; '+frWhen(r.last_reacted_at)+'</span>'
-				o += profileChipReactionsHtml(r.submission_id)
-				o += '</span>'
+				var sub = 'by '+authEsc(r.contributor_name)+' &middot; '+frWhen(r.last_reacted_at)
+				o += profilePhraseRowHtml({
+					id: r.submission_id, phrase: r.phrase, cipher: r.cipher, value: r.value,
+					sub: sub,
+					// a rank number means "best of all time" - in newest-first
+					// order it would just be a count of rows, not a ranking, so
+					// it only shows in the all-time toggle
+					rank: profilePhraseRankMode === "top" ? (i + 1) : null,
+					highlight: { icon: icon, count: r.reaction_count, label: label }
+				})
 			})
-			o += '</div></div>'
+			o += '</div>'
 			host.innerHTML = o
 		})
 	}).catch(function (err) {
@@ -1094,18 +1144,17 @@ var profileSortToggles = [
 // SORT's other two options - one-directional rankings, same as the FILTER
 // buttons below, but general enough (cypher, combined engagement) to read as
 // sorting rather than filtering by a specific reaction.
-var profileSortExtra = [
-	["cipher",  "\uD83C\uDFAF", "Cypher",  "Grouped by cypher"],
-	["popular", "\u2B50", "Popular", "Combined engagement across all three reactions"]
-]
-
-// FILTER: one-directional ranking buttons, one per reaction - "most X first",
-// with no reverse. Loved is the same reaction Leaders' Most Loved tab ranks
-// phrases by (the heart reaction) - same word in both places on purpose.
+// FILTER: one-directional ranking buttons, with no reverse - cypher and
+// combined popularity, then one entry per reaction. Loved/Trending
+// News/Funny/CCRU are the same reactions Leaders' four phrase tabs rank by -
+// same words in both places on purpose.
 var profileFilterOptions = [
-	["evergreen", "\uD83D\uDC9A", "Loved",   "Most loved reactions first"],
-	["trending",  "\uD83D\uDD25", "Trending","Most trending reactions first"],
-	["funny",     "\uD83D\uDE02", "Funny",   "Most funny reactions first"]
+	["cipher",    "\uD83C\uDFAF", "Cypher",       "Grouped by cypher"],
+	["popular",   "\u2B50", "Popular",      "Combined engagement across all four reactions"],
+	["evergreen", "\uD83D\uDC9A", "Loved",        "Most loved reactions first"],
+	["trending",  "\uD83D\uDD25", "Trending News","Most trending-news reactions first"],
+	["funny",     "\uD83D\uDE02", "Funny",        "Most funny reactions first"],
+	["ccru",      "\uD83D\uDCD6", "CCRU",         "Most CCRU reactions first"]
 ]
 
 function profileSetContribSort(v) {
@@ -1179,16 +1228,17 @@ function profileSortContrib(rows) {
 		case "evergreen": return out.sort(byReaction("heart"))
 		case "trending":  return out.sort(byReaction("like"))
 		case "funny":     return out.sort(byReaction("laugh"))
+		case "ccru":      return out.sort(byReaction("ccru"))
 		case "cipher":    return out.sort(function (a, b) {
 			var c = String(a.cipher || "").localeCompare(String(b.cipher || ""), undefined, { sensitivity: "base" })
 			return c !== 0 ? c : byValue(1)(a, b)
 		})
 		case "popular": {
-			// combined engagement across all three reactions, not a proxy for
-			// any one of them - that is what the three reactions below it are for
+			// combined engagement across all four reactions, not a proxy for
+			// any one of them - that is what the four reactions below it are for
 			var sum = function (r) {
 				var c = profileContribReactions[r.id]
-				return c ? (c.heart || 0) + (c.like || 0) + (c.laugh || 0) : 0
+				return c ? (c.heart || 0) + (c.like || 0) + (c.laugh || 0) + (c.ccru || 0) : 0
 			}
 			return out.sort(function (a, b) {
 				var d = sum(b) - sum(a)
@@ -1281,22 +1331,28 @@ function profileRenderContributorList() {
 	else {
 		// Chips rather than a select: every order is visible and one tap away,
 		// instead of hidden behind a dropdown you have to open first to see
-		// what your choices even are. One row, one label - three reversible
-		// direction toggles (click the active one again to flip it) followed
-		// by five one-directional rankings.
+		// what your choices even are. Two labelled groups: SORT is three
+		// reversible direction toggles (click the active one again to flip
+		// it), FILTER is six one-directional rankings - mixing the two
+		// together read as nine equally-weighted buttons with no structure to
+		// lean on. Wraps on its own on a narrow screen rather than the two
+		// groups interleaving.
 		o += '<div class="profileContribSort">'
 		o += '<div class="profileSortGroup">'
 		o += '<span class="profileSortGroupLabel">Sort</span>'
 		o += '<div class="profileSortChips">'
 		profileSortToggles.forEach(function (t) { o += profileSortToggleHtml(t) })
-		profileSortExtra.forEach(function (opt) { o += profileSortOptionHtml(opt) })
+		o += '</div></div>'
+		o += '<div class="profileSortGroup">'
+		o += '<span class="profileSortGroupLabel">Filter</span>'
+		o += '<div class="profileSortChips profileFilterChips">'
 		profileFilterOptions.forEach(function (opt) { o += profileSortOptionHtml(opt) })
 		o += '</div></div>'
 		o += '<span class="profileWhen">'+rows.length+(rows.length === 1 ? ' phrase' : ' phrases')+'</span>'
 		o += '</div>'
 
 		rows = profileSortContrib(rows)
-		o += '<div class="profileChipScroll"><div class="profileChips">'
+		o += '<div class="phraseList">'
 		var lastGroup = null
 		rows.forEach(function (r) {
 			// A divider whenever the thing being sorted by changes, so a long
@@ -1305,53 +1361,40 @@ function profileRenderContributorList() {
 			// put a heading between every pair of chips.
 			var g = profileContribGroupOf(r)
 			if (g !== null && g !== lastGroup) {
-				o += '<div class="profileChipGroup">'+authEsc(g)+'</div>'
+				o += '<div class="phraseListGroup">'+authEsc(g)+'</div>'
 				lastGroup = g
 			}
-			var hasVal = (r.value !== null && r.value !== undefined)
-			var why = r.cipher
-				? (r.cipher + (hasVal ? ' = ' + r.value : '') + ' — send to the calculator')
-				: 'Send to the calculator'
-			var arg = function (s) { return authEsc(String(s)).replace(/"/g,'&quot;') }
-			o += '<span class="profileChip" title="'+authEsc(why)+'"'
-			o += ' onclick="profileUsePhrase(&quot;'+arg(r.phrase)+'&quot;, true, &quot;'+arg(r.cipher || "")+'&quot;)">'
-			o += '<span class="profileChipTerm">'+authEsc(r.phrase)+'</span>'
-			if (r.cipher) {
-				// the cipher's own colour, so the pair carries the same
-				// meaning here as it does in the History Table
-				var col = profileCipherColor(r.cipher)
-				o += '<span class="profileChipCiph"'+(col ? ' style="color:'+col+'"' : '')+'>'
-				o += authEsc(r.cipher)
-				if (hasVal) o += ' <span class="profileChipVal">'+authEsc(String(r.value))+'</span>'
-				o += '</span>'
-			}
-			o += profileChipReactionsHtml(r.id)
-			o += '</span>'
+			o += profilePhraseRowHtml({
+				id: r.id, phrase: r.phrase, cipher: r.cipher, value: r.value,
+				sub: 'Published '+frWhen(r.created_at)
+			})
 		})
-		o += '</div></div>'
+		o += '</div>'
 	}
 	o += '</div>'
 	host.innerHTML = o
 }
 
-// The three reactions, and only these three - one shared table so the icon,
+// The four reactions, and only these four - one shared table so the icon,
 // colour class and explanation stay identical everywhere they are read from
-// (chip buttons, Leaders' three tabs, empty states, the admin queue). Keyed
-// by the reaction table's own values (unchanged - see the 20260820030000
-// migration), which is not the same thing as the label a member sees:
-// heart reads as Evergreen, like as Trending, laugh as Funny.
+// (row reaction strips, Leaders' four tabs, empty states, the admin queue,
+// notifications). Keyed by the reaction table's own values (unchanged - see
+// the 20260820030000 and 20260820040000 migrations), which is not the same
+// thing as the label a member sees: heart reads as Loved, like as Trending
+// News, laugh as Funny, ccru as CCRU. A member may hold any combination of
+// the four on one phrase - each toggles independently (profileToggleReaction).
 var REACTION_KINDS = {
-	heart: { icon: "💚", label: "Evergreen", cls: "profileReactHeart", desc: "Evergreen — timeless content that stays interesting or valuable" },
-	like:  { icon: "🔥", label: "Trending",  cls: "profileReactFire",  desc: "Trending — topical content or news that is relevant right now" },
-	laugh: { icon: "😂", label: "Funny",     cls: "profileReactLaugh", desc: "Funny — amusing content" }
+	heart: { icon: "💚", label: "Loved",        cls: "profileReactHeart", desc: "Loved — evergreen, timeless or permanently valuable content" },
+	like:  { icon: "🔥", label: "Trending News", cls: "profileReactFire",  desc: "Trending News — topical or time-sensitive news" },
+	laugh: { icon: "😂", label: "Funny",         cls: "profileReactLaugh", desc: "Funny — amusing content" },
+	ccru:  { icon: "📖", label: "CCRU",          cls: "profileReactCcru",  desc: "CCRU, hyperstition, the Numogram, accelerationism or related material" }
 }
+var REACTION_ORDER = ["heart", "like", "laugh", "ccru"]
 
 function profileChipReactionsHtml(id) {
-	var c = profileContribReactions[id] || { heart: 0, like: 0, laugh: 0, mine: null }
+	var c = profileContribReactions[id] || { heart: 0, like: 0, laugh: 0, ccru: 0, mine: {} }
 	var o = '<span class="profileChipReact" id="profileReact-'+id+'" onclick="event.stopPropagation()">'
-	o += profileReactBtn(id, "heart", c.heart, c.mine === "heart")
-	o += profileReactBtn(id, "like", c.like, c.mine === "like")
-	o += profileReactBtn(id, "laugh", c.laugh, c.mine === "laugh")
+	REACTION_ORDER.forEach(function (type) { o += profileReactBtn(id, type, c[type] || 0, !!(c.mine && c.mine[type])) })
 	o += '</span>'
 	return o
 }
@@ -1359,25 +1402,27 @@ function profileChipReactionsHtml(id) {
 // Visibility is keyed off count, not "did I react" - a reaction someone else
 // left is exactly as much everyone's business as one of your own, so it stays
 // lit for every viewer, not just the person who cast it. Only a reaction
-// nobody has given yet (count 0) stays hidden until the phrase is hovered.
-// "mine" only changes the click's meaning (toggle off vs add) and the title
-// text, not what is visible. Lit colour comes from the reaction's own class
-// (profileReactHeart/Fire/Laugh) - evergreen, trending and funny are three
-// different things and should never read as the same green glow.
+// nobody has given yet (count 0) stays muted until the phrase is hovered (or,
+// on the redesigned row list, always visible but dim - see .phraseReact
+// below) so members can see it is selectable. "mine" only changes the
+// click's meaning (toggle off vs add) and the title text, not what is
+// visible. Lit colour comes from the reaction's own class
+// (profileReactHeart/Fire/Laugh/Ccru) - four different things that should
+// never read as the same glow with a different icon on it.
 function profileReactBtn(id, type, count, mine) {
 	var k = REACTION_KINDS[type]
 	var cls = 'profileReactBtn ' + k.cls + (count > 0 ? ' profileReactLit' : '') + (mine ? ' profileReactMine' : '')
-	var title = mine ? 'Remove your reaction' : k.desc
+	var title = mine ? 'Remove your ' + k.label + ' reaction' : k.desc
 	var o = '<button class="'+cls+'" id="profileReactBtn-'+id+'-'+type+'" '
-	o += 'onclick="profileToggleReaction(&quot;'+id+'&quot;,&quot;'+type+'&quot;)" title="'+title+'" aria-label="'+k.label+': '+k.desc+(count > 0 ? ' — ' + count + ' reacted' : '')+'">'
+	o += 'onclick="profileToggleReaction(&quot;'+id+'&quot;,&quot;'+type+'&quot;)" title="'+title+'" aria-label="'+k.label+': '+k.desc+(count > 0 ? ' — ' + count + ' reacted' : '')+(mine ? ', selected' : '')+'">'
 	o += k.icon
 	if (count > 0) o += '<span class="profileReactCount">'+count+'</span>'
 	o += '</button>'
 	return o
 }
 
-// A one-off green pulse the moment a reaction turns on, on top of the
-// standing glow .profileReactOn already gives it - same restart trick as
+// A one-off pulse the moment a reaction turns on, on top of the standing
+// .profileReactLit glow already gives it - same restart trick as
 // .findMatchesFlash (calc/styles.css): remove, force reflow, re-add, so a
 // second reaction right after the first still gets its own pulse.
 function profileFlashReaction(id, type) {
@@ -1391,24 +1436,24 @@ function profileFlashReaction(id, type) {
 
 // Flips immediately (optimistic, same idea as frToggleSwitch), saves in the
 // background, and puts the count back if that fails - a reaction should never
-// visibly lag behind the click that made it.
+// visibly lag behind the click that made it. Independent per type: turning
+// CCRU on or off never touches Loved/Trending News/Funny on the same phrase.
 function profileToggleReaction(id, type) {
-	var c = profileContribReactions[id] || { heart: 0, like: 0, laugh: 0, mine: null }
-	var cur = c.mine
-	var next = (cur === type) ? null : type
+	var c = profileContribReactions[id] || { heart: 0, like: 0, laugh: 0, ccru: 0, mine: {} }
+	if (!c.mine) c.mine = {}
+	var was = !!c.mine[type]
+	var now = !was
 
-	if (cur) c[cur] = Math.max(0, c[cur] - 1)
-	if (next) c[next] = (c[next] || 0) + 1
-	c.mine = next
+	c[type] = Math.max(0, (c[type] || 0) + (now ? 1 : -1))
+	c.mine[type] = now
 	profileContribReactions[id] = c
 	profileRedrawChipReactions(id)
-	if (next) profileFlashReaction(id, next)
+	if (now) profileFlashReaction(id, type)
 
-	var call = next ? phraseReact(id, next) : phraseUnreact(id)
+	var call = now ? phraseReact(id, type) : phraseUnreact(id, type)
 	call.catch(function (err) {
-		if (next) c[next] = Math.max(0, c[next] - 1)
-		if (cur) c[cur] = (c[cur] || 0) + 1
-		c.mine = cur
+		c[type] = Math.max(0, (c[type] || 0) + (now ? -1 : 1))
+		c.mine[type] = was
 		profileContribReactions[id] = c
 		profileRedrawChipReactions(id)
 		displayCalcNotification(err.message || "Could not react", 2400)
@@ -1418,6 +1463,47 @@ function profileToggleReaction(id, type) {
 function profileRedrawChipReactions(id) {
 	var el = document.getElementById("profileReact-"+id)
 	if (el !== null) el.outerHTML = profileChipReactionsHtml(id)
+}
+
+// One row in the published-phrases scrolling list - shared by a
+// contributor's own list (profileRenderContributorList) and Leaders' four
+// phrase-ranking tabs (renderProfilePhraseRankBody), so a reaction cast in
+// either place is the exact same button reading the exact same counts.
+// Phrase/cypher/value/publisher sit on the left (top, on mobile - see
+// .phraseRow's mobile rule), the four reactions on the right (below, on
+// mobile). opts: id, phrase, cipher, value, sub (publisher/time HTML, or
+// null), rank (an all-time position number, or null).
+function profilePhraseRowHtml(opts) {
+	var hasVal = (opts.value !== null && opts.value !== undefined)
+	var arg = function (s) { return authEsc(String(s)).replace(/"/g,'&quot;') }
+	var o = '<div class="phraseRow" onclick="profileUsePhrase(&quot;'+arg(opts.phrase)+'&quot;, true, &quot;'+arg(opts.cipher || "")+'&quot;)" title="Send to the calculator">'
+	o += '<div class="phraseRowMain">'
+	o += '<div class="phraseRowTop">'
+	if (opts.rank) o += '<span class="phraseRowRank">#'+opts.rank+'</span>'
+	o += '<span class="phraseRowText">'+authEsc(opts.phrase)+'</span>'
+	o += '</div>'
+	if (opts.cipher) {
+		var col = profileCipherColor(opts.cipher)
+		o += '<div class="phraseRowMeta"'+(col ? ' style="color:'+col+'"' : '')+'>'
+		o += authEsc(opts.cipher)
+		if (hasVal) o += ' <span class="phraseRowVal">'+authEsc(String(opts.value))+'</span>'
+		o += '</div>'
+	}
+	if (opts.sub) o += '<div class="phraseRowSub">'+opts.sub+'</div>'
+	o += '</div>'
+	o += '<div class="phraseRowReactions">'
+	// On a Leaders phrase tab, the reaction the tab is ranking by gets top
+	// billing - the other three stay reachable in the ordinary strip below,
+	// just not competing for the same visual weight as the one the list is
+	// actually sorted by.
+	if (opts.highlight) {
+		o += '<span class="phraseRowHighlight" title="'+authEsc(opts.highlight.label)+'">'
+		o += opts.highlight.icon+' <span class="phraseRowHighlightCount">'+opts.highlight.count+'</span></span>'
+	}
+	o += profileChipReactionsHtml(opts.id)
+	o += '</div>'
+	o += '</div>'
+	return o
 }
 
 // ---- profile ------------------------------------------------------------
