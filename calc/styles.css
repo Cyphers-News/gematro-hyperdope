@@ -67,6 +67,14 @@
 	--border-dark-accent: hsl(var(--font-hue) calc(100% * var(--font-sat)) calc(23% * var(--font-lit)));
 	--focus-outline: hsl(var(--font-hue) calc(100% * var(--font-sat)) calc(75% * var(--font-lit)));
 	--break-val-accent: hsl(var(--font-hue) calc(100% * var(--font-sat)) calc(41% * var(--font-lit)));
+	/* "something is new/unread" green - fixed, not tied to --global-hue like
+	   the accents above, on purpose: this means the same thing (unread,
+	   alive, new) no matter which colour a member has picked for the rest of
+	   the UI, same reasoning as the chat glow and reaction-lit colours that
+	   already used this exact hue before it had a variable of its own. Red is
+	   reserved for errors, warnings and destructive actions - never this. */
+	--notif-green: hsl(140 70% 40%);
+	--notif-green-text: hsl(140 80% 78%);
 }
 
 html, body { /* full <body> height for <!DOCTYPE html> */

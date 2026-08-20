@@ -12,7 +12,7 @@
 // offer a button that then fails, which is the right way round: the failure is
 // a message, not a wrong friendship.
 
-var friendsSection = "friends"   // chats | discover | friends
+var friendsSection = "chats"     // chats | discover | friends | profile
 var friendsSort = "recent"
 var friendsDiscoverKind = "popular"
 var friendsSearchTerm = ""
@@ -49,6 +49,7 @@ function renderProfileFriends() {
 		o += frSectionBtn("chats",    "&#128172;", "Chats",    news.chats)
 		o += frSectionBtn("discover", "&#128269;", "Discover", 0)
 		o += frSectionBtn("friends",  "&#128101;", "Friends",  news.friends + news.requests)
+		o += frSectionBtn("profile",  "&#128274;", "Profile",  0)
 		o += '</div>'
 		o += '<div id="frBody"></div>'
 		profileBody(o, tok)
@@ -56,6 +57,7 @@ function renderProfileFriends() {
 
 		if (friendsSection === "chats") frRenderChats(tok)
 		else if (friendsSection === "discover") frRenderDiscover(tok)
+		else if (friendsSection === "profile") renderProfileProfileTab()
 		else frRenderFriends(tok)
 	}).catch(function (err) { profileBody(profileErr(err), tok) })
 }
@@ -394,11 +396,9 @@ function frDiscoverBody(tok) {
 	}
 
 	var kinds = [
-		["mutual", "Mutuals"],
 		["recent", "New"],
 		["active", "Recently active"],
-		["popular", "Top contributors"],
-		["similar", "Uses your cyphers"]
+		["popular", "Top contributors"]
 	]
 	var o = '<div class="frToolbar">'
 	for (var k = 0; k < kinds.length; k++) {

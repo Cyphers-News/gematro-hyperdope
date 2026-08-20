@@ -21,7 +21,7 @@ var adminLiveTimer = null
 var adminUserQuery = "", adminUserSort = "recent", adminUserStatus = "all"
 var adminReportStatusFilter = "open", adminReportSort = "newest"
 var adminOpenReport = null
-var adminPhraseStatusFilter = "pending"
+var adminPhraseStatusFilter = "pending", adminPhraseSort = "recent"
 
 function adminEsc(s) { return authEsc(s) }
 
@@ -527,15 +527,27 @@ function adminSuggestCapitalization(phrase) {
 }
 
 function adminSetPhraseFilter(s) { adminPhraseStatusFilter = s; adminRender() }
+function adminSetPhraseSort(s)   { adminPhraseSort = s; adminRender() }
 
 function adminRenderPhraseQueue(host) {
 	var tok = adminSeq
-	adminPhraseQueue(adminPhraseStatusFilter).then(function (rows) {
+	adminPhraseQueue(adminPhraseStatusFilter, adminPhraseSort).then(function (rows) {
 		var o = '<div class="adminBar">'
 		o += '<span class="adminBarLab">Status</span>'
 		;["pending", "approved", "rejected", "exported", "all"].forEach(function (s) {
 			o += '<button class="adminChip' + (adminPhraseStatusFilter === s ? ' adminChipOn' : '') +
 				'" onclick="adminSetPhraseFilter(&quot;' + s + '&quot;)">' + s + '</button>'
+		})
+		o += '<span class="adminBarLab adminBarRight">Sort</span>'
+		;[
+			["recent",    "Most recent interaction"],
+			["total",     "Total reactions"],
+			["evergreen", "Most 💚 evergreen"],
+			["trending",  "Most 🔥 trending"],
+			["funny",     "Most 😂 funny"]
+		].forEach(function (p) {
+			o += '<button class="adminChip' + (adminPhraseSort === p[0] ? ' adminChipOn' : '') +
+				'" onclick="adminSetPhraseSort(&quot;' + p[0] + '&quot;)">' + p[1] + '</button>'
 		})
 		o += '</div>'
 
@@ -549,7 +561,8 @@ function adminRenderPhraseQueue(host) {
 		if (!rows.length) { adminWrite(host, o + '<div class="adminNote">Nothing here.</div>', tok); return }
 
 		o += '<table class="adminTable"><thead><tr>'
-		o += '<th>Phrase</th><th>By</th><th>&#10084;&#65039;</th><th>&#128077;</th><th>&#128514;</th>'
+		o += '<th>Phrase</th><th>By</th><th title="Evergreen / Trending / Funny / combined">💚 🔥 😂 Σ</th>'
+		o += '<th>First / last reaction</th>'
 		o += '<th>Suggested / final text</th><th>Status</th><th></th>'
 		o += '</tr></thead><tbody>'
 		for (var i = 0; i < rows.length; i++) o += adminPhraseRow(rows[i])
@@ -566,9 +579,10 @@ function adminPhraseRow(r) {
 	if (r.cipher) o += '<div class="adminDim">' + adminEsc(r.cipher) + (r.value !== null ? ' = ' + r.value : '') + '</div>'
 	o += '</td>'
 	o += '<td class="adminDim">' + adminEsc(r.contributor_name) + '</td>'
-	o += '<td class="adminDim">' + (r.heart_count || 0) + '</td>'
-	o += '<td class="adminDim">' + (r.like_count || 0) + '</td>'
-	o += '<td class="adminDim">' + (r.laugh_count || 0) + '</td>'
+	o += '<td class="adminDim" title="Evergreen ' + (r.heart_count || 0) + ' &middot; Trending ' + (r.like_count || 0) + ' &middot; Funny ' + (r.laugh_count || 0) + '">'
+	o += (r.heart_count || 0) + ' 💚&nbsp; ' + (r.like_count || 0) + ' 🔥&nbsp; ' + (r.laugh_count || 0) + ' 😂&nbsp; &middot; Σ ' + (r.total_count || 0)
+	o += '</td>'
+	o += '<td class="adminDim">' + adminWhen(r.first_reaction_at) + ' &middot; ' + adminWhen(r.last_reaction_at) + '</td>'
 	o += '<td><input type="text" class="adminSearch" id="' + fieldId + '" value="' + adminEsc(suggestion) + '"' +
 		(r.status === 'pending' || r.status === 'approved' ? '' : ' disabled') + '></td>'
 	o += '<td><span class="adminPill adminPill-' + adminEsc(r.status) + '">' + adminEsc(r.status) + '</span>'

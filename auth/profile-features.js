@@ -234,6 +234,20 @@ function trendingPhrases(limit) {
 	})
 }
 
+// Leaders' Trending / Most Loved / Funniest tabs - one reaction type at a
+// time (type is "heart", "like" or "laugh", shown to members as Evergreen,
+// Trending, Funny), ordered either by the most recent reaction of that type
+// ("recent") or by how many it has in total ("top").
+function phrasesByReaction(type, order, limit) {
+	var client = getAuthClient()
+	if (client === null || authUser === null) return Promise.resolve([])
+	return client.rpc("phrases_by_reaction", { reaction_type: type, order_mode: order || "recent", lim: limit || 30 })
+		.then(function (res) {
+			if (res.error) throw res.error
+			return res.data || []
+		})
+}
+
 // A contributor's published phrases. Only ever returns submitted rows, so a
 // private history entry can never appear here. id is needed for reactions -
 // without it there is nothing to react to a row by.

@@ -570,3 +570,36 @@ repo, but worth knowing if you have other integrations pointed at
 function that joins `member_cards` or `public_profiles` internally —
 continues to work unchanged, since none of them relied on their own caller
 having a grant on those views.
+
+## Reaction relabel and Leaders redesign
+
+`supabase/migrations/20260820030000_reaction_leaders_redesign.sql` — run
+after `20260820020000_security_definer_view_fix.sql`. Safe to re-run.
+
+The reaction table's own values (`heart`, `like`, `laugh`) are unchanged —
+only what a member sees changed (heart → 💚 Evergreen, like → 🔥 Trending,
+laugh → 😂 Funny, all client-side). What needed new SQL:
+
+### What it adds
+
+- **`admin_phrase_queue`, extended** — dropped and recreated (parameter list
+  and return shape both change) with a `sort` parameter (`recent` / `total` /
+  `evergreen` / `trending` / `funny`) and three fields the queue never
+  returned before: `total_count`, `first_reaction_at` (the enqueue trigger
+  already fires on a phrase's first reaction, so this was always equal to
+  `created_at` — now returned under its own name) and `last_reaction_at`.
+- **`phrases_by_reaction(reaction_type, order_mode, lim)`** — new. Backs
+  Leaders' Trending / Most Loved / Funniest tabs, one reaction type at a
+  time, ordered either by the most recent reaction of that type
+  (`order_mode = 'recent'`) or by how many it has in total
+  (`order_mode = 'top'`, ties broken by most recent). `trending_phrases`
+  (combined engagement across all three types) is untouched — it still backs
+  "Popular" as a sort option on a contributor's own phrase list, just no
+  longer as a Leaders tab of its own.
+
+Until this migration runs, Leaders' three new phrase tabs and the admin
+queue's new sort chips show the same "needs its database migration" /
+"admin migration has not been run" messages every other not-yet-migrated
+feature in this app shows — nothing crashes, and the Leaderboard tab,
+Dashboard, Reports, Users and Audit log sections of the admin panel are
+unaffected either way.

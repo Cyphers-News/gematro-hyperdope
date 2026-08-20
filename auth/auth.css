@@ -324,7 +324,7 @@
 	width: 9px;
 	height: 9px;
 	border-radius: 50%;
-	background-color: hsl(5 65% 48%);
+	background-color: var(--notif-green);
 	border: 1.5px solid var(--body-bg-accent);
 	pointer-events: none;
 }
@@ -681,6 +681,58 @@
 .profileCiphOpt.profileCiphOn { background-color: var(--btn-hover-accent); color: var(--font-white-1); }
 .profileCiphNone { padding: 0.4em 0.6em; color: var(--font-white-4); }
 .profileChipTerm { display: block; }
+/* the all-time ranking position, on a phrase chip in one of Leaders' three
+   phrase tabs - only shown there, and only in "all time" mode (see
+   renderProfilePhraseRankBody), since a rank number in newest-first order
+   would just be a row count, not a ranking */
+.profileChipRank {
+	display: inline-block;
+	font-size: 72%;
+	font-weight: 700;
+	color: var(--font-white-3);
+	padding-right: 0.3em;
+}
+/* the Recent / All-Time slider under Leaders' phrase-ranking tabs - a single
+   connected pill with a sliding thumb, deliberately not the same button
+   style as the category tabs above it (Trending/Most Loved/Funniest), since
+   those are separate destinations and this is one on/off setting within
+   whichever of them is open. Two stacked buttons read as more tabs; a
+   slider reads as a switch. */
+.profileRankSlider {
+	position: relative;
+	display: inline-flex;
+	margin: 0.1em 0 0.7em 0;
+	padding: 2px;
+	border-radius: 999px;
+	background: hsl(0 0% 100% / 0.05);
+	border: 1px solid var(--border-dark-accent);
+}
+.profileRankSliderThumb {
+	position: absolute;
+	top: 2px; bottom: 2px; left: 2px;
+	width: calc(50% - 2px);
+	border-radius: 999px;
+	background: var(--btn-active-accent);
+	box-shadow: inset 0 0 0 1px var(--focus-outline);
+	transition: transform 0.18s ease;
+}
+.profileRankSliderThumb.profileRankSliderThumbOn { transform: translateX(100%); }
+@media (prefers-reduced-motion: reduce) { .profileRankSliderThumb { transition: none; } }
+.profileRankSliderOpt {
+	position: relative;
+	z-index: 1;
+	flex: 1 1 50%;
+	background: transparent;
+	border: none;
+	padding: 0.3em 0.9em;
+	font-size: 82%;
+	font-weight: 500;
+	color: var(--font-white-3);
+	cursor: pointer;
+	white-space: nowrap;
+	transition: color 0.15s ease;
+}
+.profileRankSliderOpt.profileRankSliderOptOn { color: var(--font-white-1); font-weight: 600; }
 /* The cipher and its value, in that cipher's own colour. Bold because this is
    the reason the phrase was published, not a footnote to it - the grey it used
    to be read as disabled text. The inline colour comes from profileCipherColor. */
@@ -812,22 +864,41 @@
 	filter: grayscale(0);
 }
 
-/* Reacted to by at least one person (profileReactLit, count > 0): lit and
-   green for every viewer, permanently - not just the reactor, and not just
-   on hover. Someone else's reaction is exactly as visible as your own. */
-.profileReactBtn.profileReactLit {
+/* Reacted to by at least one person (profileReactLit, count > 0): lit,
+   permanently, for every viewer - not just the reactor, and not just on
+   hover. Someone else's reaction is exactly as visible as your own.
+
+   Colour is per reaction, not one shared green - evergreen, trending and
+   funny are three different things and should never look like the same
+   glow with a different icon stuck on it. */
+.profileReactBtn.profileReactHeart.profileReactLit {
 	opacity: 1;
 	filter: grayscale(0);
 	background: hsla(140 55% 45% / 0.22);
 	border-color: hsl(140 55% 48%);
 	color: var(--font-white-1);
 }
-/* the one you personally cast, on top of the shared green above - an inner
-   ring rather than a different colour, so it still reads as the same "lit"
-   state everyone else sees, just with a mark that it was you */
-.profileReactBtn.profileReactMine {
-	box-shadow: inset 0 0 0 1px hsl(140 80% 70%);
+.profileReactBtn.profileReactFire.profileReactLit {
+	opacity: 1;
+	filter: grayscale(0);
+	background: hsla(22 80% 45% / 0.22);
+	border-color: hsl(22 80% 52%);
+	color: var(--font-white-1);
 }
+.profileReactBtn.profileReactLaugh.profileReactLit {
+	opacity: 1;
+	filter: grayscale(0);
+	background: hsla(48 85% 45% / 0.22);
+	border-color: hsl(48 85% 52%);
+	color: var(--font-white-1);
+}
+/* the one you personally cast, on top of the shared colour above - an inner
+   ring rather than a different colour, so it still reads as the same "lit"
+   state everyone else sees, just with a mark that it was you. Matches each
+   reaction's own hue rather than one fixed green ring on every type. */
+.profileReactBtn.profileReactHeart.profileReactMine { box-shadow: inset 0 0 0 1px hsl(140 80% 70%); }
+.profileReactBtn.profileReactFire.profileReactMine  { box-shadow: inset 0 0 0 1px hsl(22 90% 68%); }
+.profileReactBtn.profileReactLaugh.profileReactMine { box-shadow: inset 0 0 0 1px hsl(48 90% 68%); }
 .profileReactCount { font-size: 88%; font-weight: 600; }
 
 /* the one-off pulse when a reaction is switched on (profileFlashReaction) -
@@ -1140,6 +1211,10 @@
 @media (max-width: 420px) { .frTabLab { display: none; } .frTabIcon { font-size: 110%; width: auto; } }
 
 /* the count of requests waiting, on the section button and inline in headings */
+/* Every unread/new indicator in the app - chat, friend requests, the Social
+   tab's own total - is this same green, matching .frTabChatGlow's glow and
+   the calculator's other "something is new" colours (--notif-green). Red is
+   reserved for errors, warnings and destructive actions, never a count. */
 .frBadge {
 	display: inline-block;
 	margin-left: 0.4em;
@@ -1147,7 +1222,7 @@
 	min-width: 1.35em;
 	padding: 0 0.3em;
 	border-radius: 999px;
-	background-color: hsl(5 65% 48%);
+	background-color: var(--notif-green);
 	color: #fff;
 	font-size: 78%;
 	font-weight: 700;
@@ -1155,11 +1230,8 @@
 	text-align: center;
 }
 .frBadgeInline { vertical-align: middle; }
-/* new messages, not "someone wants something from you" - green rather than
-   the red every other badge uses, matching the glow on .frTabChatGlow */
-.frBadge.frBadgeChat { background-color: hsl(140 70% 40%); }
 /* the Friends tab itself, when something is waiting */
-.profileTab.profileTabAlert { border-color: hsl(5 65% 55%); color: hsl(5 80% 78%); }
+.profileTab.profileTabAlert { border-color: var(--notif-green); color: var(--notif-green-text); }
 
 /* Chats' own small header - Inbox/Archived as a light filter strip, rather
    than a second full toolbar row sitting under the membership tabs and the
@@ -1186,7 +1258,7 @@
 	min-width: 1.2em;
 	padding: 0 0.35em;
 	border-radius: 999px;
-	background-color: hsl(140 70% 40%);
+	background-color: var(--notif-green);
 	color: #fff;
 	font-size: 88%;
 	font-weight: 700;
@@ -1354,7 +1426,7 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	max-width: 100%;
-	font-size: 155%;
+	font-size: 118%;
 	font-weight: 400;
 	color: var(--font-white-2);
 	margin-top: 0.15em;
@@ -1471,8 +1543,19 @@
 /* admin shortcut in the nav row */
 .authNavLink.authNavAdmin { color: hsl(45 85% 72%); }
 
-/* the sort toggle above a contributor's published phrases */
-.profileContribSort { display: flex; align-items: center; gap: 0.5em; padding-bottom: 0.5em; flex-wrap: wrap; }
+/* the sort/filter controls above a contributor's published phrases */
+.profileContribSort { display: flex; align-items: center; gap: 0.9em; padding-bottom: 0.5em; flex-wrap: wrap; }
+/* SORT and FILTER as two visually distinct groups rather than one long row -
+   a small caption plus its own chip row, wrapping as a unit on a narrow
+   screen instead of interleaving with the other group's chips */
+.profileSortGroup { display: flex; align-items: center; gap: 0.45em; flex-wrap: wrap; }
+.profileSortGroupLabel {
+	font-size: 68%;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--font-white-3);
+}
 /* every order visible and one tap away, rather than a dropdown you have to
    open first to see what your choices even are */
 .profileSortChips { display: flex; flex-wrap: wrap; gap: 0.25em; }
@@ -1869,7 +1952,7 @@
 .frPreviewUnread {
 	color: hsl(140 90% 68%);
 	font-weight: 700;
-	font-size: 165%;
+	font-size: 125%;
 	text-shadow: 0 0 4px hsla(140 95% 70% / 0.8), 0 0 14px hsla(140 90% 55% / 0.55);
 }
 

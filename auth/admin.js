@@ -92,7 +92,7 @@ function adminOnline(mins)         { return adminRpc("admin_online", { window_mi
 function adminReports(status, sort){ return adminRpc("admin_reports", { status_filter: status || null, sort: sort || "newest" }).then(rowsOr) }
 function adminReportContext(id)    { return adminRpc("admin_report_context", { report: id }).then(rowsOr) }
 function adminAudit(limit)         { return adminRpc("admin_audit_list", { lim: limit || 100 }).then(rowsOr) }
-function adminPhraseQueue(status)  { return adminRpc("admin_phrase_queue", { status_filter: status || "pending" }).then(rowsOr) }
+function adminPhraseQueue(status, sort) { return adminRpc("admin_phrase_queue", { status_filter: status || "pending", sort: sort || "recent" }).then(rowsOr) }
 
 function rowsOr(r) { return r || [] }
 
