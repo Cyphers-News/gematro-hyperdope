@@ -208,25 +208,40 @@ function submissionsFor(phrases) {
 
 // ---- leaderboard ------------------------------------------------------
 
-// Reads the leaderboard view, which exposes display name, avatar and counts
-// and never touches email.
+// leaderboard used to be a plain view; it is now the leaderboard_top() RPC
+// (20260820020000_security_definer_view_fix.sql) so this schema has no
+// security-definer view left reachable via the API. Same columns either way -
+// display name, avatar and counts, never email.
 function leaderboardTop(limit) {
 	var client = getAuthClient()
 	if (client === null || authUser === null) return Promise.resolve([])
-	return client.from("leaderboard").select("*").limit(limit || 25)
+	return client.rpc("leaderboard_top", { lim: limit || 25 })
 		.then(function (res) {
 			if (res.error) throw res.error
 			return res.data || []
 		})
 }
 
+// Top phrases site-wide by reaction count, not grouped by contributor - the
+// cross-user aggregation happens in the RPC itself (trending_phrases), since
+// pulling every submission down to sort client-side would not scale.
+function trendingPhrases(limit) {
+	var client = getAuthClient()
+	if (client === null || authUser === null) return Promise.resolve([])
+	return client.rpc("trending_phrases", { lim: limit || 30 }).then(function (res) {
+		if (res.error) throw res.error
+		return res.data || []
+	})
+}
+
 // A contributor's published phrases. Only ever returns submitted rows, so a
-// private history entry can never appear here.
+// private history entry can never appear here. id is needed for reactions -
+// without it there is nothing to react to a row by.
 function leaderboardPhrases(userId, limit) {
 	var client = getAuthClient()
 	if (client === null || authUser === null) return Promise.resolve([])
 	return client.from("phrase_submissions")
-		.select("phrase, cipher, value, created_at")
+		.select("id, phrase, cipher, value, created_at")
 		.eq("user_id", userId)
 		.order("created_at", { ascending: false })
 		.limit(limit || 50)
@@ -234,6 +249,49 @@ function leaderboardPhrases(userId, limit) {
 			if (res.error) throw res.error
 			return res.data || []
 		})
+}
+
+// ---- reactions ----------------------------------------------------------
+//
+// One reaction per member per phrase (heart/like/laugh) - setting a new one
+// replaces whichever you had, via upsert on the table's own unique key rather
+// than a delete-then-insert, so a slow connection can never leave a phrase
+// with two of your reactions or briefly none at all.
+
+function phraseReact(submissionId, reactionType) {
+	var client = getAuthClient()
+	if (client === null || authUser === null) return Promise.reject(new Error("Not signed in"))
+	return client.from("phrase_reactions")
+		.upsert(
+			{ submission_id: submissionId, user_id: authUser.id, reaction: reactionType },
+			{ onConflict: "submission_id,user_id" }
+		)
+		.then(function (res) { if (res.error) throw res.error; return true })
+}
+
+function phraseUnreact(submissionId) {
+	var client = getAuthClient()
+	if (client === null || authUser === null) return Promise.reject(new Error("Not signed in"))
+	return client.from("phrase_reactions").delete()
+		.eq("submission_id", submissionId).eq("user_id", authUser.id)
+		.then(function (res) { if (res.error) throw res.error; return true })
+}
+
+// Batch counts for a list of phrases, keyed by submission id - a contributor's
+// list can be hundreds of phrases long, and a request per row would be a
+// request storm. Ids with no reactions at all are simply absent from the
+// result; the caller treats a missing id as all-zero.
+function phraseReactionCounts(ids) {
+	var client = getAuthClient()
+	if (client === null || authUser === null || !ids.length) return Promise.resolve({})
+	return client.rpc("phrase_reaction_counts", { target_ids: ids }).then(function (res) {
+		if (res.error) throw res.error
+		var map = {}
+		;(res.data || []).forEach(function (r) {
+			map[r.submission_id] = { heart: r.heart_count, like: r.like_count, laugh: r.laugh_count, mine: r.my_reaction }
+		})
+		return map
+	})
 }
 
 // ---- avatar upload ----------------------------------------------------

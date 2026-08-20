@@ -1,28 +1,33 @@
 @font-face {
 	font-family: "matrix-font";
 	src: url("../font/matrix-font.woff2") format('woff2');
+	font-display: swap;
 }
 
 @font-face {
 	font-family: "Montserrat";
 	src: url("../font/montserrat-400.woff2") format('woff2');
+	font-display: swap;
 }
 
 @font-face {
 	font-family: "Montserrat";
 	src: url("../font/montserrat-500.woff2") format('woff2');
 	font-weight: 500;
+	font-display: swap;
 }
 
 @font-face {
 	font-family: "Montserrat";
 	src: url("../font/montserrat-600.woff2") format('woff2');
 	font-weight: 600;
+	font-display: swap;
 }
 
 @font-face {
 	font-family: "Roboto Mono";
 	src: url("../font/roboto-mono-400.woff2") format('woff2');
+	font-display: swap;
 }
 
 :root {
@@ -296,6 +301,22 @@ body {
 	padding: 0em 0.5em 0.9em 0.5em;
 	max-width: 46em;
 }
+/* .intBtn3.astroMyChartsBtn (not just .astroMyChartsBtn): .intBtn3's own
+   width:85px rule (styles.css, further down) has equal specificity to a
+   single-class selector, so whichever comes later in the file would win -
+   the extra .intBtn3 here beats that on specificity instead of depending on
+   source order. */
+.intBtn3.astroMyChartsBtn {
+	display: block;
+	width: auto;
+	margin: 0 0.5em 0.9em 0.5em;
+	padding: 0.4em 0.8em;
+	background: hsla(140 55% 45% / 0.16);
+	border-color: hsl(140 50% 45%);
+	color: var(--font-white-1);
+	font-weight: 600;
+}
+.intBtn3.astroMyChartsBtn:hover { background: hsla(140 55% 45% / 0.28); }
 .astroStep {
 	font-size: 92%;
 	font-weight: 600;
@@ -557,7 +578,6 @@ body {
 		padding: 0.35em 0.6em;
 		font-size: 94%;
 	}
-	.dropbtn.dateCalcTab { font-size: 94%; }
 	.dropbtn.bgToggleBtn { font-size: 78%; padding: 0.35em 0.5em; }
 	#calcOptionsPanel { padding-top: 0.4em; }
 
@@ -586,6 +606,29 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
 	.dropbtn.findMatchesTab.findMatchesFlash { animation: none; background-color: hsla(140 85% 55% / 0.3); }
+}
+
+/* A first-time visitor has no reason to know Matches is a button rather than
+   a label. The instruction used to live in a CSS-only hover tooltip on the
+   button itself, but hovering the button is exactly what opens
+   .dropdown-content (createFindMatchesMenu, calc.js) over that same spot, so
+   the tooltip was never actually visible - it lives inside the open panel
+   instead now (.findMatchesHint), not on the button.
+
+   .dropdown-content .findMatchesHint, not .findMatchesHint alone:
+   .dropdown-content's own text-align:left (styles.css, further down) has
+   equal specificity to a single-class selector, so whichever rule came later
+   in the file would win - the extra .dropdown-content here beats that on
+   specificity instead of depending on source order (the same fix as
+   .intBtn3.astroMyChartsBtn elsewhere in this file). */
+.dropdown-content .findMatchesHint {
+	font-size: 76%;
+	font-weight: 500;
+	color: var(--font-white-3);
+	text-align: center;
+	padding: 0.2em 0 0.9em 0;
+	margin-bottom: 0.5em;
+	border-bottom: 1px solid var(--separator-accent2);
 }
 
 /* ---- Find Matches sweep ---- */
@@ -1242,8 +1285,11 @@ body {
 	font-size: 120%;
 }
 @media (max-width: 911px) { /* mobile */
+	.ChartChar {
+		font-size: 118%;
+	}
 	.ChartVal {
-		font-size: 110%;
+		font-size: 100%;
 	}
 }
 .LetterCounts {
@@ -1765,9 +1811,6 @@ body {
 	font-size: 100%;
 	font-weight: 500;
 	outline: none;
-}
-.dropbtn.dateCalcTab { /* same size as the other tabs, just slightly brighter */
-	color: var(--font-white-1);
 }
 .optionElementTable {
 	border-spacing: 0;
@@ -2919,16 +2962,22 @@ body.focusMode #BreakTableContainer {
 	cursor: default;
 }
 body.focusMode.focusHideWordSums #SimpleBreak,
-body.focusMode.focusHideWordSums #BreakSumLong,
 body.focusMode.focusHideWordSums .SimpleBreakChart,
 body.focusMode.focusHideWordSums .SimpleBreakChartLong {
 	display: none !important;
 }
+/* #BreakSumLong (the grid's own total, long phrases) and .BreakCipherName (the
+   cypher name under it) are "the grid's own total" per the comment above -
+   Breakdown's job, not Word sums' - so they hide with the rest of the grid.
+   Left out of this list before, a long phrase with Breakdown off still showed
+   its total and cypher name sitting there with nothing above it. */
 body.focusMode.focusHideBreakdown #BreakTableContainer .BreakChar,
 body.focusMode.focusHideBreakdown #BreakTableContainer .BreakVal,
 body.focusMode.focusHideBreakdown #BreakTableContainer .BreakValDark,
 body.focusMode.focusHideBreakdown #BreakTableContainer .BreakWordSum,
-body.focusMode.focusHideBreakdown #BreakTableContainer .BreakPhraseSum {
+body.focusMode.focusHideBreakdown #BreakTableContainer .BreakPhraseSum,
+body.focusMode.focusHideBreakdown #BreakSumLong,
+body.focusMode.focusHideBreakdown .BreakCipherName {
 	display: none !important;
 }
 body.focusMode.focusHideCipherChart #ChartSpotScroll {

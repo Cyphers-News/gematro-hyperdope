@@ -91,12 +91,12 @@ function renderProfilePanel() {
 	o += '<div class="profileTabs">'
 	o += profileTabBtn("presets", "✅ Presets")
 	o += profileTabBtn("csv", "📄 CSV")
-	o += profileTabBtn("entries", "💾 Saved")
+	o += profileTabBtn("entries", "💾 Saved", "profileTabRun")
 	o += profileTabBtn("leaderboard", "🏆 Leaders")
+
+	o += profileTabBtn("friends", "💬 Social", "profileTabRun")
+	o += profileTabBtn("profile", "🔒 Profile")
 	o += profileTabBtn("chart", "🔮 Chart")
-
-	o += profileTabBtn("friends", "📧 Friends", "profileTabRun")
-
 
 	o += profileTabBtn("account", "⚙ Account", "profileTabRun")
 	o += '</div>'
@@ -104,6 +104,12 @@ function renderProfilePanel() {
 	o += '<div id="profileBody" class="profileBody"><div class="profileLoading">Loading…</div></div>'
 	o += '</div>'
 	area.innerHTML = o
+
+	// Friends' badge is otherwise only ever painted by the 20s poll (which
+	// silently no-ops while this panel is closed) or by opening Friends
+	// itself - paint it fresh the instant the panel opens on any tab, from
+	// whatever the poll already has cached, so it never takes a click to see.
+	if (typeof friendsRefreshBadge === "function") friendsRefreshBadge()
 
 	// anything still in flight from the previous tab is now stale
 	profileRenderSeq++
@@ -114,14 +120,15 @@ function renderProfilePanel() {
 	else if (profileTabActive === "chart") renderProfileChart()
 	else if (profileTabActive === "leaderboard") renderProfileLeaderboard()
 	else if (profileTabActive === "friends") renderProfileFriends()
+	else if (profileTabActive === "profile") renderProfileProfileTab()
 	else renderProfileAccount()
 }
 
 // extra is for profileTabRun, which puts a gap before the first tab of a run
-function profileTabBtn(id, label, extra) {
+function profileTabBtn(id, label, extra, title) {
 	var on = (profileTabActive === id) ? " profileTabOn" : ""
 	var elId = "profileTab" + id.charAt(0).toUpperCase() + id.slice(1)
-	return '<input class="intBtn3 profileTab'+on+(extra ? " " + extra : "")+'" id="'+elId+'" type="button" value="'+label+'" onclick="profileSetTab(&quot;'+id+'&quot;)">'
+	return '<input class="intBtn3 profileTab'+on+(extra ? " " + extra : "")+'" id="'+elId+'" type="button" value="'+label+'"'+(title ? ' title="'+title+'"' : '')+' onclick="profileSetTab(&quot;'+id+'&quot;)">'
 }
 
 // Every tab loads over the network, so a slow tab's response can land after
@@ -251,7 +258,7 @@ function renderProfileEntries() {
 			} else {
 				// the cipher arrives prefilled from whatever is selected, so
 				// publishing stays one click unless you want to change it
-				s += profileCipherSelect(r.id)
+				s += profileCipherSelect(r.id, r.phrase)
 				s += '<button class="profileMiniBtn" onclick="profileSubmit(&quot;'+authEsc(r.phrase).replace(/"/g,'&quot;')+'&quot;,&quot;'+r.id+'&quot;)" title="Publish this phrase to the leaderboard">Submit</button>'
 			}
 			s += '<button class="profileMiniBtn profileMiniDanger" onclick="profileDeleteEntry(&quot;'+r.id+'&quot;,&quot;'+authEsc(r.phrase).replace(/"/g,'&quot;')+'&quot;)" title="Remove from your saved history">&#215;</button>'
@@ -279,8 +286,9 @@ function renderProfileEntries() {
 		var hidePublished = profileHidePublishedGet()
 		var publishedTotal = published.length + orphans.length
 		if (publishedTotal) {
+			o += '<div class="profilePublishedSep"></div>'
 			o += '<div class="profilePublishedToggle" onclick="profileTogglePublished()">'
-			o += (hidePublished ? '&#9656; Show' : '&#9662; Hide') + ' published (' + publishedTotal + ')'
+			o += (hidePublished ? '&#9656; Show' : '&#9662; Hide') + ' published to leaderboard (' + publishedTotal + ')'
 			o += '</div>'
 		}
 
@@ -475,18 +483,44 @@ function profileDeleteEntry(id, phrase) {
 // know where yours sits in the list, so this is a text box that filters as you
 // type. It keeps the id the Submit button reads, and it can only ever hold a
 // real cipher name: profileCiphCommit() snaps anything else back.
-function profileCipherSelect(rowId) {
+function profileCipherSelect(rowId, phrase) {
 	if (typeof cipherList === "undefined") return ""
 	var pick = (typeof submissionCipherDefault === "function") ? submissionCipherDefault() : null
 	if (!pick && cipherList.length) pick = cipherList[0].cipherName
 
 	var o = '<span class="profileCiphPick">'
 	o += '<input type="text" class="profileCiphSelect profileCiphInput" id="ciph_'+rowId+'"'
-	o += ' value="'+authEsc(pick || "")+'" data-valid="'+authEsc(pick || "")+'"'
+	o += ' value="'+authEsc(pick || "")+'" data-valid="'+authEsc(pick || "")+'" data-phrase="'+authEsc(phrase || "")+'"'
 	o += ' autocomplete="off" spellcheck="false" placeholder="Type to search…"'
 	o += ' title="Which cypher makes this interesting? Type to search.">'
+	o += '<span class="profileCiphVal" id="ciphVal_'+rowId+'">'+profileCiphValHtml(pick, phrase)+'</span>'
 	o += '</span>'
 	return o
+}
+
+// The value this phrase would get under the currently picked cypher, in that
+// cypher's own colour - shown before Submit is pressed, not only after, since
+// which cypher makes the phrase worth publishing is exactly the decision this
+// row exists to make.
+function profileCiphValHtml(cipherName, phrase) {
+	if (!cipherName || !phrase || typeof cipherList === "undefined" || typeof gemForMatching !== "function") return ""
+	var c = null
+	for (var i = 0; i < cipherList.length; i++) if (cipherList[i].cipherName === cipherName) { c = cipherList[i]; break }
+	if (c === null) return ""
+	var val = gemForMatching(c, phrase)
+	// wheel cyphers substitute symbols rather than adding up to a number -
+	// nothing to preview there
+	if (typeof val !== "number" || !isFinite(val)) return ""
+	var col = ' style="color: hsl('+c.H+' '+c.S+'% '+c.L+'%)"'
+	return '<span'+col+'>= '+authEsc(String(val))+'</span>'
+}
+
+function profileCiphValRefresh(input) {
+	if (!input) return
+	var rowId = input.id.replace(/^ciph_/, "")
+	var span = document.getElementById("ciphVal_"+rowId)
+	if (span === null) return
+	span.innerHTML = profileCiphValHtml(input.value, input.getAttribute("data-phrase"))
 }
 
 // ---- searchable cipher picker -----------------------------------------
@@ -599,6 +633,7 @@ function profileCiphPick(name) {
 	if (profileCiphInput === null || !name) return
 	profileCiphInput.value = name
 	profileCiphInput.setAttribute("data-valid", name)
+	profileCiphValRefresh(profileCiphInput)
 	profileCiphClose()
 }
 
@@ -617,6 +652,7 @@ function profileCiphCommit(input) {
 	var pick = exact || first || input.getAttribute("data-valid") || names[0] || ""
 	input.value = pick
 	input.setAttribute("data-valid", pick)
+	profileCiphValRefresh(input)
 }
 
 $(document).ready(function () {
@@ -867,16 +903,44 @@ function profileWithdraw(id) {
 	}).catch(function (err) { profileBody(profileErr(err)) })
 }
 
-// ---- leaderboard ------------------------------------------------------
+// ---- leaderboard --------------------------------------------------------
+//
+// Two views behind one toggle: who has published the most (the ranking, the
+// original view), and which individual phrases people actually reacted to
+// (trending) - the first is about contributors, the second about phrases,
+// and neither replaces the other.
+
+var profileLeaderboardView = "ranking" // ranking | trending
+
+function profileSetLeaderboardView(v) {
+	profileLeaderboardView = v
+	renderProfileLeaderboard()
+}
 
 function renderProfileLeaderboard() {
 	var tok = profileRenderSeq
+	var o = '<div class="profileViewToggle">'
+	o += '<button class="profileMiniBtn'+(profileLeaderboardView === "ranking" ? ' profileMiniBtnOn' : '')+'" onclick="profileSetLeaderboardView(&quot;ranking&quot;)">&#127942; Leaderboard</button>'
+	o += '<button class="profileMiniBtn'+(profileLeaderboardView === "trending" ? ' profileMiniBtnOn' : '')+'" onclick="profileSetLeaderboardView(&quot;trending&quot;)">&#128293; Trending</button>'
+	o += '</div>'
+	o += '<div id="profileLeaderboardBody"><div class="profileLoading">Loading…</div></div>'
+	profileBody(o, tok)
+	profileContribOpen = null // whichever view was open before, its panel is gone with it
+
+	if (profileLeaderboardView === "trending") renderProfileTrendingBody(tok)
+	else renderProfileRankingBody(tok)
+}
+
+function renderProfileRankingBody(tok) {
 	leaderboardTop(25).then(function (rows) {
+		var host = document.getElementById("profileLeaderboardBody")
+		if (host === null || tok !== profileRenderSeq) return
 		var o = ''
 		o += '<div class="profileNote">Top contributors by phrases published. Display names only &mdash; email addresses are never shown.</div>'
+		o += '<div class="profileNote">&#10084;&#65039; Reactions nominate a phrase for the database &mdash; an admin decides.</div>'
 		if (rows.length === 0) {
 			o += '<div class="profileNote">Nobody has published a phrase yet. Be the first.</div>'
-			profileBody(o, tok); return
+			host.innerHTML = o; return
 		}
 		o += '<div class="profileList">'
 		rows.forEach(function (r, i) {
@@ -896,38 +960,91 @@ function renderProfileLeaderboard() {
 		})
 		o += '</div>'
 		o += '<div id="profileContributor"></div>'
-		profileBody(o, tok)
-		profileContribOpen = null // the panel below was just thrown away with it
-	}).catch(function (err) { profileBody(profileErr(err), tok) })
+		host.innerHTML = o
+	}).catch(function (err) {
+		var host = document.getElementById("profileLeaderboardBody")
+		if (host !== null && tok === profileRenderSeq) host.innerHTML = profileErr(err)
+	})
+}
+
+// Top phrases site-wide by reaction count, not grouped by who published
+// them - trending_phrases (Supabase RPC) does the cross-user aggregation
+// server-side, since pulling every submission client-side to sort it would
+// not scale. Reuses phraseReactionCounts for the interactive per-viewer
+// state (the trending RPC only returns totals, not "did I react").
+function renderProfileTrendingBody(tok) {
+	trendingPhrases(40).then(function (rows) {
+		var host = document.getElementById("profileLeaderboardBody")
+		if (host === null || tok !== profileRenderSeq) return
+		var o = ''
+		o += '<div class="profileNote">Top phrases by reactions, across every contributor.</div>'
+		o += '<div class="profileNote">&#10084;&#65039; Reactions nominate a phrase for the database &mdash; an admin decides.</div>'
+		if (rows.length === 0) {
+			o += '<div class="profileNote">Nothing has a reaction yet. Be the first, over on Leaderboard.</div>'
+			host.innerHTML = o; return
+		}
+		return phraseReactionCounts(rows.map(function (r) { return r.submission_id })).then(function (reactions) {
+			if (host === null || tok !== profileRenderSeq) return
+			profileContribReactions = reactions
+			o += '<div class="profileChipScroll"><div class="profileChips">'
+			rows.forEach(function (r) {
+				var hasVal = (r.value !== null && r.value !== undefined)
+				var arg = function (s) { return authEsc(String(s)).replace(/"/g,'&quot;') }
+				o += '<span class="profileChip profileTrendChip" onclick="profileUsePhrase(&quot;'+arg(r.phrase)+'&quot;, true, &quot;'+arg(r.cipher || "")+'&quot;)">'
+				o += '<span class="profileChipTerm">'+authEsc(r.phrase)+'</span>'
+				if (r.cipher) {
+					var col = profileCipherColor(r.cipher)
+					o += '<span class="profileChipCiph"'+(col ? ' style="color:'+col+'"' : '')+'>'
+					o += authEsc(r.cipher)
+					if (hasVal) o += ' <span class="profileChipVal">'+authEsc(String(r.value))+'</span>'
+					o += '</span>'
+				}
+				o += '<span class="profileTrendBy">by '+authEsc(r.contributor_name)+'</span>'
+				o += profileChipReactionsHtml(r.submission_id)
+				o += '</span>'
+			})
+			o += '</div></div>'
+			host.innerHTML = o
+		})
+	}).catch(function (err) {
+		var host = document.getElementById("profileLeaderboardBody")
+		if (host !== null && tok === profileRenderSeq) host.innerHTML = profileErr(err)
+	})
 }
 
 // Whose submissions are showing, so the same name can close them again.
 var profileContribOpen = null
 
+// submission id -> {heart, like, laugh, mine} - fetched once when a
+// contributor's list opens, patched in place as reactions are toggled
+var profileContribReactions = {}
+
 // Kept outside the render so it survives a re-render, and so opening a second
 // contributor keeps the order you were reading in.
 var profileContribSort = "recent"
 
-// The list the select is built from. Adding an order is a row here plus a case
-// in profileSortContrib; nothing else changes.
+// The list the chip row (profileRenderContributorList) is built from. Adding
+// an order is a row here plus a case in profileSortContrib; nothing else
+// changes. [id, icon, short label, full title for the hover]
 var profileContribSortOptions = [
-	["recent",   "\uD83C\uDD95 Most recent"],
-	["oldest",   "\uD83D\uDCDC Oldest first"],
-	["valueAsc", "\uD83D\uDD22 Value, low to high"],
-	["valueDesc","\uD83D\uDD22 Value, high to low"],
-	["az",       "\uD83D\uDD24 Alphabetical A\u2013Z"],
-	["za",       "\uD83D\uDD20 Alphabetical Z\u2013A"],
-	["cipher",   "\uD83C\uDFAF By cypher"],
-	["popular",  "\u2B50 Most used cypher"]
+	["recent",    "\uD83C\uDD95", "Recent",  "Most recently published"],
+	["oldest",    "\uD83D\uDCDC", "Oldest",  "Oldest first"],
+	["valueAsc",  "\uD83D\uDD22", "Value \u2191", "Value, low to high"],
+	["valueDesc", "\uD83D\uDD22", "Value \u2193", "Value, high to low"],
+	["az",        "\uD83D\uDD24", "A\u2013Z",     "Alphabetical A to Z"],
+	["za",        "\uD83D\uDD20", "Z\u2013A",     "Alphabetical Z to A"],
+	["cipher",    "\uD83C\uDFAF", "Cypher",  "Grouped by cypher"],
+	["popular",   "\u2B50",       "Popular", "Most used cypher first"],
+	["hearts",    "\u2764\uFE0F", "Hearted", "Most hearts first"],
+	["fire",      "\uD83D\uDD25", "Hottest", "Most fire first"],
+	["laugh",     "\uD83D\uDE02", "Funniest","Most laughs first"]
 ]
 
 function profileSetContribSort(v) {
 	profileContribSort = v
-	if (profileContribOpen !== null) {
-		var id = profileContribOpen
-		profileContribOpen = null      // so this does not read as a close
-		profileShowContributor(id, profileContribName)
-	}
+	// redraws from what's already fetched (profileContribRows/Reactions)
+	// rather than a fresh round trip for the exact same rows
+	if (profileContribOpen !== null) profileRenderContributorList()
 }
 
 // A phrase published without a value - the cypher was removed, or it is a
@@ -952,12 +1069,26 @@ function profileSortContrib(rows) {
 		}
 	}
 
+	// Most of a given reaction first - reads from profileContribReactions
+	// (fetched once when the list opens), not the row itself, since reaction
+	// counts live separately from the phrase_submissions row.
+	var byReaction = function (type) {
+		return function (a, b) {
+			var av = (profileContribReactions[a.id] && profileContribReactions[a.id][type]) || 0
+			var bv = (profileContribReactions[b.id] && profileContribReactions[b.id][type]) || 0
+			return (bv !== av) ? (bv - av) : byText(a, b)
+		}
+	}
+
 	switch (profileContribSort) {
 		case "oldest":    return out.sort(function (a, b) { return Date.parse(a.created_at) - Date.parse(b.created_at) })
 		case "valueAsc":  return out.sort(byValue(1))
 		case "valueDesc": return out.sort(byValue(-1))
 		case "az":        return out.sort(byText)
 		case "za":        return out.sort(function (a, b) { return byText(b, a) })
+		case "hearts":    return out.sort(byReaction("heart"))
+		case "fire":      return out.sort(byReaction("like"))
+		case "laugh":     return out.sort(byReaction("laugh"))
 		case "cipher":    return out.sort(function (a, b) {
 			var c = String(a.cipher || "").localeCompare(String(b.cipher || ""), undefined, { sensitivity: "base" })
 			return c !== 0 ? c : byValue(1)(a, b)
@@ -1027,62 +1158,271 @@ function profileShowContributor(userId, name) {
 
 	profileContribOpen = userId
 	profileContribName = name
+	profileContribReactions = {}
 	profileMarkOpenContributor()
 	host.innerHTML = '<div class="profileLoading">Loading…</div>'
-	leaderboardPhrases(userId, 50).then(function (rows) {
+	// 50 was cutting off anyone with more published than that - a contributor
+	// with 400 only ever showed the newest 50. High enough that a real member
+	// is never truncated, without going fully unbounded.
+	leaderboardPhrases(userId, 2000).then(function (rows) {
 		if (profileContribOpen !== userId) return // closed, or another name opened, while this loaded
-		var o = '<div class="profileContribBox">'
-		o += '<div class="profileContribTitle">Published by '+authEsc(name)+'</div>'
-		if (rows.length === 0) o += '<div class="profileNote">Nothing to show.</div>'
-		else {
-			// A select rather than a growing row of buttons: these are mutually
-			// exclusive orders, and there are now eight of them.
-			o += '<div class="profileContribSort">'
-			o += '<select class="frSelect" onchange="profileSetContribSort(this.value)">'
-			profileContribSortOptions.forEach(function (opt) {
-				o += '<option value="'+opt[0]+'"'+(profileContribSort === opt[0] ? ' selected' : '')+'>'+opt[1]+'</option>'
-			})
-			o += '</select>'
-			o += '<span class="profileWhen">'+rows.length+(rows.length === 1 ? ' phrase' : ' phrases')+'</span>'
-			o += '</div>'
+		profileContribRows = rows
+		return phraseReactionCounts(rows.map(function (r) { return r.id })).then(function (reactions) {
+			if (profileContribOpen !== userId) return
+			profileContribReactions = reactions
+			profileRenderContributorList()
+		})
+	}).catch(function (err) { host.innerHTML = profileErr(err) })
+}
 
-			rows = profileSortContrib(rows)
-			o += '<div class="profileChipScroll"><div class="profileChips">'
-			var lastGroup = null
-			rows.forEach(function (r) {
-				// A divider whenever the thing being sorted by changes, so a long
-				// list reads as groups rather than as one wall. Only where it
-				// means something: grouping an alphabetical list by value would
-				// put a heading between every pair of chips.
-				var g = profileContribGroupOf(r)
-				if (g !== null && g !== lastGroup) {
-					o += '<div class="profileChipGroup">'+authEsc(g)+'</div>'
-					lastGroup = g
-				}
-				var hasVal = (r.value !== null && r.value !== undefined)
-				var why = r.cipher
-					? (r.cipher + (hasVal ? ' = ' + r.value : '') + ' — send to the calculator')
-					: 'Send to the calculator'
-				var arg = function (s) { return authEsc(String(s)).replace(/"/g,'&quot;') }
-				o += '<span class="profileChip" title="'+authEsc(why)+'"'
-				o += ' onclick="profileUsePhrase(&quot;'+arg(r.phrase)+'&quot;, true, &quot;'+arg(r.cipher || "")+'&quot;)">'
-				o += '<span class="profileChipTerm">'+authEsc(r.phrase)+'</span>'
-				if (r.cipher) {
-					// the cipher's own colour, so the pair carries the same
-					// meaning here as it does in the History Table
-					var col = profileCipherColor(r.cipher)
-					o += '<span class="profileChipCiph"'+(col ? ' style="color:'+col+'"' : '')+'>'
-					o += authEsc(r.cipher)
-					if (hasVal) o += ' <span class="profileChipVal">'+authEsc(String(r.value))+'</span>'
-					o += '</span>'
-				}
+// Cached so changing the sort order (profileSetContribSort) redraws from what
+// is already on hand instead of a fresh round trip for the exact same rows.
+var profileContribRows = []
+
+function profileRenderContributorList() {
+	var host = document.getElementById("profileContributor")
+	if (host === null) return
+	var rows = profileContribRows
+	var name = profileContribName
+
+	var o = '<div class="profileContribBox">'
+	o += '<div class="profileContribTitle">Published by '+authEsc(name)+'</div>'
+	if (rows.length === 0) o += '<div class="profileNote">Nothing to show.</div>'
+	else {
+		// Chips rather than a select: every order is visible and one tap away,
+		// instead of hidden behind a dropdown you have to open first to see
+		// what your choices even are.
+		o += '<div class="profileContribSort">'
+		o += '<div class="profileSortChips">'
+		profileContribSortOptions.forEach(function (opt) {
+			var on = (profileContribSort === opt[0]) ? ' profileSortChipOn' : ''
+			o += '<button class="profileSortChip'+on+'" title="'+opt[3]+'" onclick="profileSetContribSort(&quot;'+opt[0]+'&quot;)">'
+			o += opt[1]+' '+opt[2]+'</button>'
+		})
+		o += '</div>'
+		o += '<span class="profileWhen">'+rows.length+(rows.length === 1 ? ' phrase' : ' phrases')+'</span>'
+		o += '</div>'
+
+		rows = profileSortContrib(rows)
+		o += '<div class="profileChipScroll"><div class="profileChips">'
+		var lastGroup = null
+		rows.forEach(function (r) {
+			// A divider whenever the thing being sorted by changes, so a long
+			// list reads as groups rather than as one wall. Only where it
+			// means something: grouping an alphabetical list by value would
+			// put a heading between every pair of chips.
+			var g = profileContribGroupOf(r)
+			if (g !== null && g !== lastGroup) {
+				o += '<div class="profileChipGroup">'+authEsc(g)+'</div>'
+				lastGroup = g
+			}
+			var hasVal = (r.value !== null && r.value !== undefined)
+			var why = r.cipher
+				? (r.cipher + (hasVal ? ' = ' + r.value : '') + ' — send to the calculator')
+				: 'Send to the calculator'
+			var arg = function (s) { return authEsc(String(s)).replace(/"/g,'&quot;') }
+			o += '<span class="profileChip" title="'+authEsc(why)+'"'
+			o += ' onclick="profileUsePhrase(&quot;'+arg(r.phrase)+'&quot;, true, &quot;'+arg(r.cipher || "")+'&quot;)">'
+			o += '<span class="profileChipTerm">'+authEsc(r.phrase)+'</span>'
+			if (r.cipher) {
+				// the cipher's own colour, so the pair carries the same
+				// meaning here as it does in the History Table
+				var col = profileCipherColor(r.cipher)
+				o += '<span class="profileChipCiph"'+(col ? ' style="color:'+col+'"' : '')+'>'
+				o += authEsc(r.cipher)
+				if (hasVal) o += ' <span class="profileChipVal">'+authEsc(String(r.value))+'</span>'
 				o += '</span>'
-			})
-			o += '</div></div>'
+			}
+			o += profileChipReactionsHtml(r.id)
+			o += '</span>'
+		})
+		o += '</div></div>'
+	}
+	o += '</div>'
+	host.innerHTML = o
+}
+
+function profileChipReactionsHtml(id) {
+	var c = profileContribReactions[id] || { heart: 0, like: 0, laugh: 0, mine: null }
+	var o = '<span class="profileChipReact" id="profileReact-'+id+'" onclick="event.stopPropagation()">'
+	o += profileReactBtn(id, "heart", "&#10084;&#65039;", c.heart, c.mine === "heart", "Heart it")
+	o += profileReactBtn(id, "like", "&#128293;", c.like, c.mine === "like", "Fire")
+	o += profileReactBtn(id, "laugh", "&#128514;", c.laugh, c.mine === "laugh", "Laugh")
+	o += '</span>'
+	return o
+}
+
+// Visibility is keyed off count, not "did I react" - a reaction someone else
+// left is exactly as much everyone's business as one of your own, so it stays
+// lit and green for every viewer, not just the person who cast it. Only a
+// reaction nobody has given yet (count 0) stays hidden until the phrase is
+// hovered. "mine" only changes the click's meaning (toggle off vs add) and
+// the title text, not what is visible.
+function profileReactBtn(id, type, icon, count, mine, label) {
+	var cls = 'profileReactBtn' + (count > 0 ? ' profileReactLit' : '') + (mine ? ' profileReactMine' : '')
+	var o = '<button class="'+cls+'" id="profileReactBtn-'+id+'-'+type+'" '
+	o += 'onclick="profileToggleReaction(&quot;'+id+'&quot;,&quot;'+type+'&quot;)" title="'+(mine ? 'Remove your reaction' : label)+'">'
+	o += icon
+	if (count > 0) o += '<span class="profileReactCount">'+count+'</span>'
+	o += '</button>'
+	return o
+}
+
+// A one-off green pulse the moment a reaction turns on, on top of the
+// standing glow .profileReactOn already gives it - same restart trick as
+// .findMatchesFlash (calc/styles.css): remove, force reflow, re-add, so a
+// second reaction right after the first still gets its own pulse.
+function profileFlashReaction(id, type) {
+	var btn = document.getElementById("profileReactBtn-"+id+"-"+type)
+	if (btn === null) return
+	btn.classList.remove("profileReactFlash")
+	void btn.offsetWidth
+	btn.classList.add("profileReactFlash")
+	setTimeout(function () { btn.classList.remove("profileReactFlash") }, 650)
+}
+
+// Flips immediately (optimistic, same idea as frToggleSwitch), saves in the
+// background, and puts the count back if that fails - a reaction should never
+// visibly lag behind the click that made it.
+function profileToggleReaction(id, type) {
+	var c = profileContribReactions[id] || { heart: 0, like: 0, laugh: 0, mine: null }
+	var cur = c.mine
+	var next = (cur === type) ? null : type
+
+	if (cur) c[cur] = Math.max(0, c[cur] - 1)
+	if (next) c[next] = (c[next] || 0) + 1
+	c.mine = next
+	profileContribReactions[id] = c
+	profileRedrawChipReactions(id)
+	if (next) profileFlashReaction(id, next)
+
+	var call = next ? phraseReact(id, next) : phraseUnreact(id)
+	call.catch(function (err) {
+		if (next) c[next] = Math.max(0, c[next] - 1)
+		if (cur) c[cur] = (c[cur] || 0) + 1
+		c.mine = cur
+		profileContribReactions[id] = c
+		profileRedrawChipReactions(id)
+		displayCalcNotification(err.message || "Could not react", 2400)
+	})
+}
+
+function profileRedrawChipReactions(id) {
+	var el = document.getElementById("profileReact-"+id)
+	if (el !== null) el.outerHTML = profileChipReactionsHtml(id)
+}
+
+// ---- profile ------------------------------------------------------------
+//
+// Your own public profile: the card other people get, with the editing under
+// it. A preview built from its own code would drift from the real thing, and
+// seeing what they see is the entire point. Promoted to a top-level tab next
+// to Friends (moved from a section inside it) - renders into #profileBody via
+// profileBody(), same as every other top-level tab, rather than the Friends
+// tab's own #frBody.
+
+function renderProfileProfileTab() {
+	var tok = profileRenderSeq
+	profileBody('<div class="profileLoading">Loading…</div>', tok)
+	Promise.all([
+		friendsProfile(authUser.id),
+		friendsPrivacyGet(),
+		friendsRoleOptions()
+	]).then(function (all) {
+		var p = all[0], s = all[1], roleOpts = all[2]
+		var o = ''
+
+		o += '<div class="frPrivHead">&#128065; How others see you</div>'
+		if (p === null) {
+			o += '<div class="profileNote profileWarn">Your profile is hidden, so nobody can see it. Turn <b>My profile</b> back on under Account.</div>'
+		} else {
+			o += '<div class="frProfilePreview">' + frProfileBodyHtml(p) + '</div>'
+		}
+
+		o += '<div class="frPrivHead">&#127917; What are you into?</div>'
+		o += '<div class="profileNote">Pick up to five. They show on your profile.</div>'
+		o += '<div class="frRoleGrid">'
+		var mine = (s.roles || [])
+		for (var i = 0; i < roleOpts.length; i++) {
+			var r = roleOpts[i]
+			var on = mine.indexOf(r.key) > -1
+			o += '<button class="frRole' + (on ? ' frRoleOn' : '') + '" onclick="frToggleRole(&quot;' + r.key + '&quot;)">'
+			o += r.emoji + ' ' + authEsc(r.label) + '</button>'
 		}
 		o += '</div>'
-		host.innerHTML = o
-	}).catch(function (err) { host.innerHTML = profileErr(err) })
+
+		o += '<div class="frPrivHead">&#128302; Favourite cyphers</div>'
+		o += '<div class="profileNote">Up to four, shown in their own colours. Picked from the cyphers you have switched on.</div>'
+		o += '<div class="frFavRow">' + frFavPickerHtml(s.fav_ciphers || []) + '</div>'
+
+		profileBody(o, tok)
+	}).catch(function (err) { profileBody(profileErr(err), tok) })
+}
+
+function frToggleRole(key) {
+	friendsPrivacyGet().then(function (s) {
+		var mine = (s.roles || []).slice()
+		var at = mine.indexOf(key)
+		if (at > -1) mine.splice(at, 1)
+		else {
+			if (mine.length >= 5) { displayCalcNotification("Five at most — take one off first", 2400); return null }
+			mine.push(key)
+		}
+		return friendsPrivacySet({ roles: mine })
+	}).then(function (done) {
+		if (done === null) return
+		renderProfileProfileTab()
+	}).catch(function (err) { displayCalcNotification(err.message || "Could not save", 2600) })
+}
+
+// Offered from the cyphers that are switched on, because those are the ones
+// whose colours the profile can actually draw.
+function frFavPickerHtml(current) {
+	var o = ''
+	for (var i = 0; i < current.length; i++) {
+		var col = (typeof profileCipherColor === "function") ? profileCipherColor(current[i]) : null
+		o += '<span class="frFav"' + (col ? ' style="color:' + col + ';border-color:' + col + '"' : '') + '>'
+		o += authEsc(current[i])
+		o += '<span class="frFavX" title="Remove" onclick="frRemoveFav(&quot;' + authEsc(current[i]).replace(/"/g, '&quot;') + '&quot;)">&#215;</span>'
+		o += '</span>'
+	}
+	if (current.length < 4) {
+		o += '<select class="frSelect frFavAdd" onchange="frAddFav(this.value); this.selectedIndex = 0;">'
+		o += '<option value="">+ Add a cypher…</option>'
+		if (typeof cipherList !== "undefined") {
+			for (var c = 0; c < cipherList.length; c++) {
+				if (!cipherList[c].enabled) continue
+				if (current.indexOf(cipherList[c].cipherName) > -1) continue
+				o += '<option value="' + authEsc(cipherList[c].cipherName) + '">' + authEsc(cipherList[c].cipherName) + '</option>'
+			}
+		}
+		o += '</select>'
+	} else {
+		o += '<span class="profileWhen">Four is the limit</span>'
+	}
+	return o
+}
+
+function frAddFav(name) {
+	if (!name) return
+	friendsPrivacyGet().then(function (s) {
+		var mine = (s.fav_ciphers || []).slice()
+		if (mine.indexOf(name) > -1 || mine.length >= 4) return null
+		mine.push(name)
+		return friendsPrivacySet({ fav_ciphers: mine })
+	}).then(function (done) {
+		if (done === null) return
+		renderProfileProfileTab()
+	}).catch(function (err) { displayCalcNotification(err.message || "Could not save", 2600) })
+}
+
+function frRemoveFav(name) {
+	friendsPrivacyGet().then(function (s) {
+		var mine = (s.fav_ciphers || []).filter(function (n) { return n !== name })
+		return friendsPrivacySet({ fav_ciphers: mine })
+	}).then(function () {
+		renderProfileProfileTab()
+	}).catch(function (err) { displayCalcNotification(err.message || "Could not save", 2600) })
 }
 
 // ---- account ----------------------------------------------------------
@@ -1127,6 +1467,12 @@ function renderProfileAccount() {
 	o += '<div id="profileNameMsg" class="profileNote hideValue"></div>'
 	o += '</div>'
 
+	// Privacy - moved up from the old Friends ▸ Privacy tab, right after the
+	// name it belongs beside: who can find and see you is part of the account,
+	// not something bolted onto Friends. Loads on its own (async), so the rest
+	// of the tab does not wait on it.
+	o += '<div id="profileAccountPrivacy"><div class="profileLoading">Loading…</div></div>'
+
 	// Closing the account. Deliberately last, visually separated, and asks for
 	// the word to be typed rather than relying on a single click - this cannot
 	// be undone and there is no backup to restore from.
@@ -1140,7 +1486,71 @@ function renderProfileAccount() {
 	o += '<div id="profileDeleteMsg" class="profileNote hideValue"></div>'
 	o += '</div>'
 
+	var tok = profileRenderSeq
 	profileBody(o)
+	renderAccountPrivacy(tok)
+}
+
+// Who can send you a friend request, and what others can see - moved here
+// from the old Friends ▸ Privacy tab. Renders into its own #profileAccountPrivacy
+// container (rather than the whole Account body) so toggling a switch or the
+// master "what others can see" control doesn't have to redraw the avatar,
+// display name or delete-account section around it.
+function renderAccountPrivacy(tok) {
+	var host = document.getElementById("profileAccountPrivacy")
+	if (host === null) return
+	Promise.all([friendsPrivacyGet(), friendsRoleOptions()]).then(function (both) {
+		if (tok !== undefined && tok !== profileRenderSeq) return
+		host = document.getElementById("profileAccountPrivacy")
+		if (host === null) return
+		var s = both[0]
+		var o = ''
+
+		// One question, three answers, laid out as cards you press rather than
+		// boxes you tick. The old row of chips read as a filter - something you
+		// were narrowing - when it is a single choice about who may contact you.
+		o += '<div class="frPrivHead">&#128274; Who can send you a friend request?</div>'
+		o += '<div class="frChoice">'
+		o += frChoiceCard(s.friend_policy, "everyone", "&#127758;", "Everyone",
+			"Any signed-in member can ask.")
+		o += frChoiceCard(s.friend_policy, "friends_of_friends", "&#128101;", "Friends of friends",
+			"Only people who already share a friend with you.")
+		o += frChoiceCard(s.friend_policy, "nobody", "&#128275;", "Nobody",
+			"Nobody can ask. You can still send requests yourself.")
+		o += '</div>'
+
+		// A single switch for the whole group, next to the heading it governs -
+		// five individual taps to go fully private (or fully visible again) was
+		// one tap too many for a setting people reach for in a hurry.
+		var allOn = !!(s.public_profile && s.show_online && s.show_last_active && s.show_mutuals && s.show_friend_count)
+		o += '<div class="frPrivHead frPrivHeadRow"><span>&#128065; What others can see</span>'
+		o += '<button class="profileMiniBtn" onclick="frToggleAllVisibility(' + (allOn ? 'false' : 'true') + ')">'
+		o += (allOn ? 'Turn all off' : 'Turn all on') + '</button></div>'
+		// Two per row - five switches down a single column ran the whole section
+		// long for how little each one says. My profile pairs with Online since
+		// they are read together (the first is pointless without the second).
+		o += '<div class="frSwitchGrid">'
+		o += frSwitch("public_profile", s.public_profile, "&#127760;", "My profile",
+			"Off hides you from search and discovery completely.")
+		o += frSwitch("show_online", s.show_online, "&#128994;", "When I am online", "")
+		o += frSwitch("show_last_active", s.show_last_active, "&#128338;", "When I was last active", "")
+		o += frSwitch("show_mutuals", s.show_mutuals, "&#129309;", "Mutual friends", "")
+		o += frSwitch("show_friend_count", s.show_friend_count, "&#128101;", "How many friends I have", "")
+		o += '</div>'
+
+		o += '<div class="frPrivFoot">&#128274; Your email address is never shown to anyone, whatever these are set to.</div>'
+		host.innerHTML = o
+	}).catch(function (err) { host.innerHTML = profileErr(err) })
+}
+
+// Flips every "what others can see" switch to the same state in one go.
+// public_profile is included deliberately: "off" here should genuinely make
+// you invisible, not leave the one switch that matters still on.
+function frToggleAllVisibility(on) {
+	var patch = { public_profile: on, show_online: on, show_last_active: on, show_mutuals: on, show_friend_count: on }
+	friendsPrivacySet(patch).then(function () {
+		renderAccountPrivacy(profileRenderSeq)
+	}).catch(function (err) { displayCalcNotification(err.message || "Could not save", 2600) })
 }
 
 // The button only wakes up once the word is typed exactly.

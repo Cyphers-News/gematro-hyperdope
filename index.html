@@ -14,7 +14,7 @@
   gtag('config', 'G-29C7RM73G7');
 </script>
 <meta name="viewport" content="width=520, maximum-scale=1, user-scalable=no">
-<link rel="shortcut icon" type="image/x-icon" href="res/favicon.png">
+<link rel="shortcut icon" type="image/x-icon" href="res/favicon.png?v=20260821a">
 
 <!-- Android Web App - Add to Home Screen -->
 <link rel="manifest" href="manifest.json">
@@ -23,28 +23,42 @@
      immediately instead of queueing behind four blocking script fetches -
      the scripts don't touch layout until later, but a <link> after them
      used to wait its turn anyway. -->
-<link rel="stylesheet" type="text/css" href="calc/styles.css?v=20260809a">
-<link rel="stylesheet" type="text/css" href="auth/auth.css?v=20260809a">
+<link rel="stylesheet" type="text/css" href="calc/styles.css?v=20260821b">
+<link rel="stylesheet" type="text/css" href="auth/auth.css?v=20260821b">
 
-<script src="lib/jquery.min.js?v=20260809a"></script>
-<script src="lib/supabase.min.js?v=20260809a"></script>
-<!-- html2canvas v1.0.0-alpha.12 -->
+<!-- defer on every script below (except the inline ones, which can't defer -
+     see the DOMContentLoaded wrappers instead): lets the browser fetch all of
+     them in parallel while it keeps parsing the page, rather than blocking on
+     one script at a time in sequence. They still run in this exact order,
+     just after parsing finishes instead of interrupting it - script.js
+     onwards all depend on jQuery/calc.js/etc. being defined first, and defer
+     preserves that. html2canvas is deliberately not here any more - see
+     ensureHtml2Canvas() in export.js, loaded only once someone exports an
+     image instead of on every page load. -->
+<script src="lib/jquery.min.js?v=20260821b" defer></script>
+<script src="lib/supabase.min.js?v=20260821b" defer></script>
 
-<script src="calc/gematria.js?v=20260809a"></script>
-<script src="calc/calc.js?v=20260809a"></script>
-<script src="calc/init-variables.js?v=20260809a"></script>
-<script src="calc/ciphers.js?v=20260809a"></script>
+<script src="calc/gematria.js?v=20260821b" defer></script>
+<script src="calc/calc.js?v=20260821b" defer></script>
+<script src="calc/init-variables.js?v=20260821b" defer></script>
+<script src="calc/ciphers.js?v=20260821b" defer></script>
 
 <script>
-window.onpaint = function() {
-	updateInterfaceColor(true); // update interface color (first run)
-}
-// .on("load"), not .load(fn) — the shorthand was removed in jQuery 3, where
-// .load() resolves to the AJAX method instead and calls .indexOf on its first
-// argument. Passing a function there threw "e.indexOf is not a function" and
-// the loading overlay never faded out.
-$(window).on("load", function(){
-	$("#loader").delay(287).fadeOut("fast");
+// Deferred scripts (jQuery, calc.js, etc. above) don't finish running until
+// just before DOMContentLoaded, so anything here that touches them - $,
+// updateInterfaceColor - has to wait for that event too, or it runs first
+// and finds them undefined.
+document.addEventListener('DOMContentLoaded', function () {
+	window.onpaint = function() {
+		updateInterfaceColor(true); // update interface color (first run)
+	}
+	// .on("load"), not .load(fn) — the shorthand was removed in jQuery 3, where
+	// .load() resolves to the AJAX method instead and calls .indexOf on its first
+	// argument. Passing a function there threw "e.indexOf is not a function" and
+	// the loading overlay never faded out.
+	$(window).on("load", function(){
+		$("#loader").delay(287).fadeOut("fast");
+	});
 });
 </script>
 
@@ -128,43 +142,46 @@ $(window).on("load", function(){
 
 <span id="loadPanel"></span>
 
-<script src="calc/breakdown.js?v=20260809a"></script>
+<script src="calc/breakdown.js?v=20260821b" defer></script>
 
-<script src="calc/highlighter.js?v=20260809a"></script>
-<script src="calc/export.js?v=20260809a"></script>
-<script src="calc/export-csv.js?v=20260809a"></script>
-<script src="calc/num-prop.js?v=20260809a"></script>
-<script src="calc/edit-ciphers.js?v=20260809a"></script>
-<script src="calc/date-calc.js?v=20260809a"></script>
-<script src="calc/astrology.js?v=20260809a"></script>
-<script src="calc/profile-tab.js?v=20260809a"></script>
-<script src="calc/profile-chart.js?v=20260809a"></script>
-<script src="calc/friends-tab.js?v=20260809a"></script>
-<script src="calc/database.js?v=20260809a"></script>
-<script src="calc/quick-guide.js?v=20260809a"></script>
+<script src="calc/highlighter.js?v=20260821b" defer></script>
+<script src="calc/export.js?v=20260821b" defer></script>
+<script src="calc/export-csv.js?v=20260821b" defer></script>
+<script src="calc/num-prop.js?v=20260821b" defer></script>
+<script src="calc/edit-ciphers.js?v=20260821b" defer></script>
+<script src="calc/date-calc.js?v=20260821b" defer></script>
+<script src="calc/astrology.js?v=20260821b" defer></script>
+<script src="calc/profile-tab.js?v=20260821b" defer></script>
+<script src="calc/profile-chart.js?v=20260821b" defer></script>
+<script src="calc/friends-tab.js?v=20260821b" defer></script>
+<script src="calc/database.js?v=20260821b" defer></script>
+<script src="calc/quick-guide.js?v=20260821b" defer></script>
 
-<script src="calc/localstorage.js?v=20260809a"></script>
-<script src="calc/encoding.js?v=20260809a"></script>
-<script src="calc/encoding-ciphers.js?v=20260809a"></script>
+<script src="calc/localstorage.js?v=20260821b" defer></script>
+<script src="calc/encoding.js?v=20260821b" defer></script>
+<script src="calc/encoding-ciphers.js?v=20260821b" defer></script>
 
-<script src="calc/coderain.js?v=20260809a"></script>
+<script src="calc/coderain.js?v=20260821b" defer></script>
 
 <!-- after every script that declares an option, before anything that restores one -->
-<script src="calc/reset-defaults.js?v=20260809a"></script>
+<script src="calc/reset-defaults.js?v=20260821b" defer></script>
 
-<script src="auth/supabase-config.js?v=20260809a"></script>
-<script src="auth/auth.js?v=20260809a"></script>
-<script src="auth/auth-ui.js?v=20260809a"></script>
-<script src="auth/history-sync.js?v=20260809a"></script>
-<script src="auth/workspace-sync.js?v=20260809a"></script>
-<script src="auth/profile-features.js?v=20260809a"></script>
-<script src="auth/friends.js?v=20260809a"></script>
-<script src="auth/chat.js?v=20260809a"></script>
-<script src="auth/admin.js?v=20260809a"></script>
-<script src="lib/html2canvas.min.js?v=20260809a"></script>
+<script src="auth/supabase-config.js?v=20260821b" defer></script>
+<script src="auth/auth.js?v=20260821b" defer></script>
+<script src="auth/auth-ui.js?v=20260821b" defer></script>
+<script src="auth/history-sync.js?v=20260821b" defer></script>
+<script src="auth/workspace-sync.js?v=20260821b" defer></script>
+<script src="auth/profile-features.js?v=20260821b" defer></script>
+<script src="auth/friends.js?v=20260821b" defer></script>
+<script src="auth/chat.js?v=20260821b" defer></script>
+<script src="auth/admin.js?v=20260821b" defer></script>
 
-<!-- Initialzie the calculator.  This needs to run before loading a database or theme. -->
+<!-- Initialzie the calculator.  This needs to run before loading a database or theme.
+     Wrapped in DOMContentLoaded, same reason as the <head> script above - the
+     deferred scripts it depends on (initCalc, onAuthReady, ...) aren't defined
+     until then. -->
 <script>
+document.addEventListener('DOMContentLoaded', function () {
 	initCalc(true);
 
 	// Signing in lands here, on the calculator. The welcome page is reached
@@ -181,18 +198,21 @@ $(window).on("load", function(){
 			window.location.replace("profile.html");
 		});
 	}
+});
 </script>
 
 <!-- AUTO LOAD DATABASE (DB) -->
 <!-- To change the word matching database reference a different file in the script below or append lines to db.txt -->
 
 <script>
+document.addEventListener('DOMContentLoaded', function () {
 	// async: the calculator (and code rain, and login) is already interactive
 	// by the time this resolves, instead of the whole tab freezing until a
 	// multi-megabyte file finishes downloading. See loadFileAsync().
 	loadFileAsync('db.txt', function (database) {
 		if (database !== null) importFileAction(database, true);
 	});
+});
 </script>
 
 <!-- AUTO LOAD THEME -->

@@ -176,13 +176,47 @@ function restoreBreakdownExport() {
 	$('#SimpleBreak').removeClass('hideValue')
 }
 
+// html2canvas (164KB) is only needed once someone actually exports an image,
+// so it isn't in index.html's script list any more - loaded on first call
+// here instead, so everyone else's page load doesn't pay for it.
+var html2canvasPromise = null
+function ensureHtml2Canvas() {
+	if (typeof html2canvas !== "undefined") return Promise.resolve()
+	if (html2canvasPromise === null) {
+		html2canvasPromise = new Promise(function (resolve, reject) {
+			var s = document.createElement('script')
+			s.src = 'lib/html2canvas.min.js?v=20260809a'
+			s.onload = resolve
+			s.onerror = reject
+			document.head.appendChild(s)
+		})
+	}
+	return html2canvasPromise
+}
+
 function openImageWindow(element, imgName = "", sRatio = window.devicePixelRatio, refresh = false) { // sRatio is scaling, refresh - update the image only
+	ensureHtml2Canvas().then(function () {
+		openImageWindowImpl(element, imgName, sRatio, refresh)
+	})
+}
+
+function openImageWindowImpl(element, imgName, sRatio, refresh) {
 	var imageDataURL, wnd, scl
 	if ( $(element).length ) { // if specified element exists
 		// if browser zoom level is more than passed value, use current zoom level
 		if (isNaN(sRatio)) { sRatio = window.devicePixelRatio }
 		if (element == '#ChartSpot') { // remove space and backspace labels from Cipher Chart
 			$('#spaceChartBtn').text('');$('#backspaceChartBtn').text('');
+			// On a narrow screen fitCipherChart() has shrunk #ChartTable with
+			// CSS zoom so it fits the page without a scrollbar. html2canvas does
+			// not account for zoom the way a real browser paints it, so
+			// capturing while shrunk clips the table at its pre-zoom (full)
+			// width instead of scaling the capture down to match - the
+			// right-hand columns simply fall outside the canvas. Exporting
+			// wants the real, undistorted chart anyway, so drop the zoom for
+			// the capture and let fitCipherChart() put it back below.
+			var chartTableEl = document.getElementById('ChartTable')
+			if (chartTableEl !== null) chartTableEl.style.zoom = ""
 		}
 		// html2canvas($(element)[0], {allowTaint: false, backgroundColor: window.getComputedStyle(document.querySelector('body')).getPropertyValue('background-color'), width: $(element).outerWidth()+2, height: $(element).outerHeight()+2, scale: sRatio} ).then((canvas) => { // e.g. html2canvas($("#ChartTable")[0]).then ...
 		html2canvas($(element)[0], {allowTaint: false, backgroundColor: "rgba(0,0,0,0)", width: $(element).outerWidth()+10, height: $(element).outerHeight()+10, scale: sRatio} ).then((canvas) => { // e.g. html2canvas($("#ChartTable")[0]).then ...
@@ -207,6 +241,10 @@ function openImageWindow(element, imgName = "", sRatio = window.devicePixelRatio
 			}
 
 			if (element == '#BreakdownSpot') restoreBreakdownExport() // strip the export-only header
+
+			// put the on-screen chart back to its fitted mobile size, now that
+			// the full-size capture above is done with it
+			if (element == '#ChartSpot' && typeof fitCipherChart === "function") fitCipherChart()
 
 			imgName = imgName.replace(/'/g, '')
 			if (imgName == "" || imgName.length >= 200) imgName = getTimestamp()+".png"; // filename for download button (200 char limit)

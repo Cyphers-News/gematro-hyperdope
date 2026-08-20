@@ -1,9 +1,10 @@
 // ======================= Friends tab =======================
 //
-// Four sections behind one tab: your friends, the requests waiting on you,
-// people to find, and who is allowed to ask. They share one member-card
-// renderer, because every list is the same thing - somebody, and what you can
-// do about them - and the only difference is which buttons apply.
+// Three sections behind one tab: chats, people to find, and your friends -
+// requests waiting on you live inside Friends now, as a collapsible strip
+// rather than a section of their own. They share one member-card renderer,
+// because every list is the same thing - somebody, and what you can do about
+// them - and the only difference is which buttons apply.
 //
 // Nothing here decides what is allowed. The card asks the row it was given
 // what state it is in and draws the matching buttons; the database decides
@@ -11,13 +12,16 @@
 // offer a button that then fails, which is the right way round: the failure is
 // a message, not a wrong friendship.
 
-var friendsSection = "friends"   // friends | requests | discover | privacy
+var friendsSection = "friends"   // chats | discover | friends
 var friendsSort = "recent"
 var friendsDiscoverKind = "popular"
 var friendsSearchTerm = ""
 var friendsViewing = null        // a member id when their profile is open
 var chatOpenWith = null          // a member id when a conversation is open
 var chatPollTimer = null
+var frRequestsExpanded = false   // Friends' "Requests" strip, collapsed by default
+
+function frToggleRequests() { frRequestsExpanded = !frRequestsExpanded; renderProfileFriends() }
 
 // ---- entry point ------------------------------------------------------
 
@@ -33,38 +37,44 @@ function renderProfileFriends() {
 		var counts = both[0]
 		var o = ''
 		var news = frNewsCounts(counts)
+
+		// Opening this tab is itself "seeing" the friends-gained news - there is
+		// no separate action (like answering a request, or opening a chat) that
+		// would otherwise clear it, so simply landing here has to be the thing
+		// that does. Done before frSectionBtn below reads it, so the badge that
+		// paints is already the cleared one, not one that flashes then vanishes.
+		if (counts) friendsSeenSet("friends", counts.friends)
+
 		o += '<div class="frTabs">'
-		o += frSectionBtn("friends",  "&#128101;", "Friends",  news.friends)
 		o += frSectionBtn("chats",    "&#128172;", "Chats",    news.chats)
-		o += frSectionBtn("requests", "&#128233;", "Requests", news.requests)
 		o += frSectionBtn("discover", "&#128269;", "Discover", 0)
-		o += frSectionBtn("profile",  "&#129489;", "Profile",  0)
-		o += frSectionBtn("privacy",  "&#9881;",   "Privacy",  0, !friendsSeenFlag("privacy"))
+		o += frSectionBtn("friends",  "&#128101;", "Friends",  news.friends + news.requests)
 		o += '</div>'
 		o += '<div id="frBody"></div>'
 		profileBody(o, tok)
 		friendsRefreshBadge()
 
-		if (friendsSection === "requests") frRenderRequests(tok, counts)
-		else if (friendsSection === "chats") frRenderChats(tok)
+		if (friendsSection === "chats") frRenderChats(tok)
 		else if (friendsSection === "discover") frRenderDiscover(tok)
-		else if (friendsSection === "profile") frRenderMyProfile(tok)
-		else if (friendsSection === "privacy") frRenderPrivacy(tok)
 		else frRenderFriends(tok)
 	}).catch(function (err) { profileBody(profileErr(err), tok) })
 }
 
-// Icon above the word, so six sections fit a phone without wrapping into a
+// Icon above the word, so five sections fit a phone without wrapping into a
 // second row of buttons that would read as a second menu.
 //
 // Two different marks, because they mean different things: a number is news
 // you have not seen, and a pip is a section you have never opened.
 function frSectionBtn(id, icon, label, badge, pip) {
 	var on = (friendsSection === id) ? " frTabOn" : ""
-	var o = '<button class="intBtn3 frTab' + on + '" onclick="frSetSection(&quot;' + id + '&quot;)" title="' + label + '">'
+	// Chats gets its own green glow instead of the plain red badge: "new
+	// message" is a different feeling from "somebody wants something from
+	// you" (Friends/Requests), and reads better in the app's own green.
+	var chatGlow = (id === "chats" && badge > 0) ? " frTabChatGlow" : ""
+	var o = '<button class="intBtn3 frTab' + on + chatGlow + '" onclick="frSetSection(&quot;' + id + '&quot;)" title="' + label + '">'
 	o += '<span class="frTabIcon">' + icon + '</span>'
 	o += '<span class="frTabLab">' + label + '</span>'
-	if (badge > 0) o += '<span class="frBadge">' + (badge > 99 ? "99+" : badge) + '</span>'
+	if (badge > 0) o += '<span class="frBadge' + (id === "chats" ? " frBadgeChat" : "") + '">' + (badge > 99 ? "99+" : badge) + '</span>'
 	else if (pip) o += '<span class="frPip" title="Worth a look">&#10022;</span>'
 	o += '</button>'
 	return o
@@ -93,11 +103,6 @@ function frSetSection(id) {
 	friendsViewing = null
 	chatOpenWith = null
 	if (typeof frStopChatPoll === "function") frStopChatPoll()
-	// opening a section is what marks it seen
-	if (id === "privacy") friendsSeenMark("privacy")
-	if (id === "friends" && friendsBadgeCache.counts) {
-		friendsSeenSet("friends", friendsBadgeCache.counts.friends)
-	}
 	renderProfileFriends()
 }
 
@@ -117,6 +122,15 @@ function frOnlineDot(row) {
 	var on = friendsIsOnline(row.last_active_at)
 	return '<span class="frDot' + (on ? ' frDotOn' : '') + '" title="' +
 		(on ? 'Online now' : 'Last seen ' + frWhen(row.last_active_at)) + '"></span>'
+}
+
+// The inbox avatar's corner dot - unlike frOnlineDot (an inline mark next to
+// a name, on whenever presence is visible at all) this only ever appears
+// while actually online, since a permanently-there grey dot on every row
+// would just be clutter a busy list does not need.
+function frThreadPresenceDot(row) {
+	if (!row.last_active_at || !friendsIsOnline(row.last_active_at)) return ''
+	return '<span class="frPresenceDot" title="Online now"></span>'
 }
 
 function frAvatar(row) {
@@ -149,10 +163,17 @@ function frCard(row, opts) {
 	o += '<span class="frName">' + authEsc(row.display_name) + frAdminBadge(row.id) + frOnlineDot(row) + '</span>'
 	var sub = []
 	if (row.username && row.username !== row.display_name) sub.push('@' + row.username)
+	// On the friends list specifically, presence is worth a line of its own,
+	// not just the dot next to the name - "Online" or "Last active 2h ago"
+	// says something a colour alone does not.
+	if (opts.since && row.last_active_at) {
+		sub.push(friendsIsOnline(row.last_active_at) ? "Online" : "Last active " + frWhen(row.last_active_at))
+	}
 	if (opts.since) sub.push("friends since " + new Date(row.since).toLocaleDateString())
 	else if (opts.asked) sub.push("asked " + frWhen(row.asked_at))
 	else if (opts.joined) sub.push("joined " + new Date(row.joined_at).toLocaleDateString())
 	if (row.mutuals > 0) sub.push(row.mutuals + (row.mutuals === 1 ? " mutual friend" : " mutual friends"))
+	if (opts.scoreLine) sub.push(opts.scoreLine)
 	if (sub.length) o += '<span class="frSub">' + authEsc(sub.join(" · ")) + '</span>'
 	o += '</span>'
 
@@ -172,8 +193,19 @@ function frButtons(row, opts) {
 	if (state === "blocked") return '<span class="profileBadge">blocked</span>'
 
 	if (state === "friends") {
-		return '<button class="profileMiniBtn frMsg" onclick="frOpenChat(&quot;' + id + '&quot;)" title="Send a message">Message</button>' +
-			'<button class="profileMiniBtn profileMiniDanger" onclick="frAct(this,' + q(id) + ',&quot;remove&quot;)">Remove</button>'
+		// Message is the one thing you do to a friend often; View/Remove/Block
+		// are all rare, so they live behind a menu instead of Remove sitting
+		// there in red on every single row - a friends list should not read as
+		// a list of people you might be about to lose.
+		var o = '<button class="profileMiniBtn frMsg" onclick="frOpenChat(&quot;' + id + '&quot;)" title="Send a message">Message</button>'
+		o += '<span class="frCardMenu">'
+		o += '<button class="profileMiniBtn frCardMenuBtn" onclick="frToggleCardMenu(this)" title="More">&#8942;</button>'
+		o += '<span class="frCardMenuList hideValue">'
+		o += '<button class="frCardMenuItem" onclick="frCloseCardMenus();frOpenProfile(&quot;' + id + '&quot;)">View profile</button>'
+		o += '<button class="frCardMenuItem frCardMenuDanger" onclick="frAct(this,' + q(id) + ',&quot;remove&quot;)">Remove friend</button>'
+		o += '<button class="frCardMenuItem frCardMenuDanger" onclick="frBlockMember(this,' + q(id) + ')">Block</button>'
+		o += '</span></span>'
+		return o
 	}
 	if (state === "sent") {
 		return '<span class="profileBadge">asked</span>' +
@@ -185,6 +217,24 @@ function frButtons(row, opts) {
 	}
 	return '<button class="profileMiniBtn frAdd" onclick="frAct(this,' + q(id) + ',&quot;add&quot;)">Add friend</button>'
 }
+
+// One menu open at a time, closed by clicking anywhere outside it - the
+// click that opens one (on .frCardMenuBtn) also bubbles to this same
+// document handler, but closest(".frCardMenu") finds it on the way up, so
+// that click never closes what it just opened.
+function frToggleCardMenu(btn) {
+	var list = btn.nextElementSibling
+	if (list === null) return
+	var opening = list.classList.contains("hideValue")
+	frCloseCardMenus()
+	if (opening) list.classList.remove("hideValue")
+}
+function frCloseCardMenus() {
+	document.querySelectorAll(".frCardMenuList").forEach(function (el) { el.classList.add("hideValue") })
+}
+$(document).on("click", function (e) {
+	if ($(e.target).closest(".frCardMenu").length === 0) frCloseCardMenus()
+})
 
 // Every button goes through here: disable, call, re-render on the state the
 // database hands back. Removing and declining ask twice, because both throw
@@ -220,12 +270,50 @@ function frDoneWord(verb) {
 		: "Friend removed"
 }
 
-// ---- friends ----------------------------------------------------------
+// ---- friends ------------------------------------------------------------
+//
+// Requests live here too now (moved up from their own tab): who's waiting on
+// you is exactly the kind of thing worth seeing without a second click once
+// you're already looking at your friends, rather than living behind a tab of
+// its own most people have nothing in.
 
 function frRenderFriends(tok) {
 	frBody('<div class="profileLoading">Loading…</div>', tok)
-	friendsList(friendsSort).then(function (rows) {
+	Promise.all([
+		friendsList(friendsSort),
+		friendsRequests("incoming"),
+		friendsRequests("outgoing")
+	]).then(function (all) {
+		var rows = all[0], inc = all[1], out = all[2]
 		var o = ''
+
+		// A compact strip, expanded only on request - "Sent by you" in
+		// particular used to sit fully open and take up prime space above the
+		// actual friends list for something that is usually empty or small.
+		if (inc.length || out.length) {
+			o += '<div class="frReqStrip" onclick="frToggleRequests()">'
+			o += '<span class="frReqStripLabel">Requests</span>'
+			if (inc.length) o += '<span class="frReqStripItem">Received <span class="frBadge frBadgeInline">' + inc.length + '</span></span>'
+			if (out.length) o += '<span class="frReqStripItem">Sent ' + out.length + '</span>'
+			o += '<span class="frReqStripArrow">' + (frRequestsExpanded ? '&#9662;' : '&#9656;') + '</span>'
+			o += '</div>'
+			if (frRequestsExpanded) {
+				if (inc.length) {
+					o += '<div class="frSectionTitle">Waiting for you</div>'
+					o += '<div class="profileList">'
+					for (var i = 0; i < inc.length; i++) o += frCard(inc[i], { state: "received", asked: true })
+					o += '</div>'
+				}
+				if (out.length) {
+					o += '<div class="frSectionTitle">Sent by you</div>'
+					o += '<div class="profileList">'
+					for (var j = 0; j < out.length; j++) o += frCard(out[j], { state: "sent", asked: true })
+					o += '</div>'
+				}
+			}
+			o += '<div class="frReqDivider"></div>'
+		}
+
 		// One control instead of three buttons. Sorting is a choice between
 		// mutually exclusive options, which is what a select is for, and as
 		// chips it took a third of the panel and read as part of the menu.
@@ -244,9 +332,9 @@ function frRenderFriends(tok) {
 			frBody(o, tok); return
 		}
 		o += '<div class="profileList">'
-		for (var i = 0; i < rows.length; i++) {
-			rows[i].state = "friends"
-			o += frCard(rows[i], { state: "friends", since: true })
+		for (var k = 0; k < rows.length; k++) {
+			rows[k].state = "friends"
+			o += frCard(rows[k], { state: "friends", since: true })
 		}
 		o += '</div>'
 		frBody(o, tok)
@@ -258,35 +346,6 @@ function frSortOpt(id, label) {
 }
 
 function frSetSort(s) { friendsSort = s; frRenderFriends(profileRenderSeq) }
-
-// ---- requests ---------------------------------------------------------
-
-function frRenderRequests(tok, counts) {
-	frBody('<div class="profileLoading">Loading…</div>', tok)
-	Promise.all([friendsRequests("incoming"), friendsRequests("outgoing")]).then(function (both) {
-		var inc = both[0], out = both[1], i
-		var o = ''
-
-		o += '<div class="frSectionTitle">Waiting for you'
-		if (inc.length) o += ' <span class="frBadge frBadgeInline">' + inc.length + '</span>'
-		o += '</div>'
-		if (!inc.length) o += '<div class="profileNote">Nothing waiting.</div>'
-		else {
-			o += '<div class="profileList">'
-			for (i = 0; i < inc.length; i++) o += frCard(inc[i], { state: "received", asked: true })
-			o += '</div>'
-		}
-
-		o += '<div class="frSectionTitle">Sent by you</div>'
-		if (!out.length) o += '<div class="profileNote">None outstanding.</div>'
-		else {
-			o += '<div class="profileList">'
-			for (i = 0; i < out.length; i++) o += frCard(out[i], { state: "sent", asked: true })
-			o += '</div>'
-		}
-		frBody(o, tok)
-	}).catch(function (err) { frBody(profileErr(err), tok) })
-}
 
 // ---- discover ---------------------------------------------------------
 //
@@ -335,11 +394,11 @@ function frDiscoverBody(tok) {
 	}
 
 	var kinds = [
-		["popular", "Top contributors"],
-		["similar", "Uses your cyphers"],
-		["mutual", "Friends of friends"],
+		["mutual", "Mutuals"],
+		["recent", "New"],
 		["active", "Recently active"],
-		["recent", "Newly joined"]
+		["popular", "Top contributors"],
+		["similar", "Uses your cyphers"]
 	]
 	var o = '<div class="frToolbar">'
 	for (var k = 0; k < kinds.length; k++) {
@@ -354,7 +413,9 @@ function frDiscoverBody(tok) {
 		if (!rows.length) out = '<div class="profileNote">' + frEmptyWord(friendsDiscoverKind) + '</div>'
 		else {
 			out = '<div class="profileList">'
-			for (var i = 0; i < rows.length; i++) out += frCard(rows[i], { joined: true })
+			for (var i = 0; i < rows.length; i++) {
+				out += frCard(rows[i], { joined: true, scoreLine: frDiscoverScoreLine(friendsDiscoverKind, rows[i]) })
+			}
 			out += '</div>'
 		}
 		if (tok !== undefined && tok !== profileRenderSeq) return
@@ -375,6 +436,19 @@ function frEmptyWord(kind) {
 }
 
 function frSetDiscover(kind) { friendsDiscoverKind = kind; frDiscoverBody(profileRenderSeq) }
+
+// member_discover (auth/friends.js) already computes a per-row "score" server
+// side - shared cyphers for "similar", submission count for "popular" - this
+// just turns that number into the line that made someone worth surfacing.
+// "Uses your cyphers" is the one directory feature a generic social app does
+// not have, so it is worth spelling out rather than leaving as a bare count.
+function frDiscoverScoreLine(kind, row) {
+	var n = row.score
+	if (!n || n <= 0) return null
+	if (kind === "similar") return "Uses " + n + (n === 1 ? " cypher you use" : " cyphers you use")
+	if (kind === "popular") return n + (n === 1 ? " phrase published" : " phrases published")
+	return null // "mutual" is already the mutuals line frCard adds on its own
+}
 
 // ---- one member's profile ---------------------------------------------
 
@@ -441,6 +515,7 @@ function frProfileBodyHtml(p) {
 		o += frStat(p.friends, p.friends === 1 ? "Friend" : "Friends")
 	}
 	if (p.mutuals > 0) o += frStat(p.mutuals, p.mutuals === 1 ? "Mutual friend" : "Mutual friends")
+	if (p.reactions_received > 0) o += frStat(p.reactions_received, p.reactions_received === 1 ? "Reaction received" : "Reactions received")
 	o += '</div>'
 
 	var badges = frBadgesFor(p)
@@ -474,44 +549,23 @@ function frBadgesFor(p) {
 
 	if (p.ciphers_used >= 10) out.push({ icon: "&#128302;", name: "Polyglot", why: "Published in ten or more cyphers" })
 
+	if (p.reactions_received >= 200) out.push({ icon: "&#128150;", name: "Beloved", why: "200+ reactions across published phrases" })
+	else if (p.reactions_received >= 50) out.push({ icon: "&#128153;", name: "Well liked", why: "50+ reactions across published phrases" })
+
+	if (p.top_phrase_reactions >= 25) out.push({ icon: "&#128293;", name: "Viral phrase", why: "One phrase reached 25+ reactions" })
+
 	var days = (Date.now() - Date.parse(p.joined_at)) / 86400000
 	if (isFinite(days) && days >= 365) out.push({ icon: "&#127881;", name: "A year in", why: "Member for over a year" })
 	return out
 }
 
-// ---- privacy ----------------------------------------------------------
-
-function frRenderPrivacy(tok) {
-	frBody('<div class="profileLoading">Loading…</div>', tok)
-	Promise.all([friendsPrivacyGet(), friendsRoleOptions()]).then(function (both) {
-		var s = both[0]
-		var o = ''
-
-		// One question, three answers, laid out as cards you press rather than
-		// boxes you tick. The old row of chips read as a filter - something you
-		// were narrowing - when it is a single choice about who may contact you.
-		o += '<div class="frPrivHead">&#128274; Who can send you a friend request?</div>'
-		o += '<div class="frChoice">'
-		o += frChoiceCard(s.friend_policy, "everyone", "&#127758;", "Everyone",
-			"Any signed-in member can ask.")
-		o += frChoiceCard(s.friend_policy, "friends_of_friends", "&#128101;", "Friends of friends",
-			"Only people who already share a friend with you.")
-		o += frChoiceCard(s.friend_policy, "nobody", "&#128275;", "Nobody",
-			"Nobody can ask. You can still send requests yourself.")
-		o += '</div>'
-
-		o += '<div class="frPrivHead">&#128065; What others can see</div>'
-		o += frSwitch("public_profile", s.public_profile, "&#127760;", "My profile",
-			"Off hides you from search and discovery completely.")
-		o += frSwitch("show_online", s.show_online, "&#128994;", "When I am online", "")
-		o += frSwitch("show_last_active", s.show_last_active, "&#128338;", "When I was last active", "")
-		o += frSwitch("show_mutuals", s.show_mutuals, "&#129309;", "Mutual friends", "")
-		o += frSwitch("show_friend_count", s.show_friend_count, "&#128101;", "How many friends I have", "")
-
-		o += '<div class="frPrivFoot">&#128274; Your email address is never shown to anyone, whatever these are set to.</div>'
-		frBody(o, tok)
-	}).catch(function (err) { frBody(profileErr(err), tok) })
-}
+// ---- privacy ------------------------------------------------------------
+//
+// The entry point (renderAccountPrivacy) now lives in profile-tab.js, on the
+// Account tab right after the display name - who can find and see you reads
+// as part of the account, not something bolted onto Friends. The pieces below
+// are still shared: the card/switch renderers and the click handlers that
+// save each field, used from wherever the privacy panel is drawn.
 
 function frChoiceCard(current, value, icon, title, blurb) {
 	// "members" and "everyone" mean the same thing while the whole social layer
@@ -560,118 +614,14 @@ function frToggleSwitch(row, key) {
 function frSetPolicy(value) {
 	friendsPrivacySet({ friend_policy: value }).then(function () {
 		displayCalcNotification("Saved", 1400)
-		frRenderPrivacy(profileRenderSeq)
+		renderAccountPrivacy(profileRenderSeq)
 	}).catch(function (err) { displayCalcNotification(err.message || "Could not save", 2600) })
 }
 
-// ---- your own public profile ------------------------------------------
+// ---- your own public profile -------------------------------------------
 //
-// The same card other people get, with the editing under it. A preview built
-// from its own code would drift from the real thing, and seeing what they see
-// is the entire point.
-
-function frRenderMyProfile(tok) {
-	frBody('<div class="profileLoading">Loading…</div>', tok)
-	Promise.all([
-		friendsProfile(authUser.id),
-		friendsPrivacyGet(),
-		friendsRoleOptions()
-	]).then(function (all) {
-		var p = all[0], s = all[1], roleOpts = all[2]
-		var o = ''
-
-		o += '<div class="frPrivHead">&#128065; How others see you</div>'
-		if (p === null) {
-			o += '<div class="profileNote profileWarn">Your profile is hidden, so nobody can see it. Turn <b>My profile</b> back on under Privacy.</div>'
-		} else {
-			o += '<div class="frPreview">' + frProfileBodyHtml(p) + '</div>'
-		}
-
-		o += '<div class="frPrivHead">&#127917; What are you into?</div>'
-		o += '<div class="profileNote">Pick up to five. They show on your profile.</div>'
-		o += '<div class="frRoleGrid">'
-		var mine = (s.roles || [])
-		for (var i = 0; i < roleOpts.length; i++) {
-			var r = roleOpts[i]
-			var on = mine.indexOf(r.key) > -1
-			o += '<button class="frRole' + (on ? ' frRoleOn' : '') + '" onclick="frToggleRole(&quot;' + r.key + '&quot;)">'
-			o += r.emoji + ' ' + authEsc(r.label) + '</button>'
-		}
-		o += '</div>'
-
-		o += '<div class="frPrivHead">&#128302; Favourite cyphers</div>'
-		o += '<div class="profileNote">Up to four, shown in their own colours. Picked from the cyphers you have switched on.</div>'
-		o += '<div class="frFavRow">' + frFavPickerHtml(s.fav_ciphers || []) + '</div>'
-
-		frBody(o, tok)
-	}).catch(function (err) { frBody(profileErr(err), tok) })
-}
-
-function frToggleRole(key) {
-	friendsPrivacyGet().then(function (s) {
-		var mine = (s.roles || []).slice()
-		var at = mine.indexOf(key)
-		if (at > -1) mine.splice(at, 1)
-		else {
-			if (mine.length >= 5) { displayCalcNotification("Five at most — take one off first", 2400); return null }
-			mine.push(key)
-		}
-		return friendsPrivacySet({ roles: mine })
-	}).then(function (done) {
-		if (done === null) return
-		frRenderMyProfile(profileRenderSeq)
-	}).catch(function (err) { displayCalcNotification(err.message || "Could not save", 2600) })
-}
-
-// Offered from the cyphers that are switched on, because those are the ones
-// whose colours the profile can actually draw.
-function frFavPickerHtml(current) {
-	var o = ''
-	for (var i = 0; i < current.length; i++) {
-		var col = (typeof profileCipherColor === "function") ? profileCipherColor(current[i]) : null
-		o += '<span class="frFav"' + (col ? ' style="color:' + col + ';border-color:' + col + '"' : '') + '>'
-		o += authEsc(current[i])
-		o += '<span class="frFavX" title="Remove" onclick="frRemoveFav(&quot;' + authEsc(current[i]).replace(/"/g, '&quot;') + '&quot;)">&#215;</span>'
-		o += '</span>'
-	}
-	if (current.length < 4) {
-		o += '<select class="frSelect frFavAdd" onchange="frAddFav(this.value); this.selectedIndex = 0;">'
-		o += '<option value="">+ Add a cypher…</option>'
-		if (typeof cipherList !== "undefined") {
-			for (var c = 0; c < cipherList.length; c++) {
-				if (!cipherList[c].enabled) continue
-				if (current.indexOf(cipherList[c].cipherName) > -1) continue
-				o += '<option value="' + authEsc(cipherList[c].cipherName) + '">' + authEsc(cipherList[c].cipherName) + '</option>'
-			}
-		}
-		o += '</select>'
-	} else {
-		o += '<span class="profileWhen">Four is the limit</span>'
-	}
-	return o
-}
-
-function frAddFav(name) {
-	if (!name) return
-	friendsPrivacyGet().then(function (s) {
-		var mine = (s.fav_ciphers || []).slice()
-		if (mine.indexOf(name) > -1 || mine.length >= 4) return null
-		mine.push(name)
-		return friendsPrivacySet({ fav_ciphers: mine })
-	}).then(function (done) {
-		if (done === null) return
-		frRenderMyProfile(profileRenderSeq)
-	}).catch(function (err) { displayCalcNotification(err.message || "Could not save", 2600) })
-}
-
-function frRemoveFav(name) {
-	friendsPrivacyGet().then(function (s) {
-		var mine = (s.fav_ciphers || []).filter(function (n) { return n !== name })
-		return friendsPrivacySet({ fav_ciphers: mine })
-	}).then(function () {
-		frRenderMyProfile(profileRenderSeq)
-	}).catch(function (err) { displayCalcNotification(err.message || "Could not save", 2600) })
-}
+// Moved to profile-tab.js (renderProfileProfileTab and its helpers) now that
+// Profile is a top-level tab next to Friends rather than a section inside it.
 
 // ---- the tab's own badge ----------------------------------------------
 //
@@ -681,11 +631,28 @@ function frRemoveFav(name) {
 function friendsRefreshBadge() {
 	var counts = friendsBadgeCache.counts
 	if (!counts) return
-	var btn = document.getElementById("profileTabFriends")
-	if (btn === null) return
 	var n = frNewsTotal(counts)
-	btn.value = n > 0 ? "📧 Friends (" + (n > 99 ? "99+" : n) + ")" : "📧 Friends"
-	btn.classList.toggle("profileTabAlert", n > 0)
+
+	var btn = document.getElementById("profileTabFriends")
+	if (btn !== null) {
+		btn.value = n > 0 ? "💬 Social (" + (n > 99 ? "99+" : n) + ")" : "💬 Social"
+		btn.classList.toggle("profileTabAlert", n > 0)
+	}
+
+	// Same total, mirrored onto [Username] in the site nav - the one thing
+	// visible everywhere, panel open or closed - so a message finds you
+	// wherever you are, not only once you have opened Friends yourself.
+	var navUser = document.querySelector(".authNavUser")
+	if (navUser !== null) {
+		var dot = navUser.querySelector(".authNavBadge")
+		if (n > 0 && dot === null) {
+			dot = document.createElement("span")
+			dot.className = "authNavBadge"
+			navUser.appendChild(dot)
+		} else if (n === 0 && dot !== null) {
+			dot.remove()
+		}
+	}
 }
 
 // ---- chats ------------------------------------------------------------
@@ -704,9 +671,19 @@ function frRenderChats(tok) {
 		if (frShowArchived) rows = rows.filter(function (r) { return r.archived })
 		chatUnreadInvalidate()
 		var o = ''
-		o += '<div class="frToolbar">'
-		o += '<button class="intBtn3 frChip' + (frShowArchived ? '' : ' frChipOn') + '" onclick="frShowArchived&&frToggleArchived()">&#128172; Inbox</button>'
-		o += '<button class="intBtn3 frChip' + (frShowArchived ? ' frChipOn' : '') + '" onclick="frShowArchived||frToggleArchived()">&#128229; Archived</button>'
+		// A light filter strip, not a second toolbar sitting under two other
+		// navigation rows - Inbox/Archived is a filter on what is already the
+		// Chats section (that button above is already the title), not a
+		// parallel piece of navigation.
+		var unreadTotal = (typeof chatUnreadCache !== "undefined" && chatUnreadCache.n) || 0
+		o += '<div class="frChatsHead">'
+		o += '<span class="frChatsFilters">'
+		o += '<span class="frChatsFilter' + (frShowArchived ? '' : ' frChatsFilterOn') + '" onclick="frShowArchived&&frToggleArchived()">Inbox'
+		if (!frShowArchived && unreadTotal > 0) o += ' <span class="frChatsFilterBadge">' + (unreadTotal > 99 ? "99+" : unreadTotal) + '</span>'
+		o += '</span>'
+		o += '<span class="frChatsDot">&middot;</span>'
+		o += '<span class="frChatsFilter' + (frShowArchived ? ' frChatsFilterOn' : '') + '" onclick="frShowArchived||frToggleArchived()">Archived</span>'
+		o += '</span>'
 		o += '</div>'
 
 		if (!rows.length) {
@@ -718,28 +695,40 @@ function frRenderChats(tok) {
 		o += '<div class="profileList">'
 		for (var i = 0; i < rows.length; i++) {
 			var r = rows[i]
-			// Unread rows breathe until they are opened. The badge says how many;
-			// the glow says which row to look at without counting.
-			o += '<div class="profileRow frRow' + (r.unread > 0 ? ' frThreadUnread' : '') + '">'
-			// The avatar and the name open the profile, the rest of the row opens
-			// the conversation - the same split as everywhere else on the site,
-			// where a name is always a link to the person.
-			o += '<span class="frThreadWho" onclick="frOpenProfile(&quot;' + r.friend_id + '&quot;)" title="See their profile">'
+			var unread = r.unread > 0
+			// Unread rows breathe until they are opened - very subtly, since
+			// green here has to mean "something new happened", not be the
+			// permanent colour of every row. The badge says how many; the tint
+			// says which row without making you count.
+			//
+			// The whole row opens the conversation now, not just a slice of it -
+			// a message list is a list of things to click, and a card that is
+			// only half clickable reads as broken. Name and avatar still stop
+			// the click from bubbling so they can go to the profile instead,
+			// same split as everywhere else on the site.
+			o += '<div class="profileRow frRow frRowClick' + (unread ? ' frThreadUnread' : '') + '" onclick="frOpenChat(&quot;' + r.friend_id + '&quot;)" title="Open the conversation">'
+			o += '<span class="frThreadWho" onclick="event.stopPropagation();frOpenProfile(&quot;' + r.friend_id + '&quot;)" title="See their profile">'
 			o += frAvatar({ avatar: r.avatar, display_name: r.display_name })
+			o += frThreadPresenceDot(r)
+			if (unread) o += '<span class="frUnreadDot" title="Unread"></span>'
 			o += '</span>'
-			o += '<span class="frWho" onclick="frOpenChat(&quot;' + r.friend_id + '&quot;)" title="Open the conversation">'
-			o += '<span class="frThreadName" onclick="event.stopPropagation();frOpenProfile(&quot;' + r.friend_id + '&quot;)" title="See their profile">'
+			o += '<span class="frWho">'
+			o += '<span class="frThreadTop">'
+			o += '<span class="frThreadName' + (unread ? ' frThreadNameUnread' : '') + '" onclick="event.stopPropagation();frOpenProfile(&quot;' + r.friend_id + '&quot;)" title="See their profile">'
 			o += authEsc(r.display_name) + frAdminBadge(r.friend_id) + '</span>'
+			// no "Seen" here - that belongs to the read receipt inside an open
+			// conversation, not a plain inbox timestamp
+			o += '<span class="frThreadTime">' + frWhen(r.last_at) + '</span>'
+			o += '</span>'
 			// the preview is escaped like the message itself: a thread list is
 			// no place for the one bit of unescaped text in the app
-			o += '<span class="frSub frPreview">' + (r.last_body ? authEsc(r.last_body) : "no messages yet") + '</span>'
+			o += '<span class="frSub frPreview' + (unread ? ' frPreviewUnread' : '') + '">' + (r.last_body ? authEsc(r.last_body) : "no messages yet") + '</span>'
 			o += '</span>'
 			o += '<span class="profileRowActions frActions">'
-			if (r.unread > 0) o += '<span class="frBadge">' + r.unread + '</span>'
-			o += '<span class="profileWhen" onclick="frOpenChat(&quot;' + r.friend_id + '&quot;)">' + frWhen(r.last_at) + '</span>'
-			o += '<button class="profileMiniBtn frThreadBtn" onclick="frArchiveThread(this,&quot;' + r.friend_id + '&quot;,' + (r.archived ? 'false' : 'true') + ')" '
+			if (unread) o += '<span class="frNewBadge">NEW</span>'
+			o += '<button class="profileMiniBtn frThreadBtn" onclick="event.stopPropagation();frArchiveThread(this,&quot;' + r.friend_id + '&quot;,' + (r.archived ? 'false' : 'true') + ')" '
 			o += 'title="' + (r.archived ? 'Put it back in the inbox' : 'Archive this conversation') + '">' + (r.archived ? '&#128228;' : '&#128229;') + '</button>'
-			o += '<button class="profileMiniBtn profileMiniDanger frThreadBtn" onclick="frClearThread(this,&quot;' + r.friend_id + '&quot;)" '
+			o += '<button class="profileMiniBtn profileMiniDanger frThreadBtn" onclick="event.stopPropagation();frClearThread(this,&quot;' + r.friend_id + '&quot;)" '
 			o += 'title="Delete your copy of this conversation">&#128465;</button>'
 			o += '</span></div>'
 		}
@@ -762,11 +751,22 @@ function frCloseChat() {
 	renderProfileFriends()
 }
 
+// Message ids already painted, per conversation - a poll tick (below) diffs
+// against this to know which messages are new enough to highlight, rather
+// than flashing every message on every poll. Seeded with no highlight on
+// first open: nothing in a conversation you are opening for the first time
+// this session is "new", it is just there.
+var frSeenMsgIds = {}
+
 function frRenderChatWindow(id, tok) {
 	profileBody('<div class="profileLoading">Loading…</div>', tok)
 	Promise.all([friendsProfile(id), chatHistory(id, 100)]).then(function (both) {
 		var who = both[0], msgs = both[1]
 		var name = who ? who.display_name : "Conversation"
+
+		var seen = {}
+		msgs.forEach(function (m) { seen[m.id] = true })
+		frSeenMsgIds[id] = seen
 
 		var o = '<div class="frChatHead">'
 		o += '<button class="profileMiniBtn" onclick="frCloseChat()">&larr; Back</button>'
@@ -800,12 +800,15 @@ function frRenderChatWindow(id, tok) {
 	}).catch(function (err) { profileBody(profileErr(err), tok) })
 }
 
-function frChatLogHtml(msgs) {
+function frChatLogHtml(msgs, newIds) {
 	if (!msgs.length) return '<div class="profileNote">Nothing here yet. Say hello.</div>'
 	var o = ''
 	for (var i = 0; i < msgs.length; i++) {
 		var m = msgs[i]
-		o += '<div class="frMsgRow' + (m.mine ? ' frMsgMine' : '') + '">'
+		// Highlighted like a fresh line in a highlighter pen, not a message you
+		// sent yourself - you already know you sent that one.
+		var isNew = !!(newIds && newIds[m.id] && !m.mine)
+		o += '<div class="frMsgRow' + (m.mine ? ' frMsgMine' : '') + (isNew ? ' frMsgNew' : '') + '">'
 		o += '<div class="frBubble">' + chatRenderBody(m.body) + '</div>'
 		o += '<div class="frMsgWhen">' + frWhen(m.created_at)
 		// reporting the message rather than the person: a moderator judging
@@ -890,7 +893,17 @@ function frStartChatPoll(id) {
 			var log = document.getElementById("frChatLog")
 			if (log === null) { frStopChatPoll(); return }
 			var atBottom = (log.scrollHeight - log.scrollTop - log.clientHeight) < 40
-			var next = frChatLogHtml(msgs)
+
+			var prevSeen = frSeenMsgIds[id] || {}
+			var newIds = {}
+			var seen = {}
+			msgs.forEach(function (m) {
+				if (!prevSeen[m.id]) newIds[m.id] = true
+				seen[m.id] = true
+			})
+			frSeenMsgIds[id] = seen
+
+			var next = frChatLogHtml(msgs, newIds)
 			if (next !== log.innerHTML) {
 				log.innerHTML = next
 				if (atBottom) frChatScrollDown() // do not yank them away from what they are reading
@@ -991,7 +1004,11 @@ function frBlockMember(btn, id) {
 		displayCalcNotification("Blocked. They can no longer contact or find you.", 2800)
 		friendsBadgeInvalidate()
 		chatUnreadInvalidate()
-		frCloseChat()
+		// Reachable from an open chat's header (block them, closing the chat is
+		// right) and now from a friend card's ⋯ menu too (no chat is open, so
+		// there is nothing to close - just redraw the list without them)
+		if (chatOpenWith === id) frCloseChat()
+		else renderProfileFriends()
 	}).catch(function (err) {
 		displayCalcNotification(err.message || "Could not block", 2600)
 	})

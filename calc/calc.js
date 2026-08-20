@@ -244,8 +244,7 @@ function createCalcMenus() {
 	createCiphersMenu()
 	createOptionsMenu()
 	createFindMatchesMenu()
-	createDateCalcMenu()
-	createAstrologyMenu()
+	createFeaturesMenu()
 	createExportMenu()
 	createAboutMenu()
 	createProfileMenu()
@@ -540,9 +539,11 @@ function createAboutMenu() { // create menu with all cipher catergories
 	o += '<div style="margin: 0.5em;"></div>'
 	o += '<input class="intBtn" type="button" value="&#128241; Cyphers Twitter / X" onclick="gotoX()">'
 
-	// Everything below is somebody else's calculator, which was not obvious with
-	// them sitting in the same run as the Cyphers links above.
-	o += '<div class="aboutGroupLabel">Visit other calculators:</div>'
+	// Everything below is somebody else's calculator - collapsed by default
+	// (native <details>, no JS needed to expand it) so six more buttons don't
+	// add to the length of the list for someone who came here for Cyphers'
+	// own links above, not a directory of other sites.
+	o += '<details class="qgAcc"><summary>Visit other calculators</summary><div class="qgAccBody">'
 	o += '<input class="intBtn" type="button" value="Alektryon Calculator" onclick="gotoAlektryonCalculator()">'
 	o += '<div style="margin: 0.5em;"></div>'
 	o += '<input class="intBtn" type="button" value="Based Atlanteanism" onclick="gotoBasedAtlantis()">'
@@ -554,7 +555,7 @@ function createAboutMenu() { // create menu with all cipher catergories
 	o += '<input class="intBtn" type="button" value="Gematrinator Calculator" onclick="gotoGEMATRINATOR()">'
 	o += '<div style="margin: 0.5em;"></div>'
 	o += '<input class="intBtn" type="button" value="Qliphoth Calculator" onclick="gotoQliphoth()">'
-	o += '<div style="margin: 0.5em;"></div>'
+	o += '</div></details>'
 
 	o += '</div></div>'
 
@@ -1140,6 +1141,11 @@ function createFindMatchesMenu() {
 	o += '<button class="dropbtn findMatchesTab" onclick="findMatchesFlash(this);updateHistoryTableAutoHlt()"><span class="labFull">Matches</span><span class="labShort">Matches</span></button>'
 	o += '<div class="dropdown-content" style="width: 210px; left: -55px;">'
 
+	// Hovering the tab is what opens this panel, which then sits right over
+	// where a CSS-only hover tooltip on the button itself would have appeared -
+	// so the instruction has to live in here instead, not on the button.
+	o += '<div class="findMatchesHint">Click to Find Matches &#8593;</div>'
+
 	// no Find Matches button here, the tab itself runs the search
 	o += '<input class="intBtn" type="button" value="Reset Order" onclick="clearHistMatchSort()">'
 
@@ -1175,11 +1181,18 @@ function createBgToggleButton() {
 	updateCodeRainToggleBtn() // applies the state class and tooltip
 }
 
-// Date Calculator as its own tab rather than an entry inside Features
-function createDateCalcMenu() {
+// Date Calc and Astro, one nav slot instead of two - both are occasional
+// tools next to the calculator's everyday tabs, not things reached for on
+// every visit, so a dropdown suits them better than a tab each.
+function createFeaturesMenu() {
 	var o = document.getElementById("calcOptionsPanel").innerHTML
 	o += '<div class="dropdown">'
-	o += '<button class="dropbtn dateCalcTab" onclick="toggleDateCalcMenu()"><span class="labFull">Date Calc</span><span class="labShort">Date Calc</span></button>'
+	o += '<button class="dropbtn">Features</button>'
+	o += '<div class="dropdown-content">'
+	o += '<input class="intBtn" type="button" value="&#128197; Date Calc" onclick="toggleDateCalcMenu()">'
+	o += '<div style="margin: 0.5em;"></div>'
+	o += '<input class="intBtn" type="button" value="Astrology" onclick="toggleAstroMenu()">'
+	o += '</div>'
 	o += '</div>'
 	document.getElementById("calcOptionsPanel").innerHTML = o
 }
@@ -1205,14 +1218,6 @@ function createAuthNavArea() {
 	document.getElementById("calcOptionsPanel").innerHTML = o
 	if (typeof histSyncStatusEl !== "undefined") histSyncStatusEl = null // re-resolve after rebuild
 	if (typeof renderAuthNav === "function") renderAuthNav()
-}
-
-function createAstrologyMenu() {
-	var o = document.getElementById("calcOptionsPanel").innerHTML
-	o += '<div class="dropdown">'
-	o += '<button class="dropbtn dateCalcTab" onclick="toggleAstroMenu()"><span class="labFull">Astro</span><span class="labShort">Astro</span></button>'
-	o += '</div>'
-	document.getElementById("calcOptionsPanel").innerHTML = o
 }
 
 function create_PL() { // Phrase Limit (End)

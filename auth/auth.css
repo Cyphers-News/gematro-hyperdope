@@ -305,6 +305,7 @@
 .authNavPrimary { color: var(--focus-outline); }
 
 .authNavUser {
+	position: relative; /* anchors .authNavBadge, the unread dot */
 	display: inline-flex;
 	align-items: center;
 	gap: 0.4em;
@@ -313,6 +314,20 @@
 	border-bottom: none !important;
 }
 .authNavUser:hover { color: var(--font-white-1); background-color: var(--btn-hover-accent); }
+/* unread friends/requests/chats, mirrored here from the Friends tab (see
+   friendsRefreshBadge() in friends-tab.js) so it is visible from anywhere in
+   the site, not only once the profile panel is open */
+.authNavBadge {
+	position: absolute;
+	top: 1px;
+	right: 1px;
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	background-color: hsl(5 65% 48%);
+	border: 1.5px solid var(--body-bg-accent);
+	pointer-events: none;
+}
 .authNavAvatar {
 	width: 20px; height: 20px;
 	border-radius: 50%;
@@ -348,9 +363,13 @@
 	box-sizing: border-box;
 	padding-right: 1em;
 }
+/* One line, Presets through Account, always - a row that wraps reads as two
+   separate menus stacked on top of each other, and no scrollbar either: with
+   Chart moved out (now reached from Astro instead - astrology.js), seven tabs
+   fit the 520px layout viewport (see the media query below) on their own. */
 .profileTabs {
 	display: flex;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 	gap: 0.2em;
 	padding: 0em 0.2em 0.7em 0.2em;
 	border-bottom: 1px solid var(--separator-accent2);
@@ -358,10 +377,19 @@
 }
 .intBtn3.profileTab {
 	width: auto;
-	padding: 0.2em 0.8em;
+	flex: 0 1 auto;
+	white-space: nowrap;
+	padding: 0.2em 0.45em;
 	font-size: 88%;
 	margin: 0;
 	opacity: 0.6;
+}
+/* the site's own viewport meta pins the layout viewport at 520px on every
+   device, phone or desktop, so this is the tier that actually applies in
+   practice - not a "small phone" fallback, the normal case */
+@media (max-width: 620px) {
+	.profileTabs { gap: 0.1em; }
+	.intBtn3.profileTab { padding: 0.16em 0.22em; font-size: 72%; }
 }
 .intBtn3.profileTab.profileTabOn {
 	opacity: 1;
@@ -410,14 +438,26 @@
 .profilePreview b { color: var(--font-white-1); }
 /* Collapsed by default - see profileHidePublishedGet(). One line, not a
    button, so it reads as part of the list rather than another control. */
+/* a real button, not a quiet text link - it decides whether a whole section
+   of the tab is showing, which is worth more visual weight than "hide
+   published" reads as at plain body-text size */
+.profilePublishedSep {
+	border-top: 1px solid var(--separator-accent2);
+	margin: 0.9em 0 0.7em 0;
+}
 .profilePublishedToggle {
-	font-size: 82%;
-	color: var(--font-white-3);
+	display: inline-block;
+	font-size: 88%;
+	font-weight: 700;
+	color: var(--font-white-1);
+	background-color: var(--btn-active-accent);
+	border: 1px solid var(--focus-outline);
 	cursor: pointer;
-	padding: 0.5em 0.2em;
+	padding: 0.4em 0.8em;
+	margin-bottom: 0.4em;
 	user-select: none;
 }
-.profilePublishedToggle:hover { color: var(--font-white-1); }
+.profilePublishedToggle:hover { background-color: var(--btn-hover-accent); }
 
 .profileList {
 	max-height: 340px;
@@ -460,6 +500,20 @@
 .profileMiniBtn:disabled { opacity: 0.5; cursor: default; }
 .profileMiniBtn.profileMiniDanger { color: hsl(5 70% 68%); }
 .profileMiniBtn.profileMiniDanger:hover { background-color: hsla(5 60% 45% / 0.3); }
+.profileMiniBtn.profileMiniBtnOn { background-color: var(--btn-active-accent); color: var(--font-white-1); font-weight: 600; }
+
+/* Leaderboard / Trending toggle, above the Leaders tab body */
+.profileViewToggle { display: flex; gap: 0.4em; padding-bottom: 0.7em; }
+.profileViewToggle .profileMiniBtn { font-size: 88%; padding: 0.3em 0.8em; }
+
+/* a trending phrase's byline - who published it, since the chip is no longer
+   grouped under their name the way it is on the Leaderboard */
+.profileTrendBy {
+	display: block;
+	font-size: 74%;
+	color: var(--font-white-3);
+	padding-top: 0.15em;
+}
 /* the reset sits apart from the naming row below it, so the two are not read
    as one control */
 /* Sized to sit on one line at the panel's width. Where it cannot - a phone -
@@ -592,6 +646,9 @@
    otherwise clip it. profileCiphPlace() sets left/top/width/max-height. */
 .profileCiphPick { position: relative; display: inline-block; }
 .profileCiphInput { width: 9em; }
+/* the value this phrase would get under the picked cypher - profileCiphValHtml
+   sets its own inline colour per cypher, this just sizes and spaces it */
+.profileCiphVal { font-size: 82%; font-weight: 700; padding-left: 0.4em; white-space: nowrap; }
 .profileCiphInput::placeholder { color: var(--font-white-4); }
 .profileCiphMenu {
 	position: fixed;
@@ -707,6 +764,83 @@
 	cursor: pointer;
 }
 .profileChip:hover { background: var(--btn-hover-accent); color: var(--font-white-1); }
+
+/* heart / fire / laugh, under the phrase and cypher in the same chip - its
+   own row so a click there doesn't also fire the chip's "send to the
+   calculator" (profileChipReact stops that click reaching the chip).
+
+   Opacity is set per-button, not on this wrapping row: CSS opacity on a
+   parent caps every descendant's rendered opacity, so a lit button inside a
+   faded row would still render faded no matter what opacity it declared for
+   itself - it has to be the button, not the row, that starts invisible. */
+.profileChipReact {
+	display: flex;
+	gap: 0.3em;
+	padding-top: 0.3em;
+	cursor: default;
+}
+
+/* Nothing reacted to yet: invisible until the phrase is hovered, then
+   greyscale, then full colour only on the one emoji actually pointed at - so
+   the row reads as "something is here" rather than a row of coloured icons
+   competing with the phrase itself. Never truly display:none, since that
+   would make it untappable on a touch screen with no hover to reveal it
+   first - opacity is as low as it goes. */
+.profileReactBtn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.2em;
+	font-size: 90%;
+	padding: 0.05em 0.35em;
+	background: hsl(0 0% 100% / 0.05);
+	border: 1px solid var(--border-dark-accent);
+	border-radius: 999px;
+	color: var(--font-white-3);
+	cursor: pointer;
+	line-height: 1.5em;
+	opacity: 0.16;
+	filter: grayscale(1);
+	transition: opacity 0.2s ease, filter 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.profileChip:hover .profileReactBtn,
+.profileReactBtn:focus {
+	opacity: 1;
+}
+.profileReactBtn:hover {
+	background: var(--btn-hover-accent);
+	border-color: var(--font-white-3);
+	filter: grayscale(0);
+}
+
+/* Reacted to by at least one person (profileReactLit, count > 0): lit and
+   green for every viewer, permanently - not just the reactor, and not just
+   on hover. Someone else's reaction is exactly as visible as your own. */
+.profileReactBtn.profileReactLit {
+	opacity: 1;
+	filter: grayscale(0);
+	background: hsla(140 55% 45% / 0.22);
+	border-color: hsl(140 55% 48%);
+	color: var(--font-white-1);
+}
+/* the one you personally cast, on top of the shared green above - an inner
+   ring rather than a different colour, so it still reads as the same "lit"
+   state everyone else sees, just with a mark that it was you */
+.profileReactBtn.profileReactMine {
+	box-shadow: inset 0 0 0 1px hsl(140 80% 70%);
+}
+.profileReactCount { font-size: 88%; font-weight: 600; }
+
+/* the one-off pulse when a reaction is switched on (profileFlashReaction) -
+   on top of the standing .profileReactLit glow above, so the moment of
+   toggling reads as something that just happened */
+@keyframes profileReactPulse {
+	0%   { box-shadow: 0 0 0 0 hsla(140 90% 55% / 0.65); }
+	100% { box-shadow: 0 0 0 10px hsla(140 90% 55% / 0); }
+}
+.profileReactBtn.profileReactFlash { animation: profileReactPulse 0.6s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+	.profileReactBtn.profileReactFlash { animation: none; }
+}
 
 .profileAccountHead { display: flex; align-items: center; gap: 0.8em; padding: 0.2em 0.3em 1em 0.3em; }
 .profileBigAvatar {
@@ -1021,8 +1155,43 @@
 	text-align: center;
 }
 .frBadgeInline { vertical-align: middle; }
+/* new messages, not "someone wants something from you" - green rather than
+   the red every other badge uses, matching the glow on .frTabChatGlow */
+.frBadge.frBadgeChat { background-color: hsl(140 70% 40%); }
 /* the Friends tab itself, when something is waiting */
 .profileTab.profileTabAlert { border-color: hsl(5 65% 55%); color: hsl(5 80% 78%); }
+
+/* Chats' own small header - Inbox/Archived as a light filter strip, rather
+   than a second full toolbar row sitting under the membership tabs and the
+   Chats/Discover/Friends row above it. No title here: the Chats/Discover/
+   Friends button above is already the title. */
+.frChatsHead {
+	display: flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: 0.6em;
+	padding-bottom: 0.6em;
+}
+.frChatsFilters { display: flex; align-items: baseline; gap: 0.4em; }
+.frChatsDot { color: var(--font-white-4); }
+.frChatsFilter {
+	font-size: 82%;
+	color: var(--font-white-3);
+	cursor: pointer;
+}
+.frChatsFilter:hover { color: var(--font-white-1); }
+.frChatsFilter.frChatsFilterOn { color: var(--font-white-1); font-weight: 700; text-decoration: underline; }
+.frChatsFilterBadge {
+	display: inline-block;
+	min-width: 1.2em;
+	padding: 0 0.35em;
+	border-radius: 999px;
+	background-color: hsl(140 70% 40%);
+	color: #fff;
+	font-size: 88%;
+	font-weight: 700;
+	text-align: center;
+}
 
 .frToolbar { display: flex; align-items: center; gap: 0.3em; flex-wrap: wrap; padding-bottom: 0.6em; }
 .frToolLab { font-size: 80%; color: var(--font-white-3); font-weight: 600; padding-right: 0.2em; }
@@ -1035,6 +1204,29 @@
 	color: var(--font-white-1);
 	padding: 0.7em 0 0.4em 0;
 }
+/* separates pending requests from the friends list below them (Friends tab,
+   now that Requests lives inside it) - only present when there was something
+   waiting to separate from */
+.frReqDivider {
+	border-top: 1px solid var(--separator-accent2);
+	margin: 0.8em 0;
+}
+/* the collapsed default for Requests - a strip, not a section, so "Sent by
+   you" (usually short or empty) does not sit permanently open above the
+   friends list people actually came here for */
+.frReqStrip {
+	display: flex;
+	align-items: center;
+	gap: 0.6em;
+	padding: 0.5em 0.6em;
+	background-color: var(--input-bg-accent);
+	border: 1px solid var(--border-dark-accent);
+	cursor: pointer;
+}
+.frReqStrip:hover { background-color: var(--btn-hover-accent); }
+.frReqStripLabel { font-size: 85%; font-weight: 700; color: var(--font-white-1); }
+.frReqStripItem { font-size: 82%; color: var(--font-white-3); }
+.frReqStripArrow { margin-left: auto; color: var(--font-white-4); font-size: 80%; }
 
 .frRow { align-items: center; gap: 0.5em; }
 .frAvatar {
@@ -1070,9 +1262,44 @@
 	vertical-align: middle;
 	background-color: var(--font-white-4);
 }
-.frDot.frDotOn { background-color: hsl(140 60% 50%); box-shadow: 0 0 5px hsl(140 60% 45%); }
+.frDot.frDotOn { background-color: hsl(140 85% 55%); box-shadow: 0 0 5px hsla(140 90% 60% / 0.7); }
 
 .frActions { display: flex; align-items: center; gap: 0.3em; flex: 0 0 auto; }
+
+/* View/Remove/Block, tucked behind a menu rather than sitting in the row -
+   Message is the thing you actually do to a friend often; the rest is rare
+   enough, and Remove/Block final enough, that a friends list should not read
+   as a row of people you might be about to lose. */
+.frCardMenu { position: relative; }
+.profileMiniBtn.frCardMenuBtn { padding: 0.1em 0.5em; font-weight: 700; letter-spacing: 0.05em; }
+.frCardMenuList {
+	position: absolute;
+	right: 0;
+	top: calc(100% + 4px);
+	z-index: 30;
+	display: flex;
+	flex-direction: column;
+	min-width: 9em;
+	background-color: var(--menu-bg-accent);
+	border: 1px solid var(--border-accent);
+	box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+}
+.frCardMenuItem {
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+	text-align: left;
+	padding: 0.45em 0.8em;
+	font-size: 84%;
+	font-family: var(--font-family), "Arial", sans-serif;
+	color: var(--font-white-2);
+	background: none;
+	border: none;
+	cursor: pointer;
+}
+.frCardMenuItem:hover { background-color: var(--btn-hover-accent); color: var(--font-white-1); }
+.frCardMenuItem.frCardMenuDanger { color: hsl(5 70% 68%); }
+.frCardMenuItem.frCardMenuDanger:hover { background-color: hsla(5 60% 45% / 0.3); }
 .profileMiniBtn.frAdd { background-color: hsl(140 40% 30%); border-color: hsl(140 35% 42%); color: hsl(140 25% 92%); }
 .profileMiniBtn.frAdd:hover:not(:disabled) { background-color: hsl(140 44% 36%); }
 .profileMiniBtn.frAccept { background-color: hsl(140 40% 30%); border-color: hsl(140 35% 42%); color: hsl(140 25% 92%); }
@@ -1117,13 +1344,20 @@
 .profileMiniBtn.frMsg:hover:not(:disabled) { background-color: hsl(210 44% 38%); }
 
 /* one line of preview, cut rather than wrapped: a thread list is a list of
-   people, not a list of messages */
+   people, not a list of messages. Sized well past a caption now - the
+   message is the actual content of an inbox row, and used to read as a
+   footnote under the name instead of the second half of the headline. Read
+   and unread share this size; only colour, weight and glow tell them apart. */
 .frPreview {
 	display: block;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	max-width: 100%;
+	font-size: 155%;
+	font-weight: 400;
+	color: var(--font-white-2);
+	margin-top: 0.15em;
 }
 
 .frChatHead {
@@ -1150,15 +1384,28 @@
 
 .frBubble {
 	max-width: 78%;
-	padding: 0.4em 0.65em;
+	padding: 0.5em 0.75em;
 	background-color: var(--btn-bg-accent);
 	border: 1px solid var(--border-dark-accent);
 	color: var(--font-white-2);
-	font-size: 90%;
-	line-height: 1.4em;
+	font-size: 102%;
+	line-height: 1.45em;
 	/* a long unbroken string is the one way text can still break a layout */
 	overflow-wrap: anywhere;
 	white-space: normal;
+}
+/* a message that just arrived (frChatLogHtml's newIds, set by the poll in
+   frStartChatPoll) gets one pass of a green highlighter, fading back to the
+   ordinary bubble over a few seconds - marks "this just happened" without
+   staying lit forever, and never applies to your own messages, which you
+   already know you sent. */
+.frMsgNew .frBubble { animation: frMsgHighlight 3s ease-out forwards; }
+@keyframes frMsgHighlight {
+	0%   { background-color: hsla(140 85% 45% / 0.55); border-color: hsl(140 70% 50%); box-shadow: 0 0 10px hsla(140 85% 55% / 0.4); }
+	100% { background-color: var(--btn-bg-accent); border-color: var(--border-dark-accent); box-shadow: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.frMsgNew .frBubble { animation: none; background-color: hsla(140 85% 45% / 0.3); }
 }
 .frMsgMine .frBubble {
 	background-color: hsl(210 38% 28%);
@@ -1225,7 +1472,28 @@
 .authNavLink.authNavAdmin { color: hsl(45 85% 72%); }
 
 /* the sort toggle above a contributor's published phrases */
-.profileContribSort { display: flex; align-items: center; gap: 0.5em; padding-bottom: 0.5em; }
+.profileContribSort { display: flex; align-items: center; gap: 0.5em; padding-bottom: 0.5em; flex-wrap: wrap; }
+/* every order visible and one tap away, rather than a dropdown you have to
+   open first to see what your choices even are */
+.profileSortChips { display: flex; flex-wrap: wrap; gap: 0.25em; }
+.profileSortChip {
+	font-size: 78%;
+	font-weight: 500;
+	padding: 0.22em 0.55em;
+	background: hsl(0 0% 100% / 0.05);
+	border: 1px solid var(--border-dark-accent);
+	border-radius: 999px;
+	color: var(--font-white-3);
+	cursor: pointer;
+	white-space: nowrap;
+}
+.profileSortChip:hover { background: var(--btn-hover-accent); color: var(--font-white-1); }
+.profileSortChip.profileSortChipOn {
+	background: var(--btn-active-accent);
+	border-color: var(--focus-outline);
+	color: var(--font-white-1);
+	font-weight: 600;
+}
 .profileSectionTitle {
 	font-size: 84%;
 	font-weight: 600;
@@ -1284,6 +1552,11 @@
 	padding: 1em 0 0.5em 0;
 }
 .frPrivHead:first-child { padding-top: 0.2em; }
+/* the "what others can see" heading plus its master on/off - the button sits
+   on the same line as the heading it governs rather than above the switches,
+   so it reads as one control for the group instead of a sixth switch */
+.frPrivHeadRow { display: flex; align-items: center; justify-content: space-between; gap: 0.6em; }
+.frPrivHeadRow .profileMiniBtn { flex-shrink: 0; }
 .frPrivFoot {
 	font-size: 80%;
 	color: var(--font-white-3);
@@ -1322,6 +1595,15 @@
 .frChoiceBlurb { font-size: 80%; color: var(--font-white-3); line-height: 1.35em; }
 .frChoiceTick { color: hsl(140 60% 62%); font-weight: 700; font-size: 115%; flex: 0 0 1em; }
 
+/* two per row rather than one long column - see renderAccountPrivacy */
+.frSwitchGrid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 0.3em;
+}
+@media (max-width: 480px) {
+	.frSwitchGrid { grid-template-columns: 1fr; }
+}
 /* switches: whole row is the target, green on, grey off */
 .frSwitchRow {
 	display: flex;
@@ -1333,6 +1615,7 @@
 	border: 1px solid var(--border-dark-accent);
 	cursor: pointer;
 }
+.frSwitchGrid .frSwitchRow { margin-bottom: 0; }
 .frSwitchRow:hover { background-color: var(--btn-hover-accent); }
 .frSwitchIcon { font-size: 125%; flex: 0 0 auto; line-height: 1; }
 .frSwitchBody { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
@@ -1371,10 +1654,24 @@
 
 /* ---- profile: roles and favourite cyphers ---- */
 
-.frPreview {
-	border: 1px dashed var(--border-accent);
+/* The card exactly as other people see it, under "How others see you" - a
+   soft, slow-breathing glow around it rather than a plain box makes it read
+   as a live view through a window, not just another panel of settings, so
+   it's obvious at a glance this is what gets shown, not what you're editing. */
+.frProfilePreview {
+	position: relative;
+	border: 1px solid hsl(140 55% 45% / 0.5);
+	border-radius: 6px;
 	padding: 0.7em;
 	margin-bottom: 0.3em;
+	animation: frProfilePreviewGlow 3.2s ease-in-out infinite;
+}
+@keyframes frProfilePreviewGlow {
+	0%, 100% { box-shadow: 0 0 6px 0 hsla(140 70% 50% / 0.18); border-color: hsl(140 55% 45% / 0.4); }
+	50%      { box-shadow: 0 0 16px 2px hsla(140 80% 55% / 0.4); border-color: hsl(140 70% 55% / 0.75); }
+}
+@media (prefers-reduced-motion: reduce) {
+	.frProfilePreview { animation: none; box-shadow: 0 0 10px 0 hsla(140 70% 50% / 0.25); }
 }
 .frRoleGrid { display: flex; flex-wrap: wrap; gap: 0.3em; }
 .frRole {
@@ -1447,7 +1744,6 @@
 	margin-top: 0.3em;
 }
 .profileChipGroup:first-child { border-top: none; margin-top: 0; padding-top: 0; }
-.profileContribSort { display: flex; align-items: center; gap: 0.5em; padding-bottom: 0.5em; flex-wrap: wrap; }
 
 /* ---- leaderboard podium ----
    The top three get a metal. Kept to a left edge, a faint wash and a coloured
@@ -1478,19 +1774,129 @@
 .profileLbRow.frPodium3 .profileRowPhrase { color: hsl(25 60% 74%); font-weight: 600; }
 
 /* ---- a conversation with something in it ----
-   A soft breathing edge rather than a hard highlight: it has to be noticeable
-   in a list without being the brightest thing in the panel. Stops the moment
-   the thread is opened, because at that point it is no longer news. */
+   Green means "something new happened", not the permanent colour of every
+   row - so a read thread and an unread one need to look almost like
+   different components, not shades of the same one. The row itself only
+   gets a quiet tint and a thin edge; the excitement lives in the preview
+   text and the dot below, which is where a glance actually lands. Stops the
+   moment the thread is opened, because at that point it is no longer news. */
 .profileRow.frRow.frThreadUnread {
-	border-left: 3px solid hsl(140 55% 48%);
-	animation: frThreadGlow 2.6s ease-in-out infinite;
+	background-color: hsla(140 55% 40% / 0.08);
+	border-left: 2px solid hsl(140 70% 50%);
 }
-@keyframes frThreadGlow {
-	0%, 100% { background-color: transparent; }
-	50%      { background-color: hsla(140 50% 40% / 0.16); }
+
+/* The whole row is a button now, not just the name/preview slice of it - a
+   clear hand cursor, a small lift and a barely-there green wash on hover so
+   the card reads as pressable without turning into a rounded modern chip.
+   Border brightens rather than glows outright; the row already earns its
+   glow honestly when it is unread (below). */
+.profileRow.frRow.frRowClick {
+	cursor: pointer;
+	transition: transform 0.12s ease, background-color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+@media (hover: hover) {
+	.profileRow.frRow.frRowClick:hover {
+		background-color: hsla(0 0% 100% / 0.035);
+		border-color: hsl(140 35% 40%);
+		box-shadow: inset 0 0 0 1px hsla(140 70% 55% / 0.18), 0 0 8px hsla(140 60% 45% / 0.15);
+		transform: translateY(-1px);
+	}
+	.profileRow.frRow.frRowClick.frThreadUnread:hover {
+		border-color: hsl(140 55% 50%);
+		box-shadow: inset 0 0 0 1px hsla(140 80% 55% / 0.28), 0 0 10px hsla(140 70% 50% / 0.22);
+	}
+}
+@media (prefers-reduced-motion: reduce) { .profileRow.frRow.frRowClick { transition: none; } }
+@media (hover: none) { .profileRow.frRow.frRowClick:active { background-color: hsla(0 0% 100% / 0.05); } }
+
+/* the avatar corner, not the row - a dot reads as "unread" faster than a
+   tint alone, and survives even where the tint is easy to miss (a busy
+   background, a colour-blind read) */
+.frThreadWho { position: relative; }
+.frUnreadDot {
+	position: absolute;
+	top: -1px; right: -1px;
+	width: 9px; height: 9px;
+	border-radius: 50%;
+	background-color: hsl(140 85% 55%);
+	border: 1.5px solid var(--body-bg-accent);
+	box-shadow: 0 0 4px hsla(140 90% 60% / 0.7);
+}
+/* presence sits on the opposite corner from unread, so the two never
+   compete for the same pixel and stay readable together */
+.frPresenceDot {
+	position: absolute;
+	bottom: -1px; right: -1px;
+	width: 9px; height: 9px;
+	border-radius: 50%;
+	background-color: hsl(140 85% 55%);
+	border: 1.5px solid var(--body-bg-accent);
+	box-shadow: 0 0 4px hsla(140 90% 60% / 0.7);
+}
+
+/* name + timestamp share a line, timestamp pinned to the far side so it
+   reads as metadata rather than a second headline competing with the name */
+.frThreadTop { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5em; }
+.frThreadTime { font-size: 76%; color: var(--font-white-3); white-space: nowrap; flex: 0 0 auto; }
+
+/* the name: bold and white unread, ordinary once read - same idea as an
+   email client, and it works without colour at all */
+.frThreadNameUnread { color: var(--font-white-1); font-weight: 700; }
+
+/* a small, unmissable flag on the side that otherwise only ever holds the
+   hover-revealed archive/delete buttons - unread already reads from the tint,
+   the dot and the preview colour, but this is the one cue that survives even
+   a very quick glance down the list */
+.frNewBadge {
+	font-size: 68%;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	color: hsl(140 15% 8%);
+	background-color: hsl(140 85% 60%);
+	border-radius: 3px;
+	padding: 0.15em 0.4em;
+	box-shadow: 0 0 5px hsla(140 90% 55% / 0.5);
+}
+
+/* the message itself is where "new" actually reads - bigger, brighter, neon
+   green while unread; a plain grey preview like any other once it is not.
+   Two shadow layers rather than one: a tight bright core plus a wider soft
+   bloom around it, which is what actually reads as "glowing" rather than
+   just "outlined". font-size is restated in full (not "a bit more than
+   .frPreview") because same-specificity, later-wins means it replaces
+   .frPreview's own font-size on this element rather than compounding with
+   it - a relative bump here would have shrunk it back down instead. */
+.frPreviewUnread {
+	color: hsl(140 90% 68%);
+	font-weight: 700;
+	font-size: 165%;
+	text-shadow: 0 0 4px hsla(140 95% 70% / 0.8), 0 0 14px hsla(140 90% 55% / 0.55);
+}
+
+/* archive/delete: present but quiet until the row is worth looking at
+   closely - the message is what should dominate a row you are scanning, not
+   two action buttons sitting there unread or not. Always visible on touch,
+   which has no hover to reveal them with. */
+.frThreadBtn { opacity: 0; transition: opacity 0.15s ease; }
+.profileRow.frRow:hover .frThreadBtn,
+.profileRow.frRow:focus-within .frThreadBtn { opacity: 1; }
+@media (hover: none) { .frThreadBtn { opacity: 0.7; } }
+
+/* the Chats tab itself, while something in it is unread - a plain number
+   badge (like Friends/Requests get) reads as "waiting on you"; this is "new
+   message", which is a different feeling and gets the same green glow as the
+   thread row itself rather than the red badge treatment. */
+.intBtn3.frTab.frTabChatGlow {
+	border-color: hsl(140 80% 50%);
+	color: hsl(140 70% 75%);
+	animation: frChatTabGlow 1.8s ease-in-out infinite;
+}
+@keyframes frChatTabGlow {
+	0%, 100% { box-shadow: 0 0 3px 0 hsla(140 85% 55% / 0.3); }
+	50%      { box-shadow: 0 0 11px 1px hsla(140 90% 60% / 0.7); }
 }
 @media (prefers-reduced-motion: reduce) {
-	.profileRow.frRow.frThreadUnread { animation: none; background-color: hsla(140 50% 40% / 0.14); }
+	.intBtn3.frTab.frTabChatGlow { animation: none; box-shadow: 0 0 6px 0 hsla(140 90% 55% / 0.5); }
 }
 
 .frThreadWho { flex: 0 0 auto; cursor: pointer; display: flex; align-items: center; }
@@ -1511,14 +1917,11 @@
 /* ---- membership nav ----
    The tabs run in three groups: what you work with, who you work with, and the
    account. The separator is a gap, not a heading — an earlier version used
-   inline "WORKSPACE" / "COMMUNITY" / "ACCOUNT" labels, which sat at tab size,
-   looked clickable, were not, and did not survive the row wrapping. Whitespace
-   has none of those problems. */
-.profileTab.profileTabRun { margin-left: 1.1em; }
-@media (max-width: 560px) {
-	/* a phone wraps this row several times, so a horizontal gap says nothing —
-	   the runs land on their own lines anyway */
-	.profileTab.profileTabRun { margin-left: 0; }
+   inline "WORKSPACE" / "COMMUNITY" / "ACCOUNT" labels, which sat at tab size
+   and looked clickable when they were not. Whitespace has neither problem. */
+.profileTab.profileTabRun { margin-left: 0.7em; }
+@media (max-width: 620px) {
+	.profileTab.profileTabRun { margin-left: 0.4em; }
 }
 
 

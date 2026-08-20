@@ -604,8 +604,7 @@ $(document).ready(function(){
 					createCiphersMenu() // recreate menus
 					createOptionsMenu()
 					createFindMatchesMenu()
-					createDateCalcMenu()
-					createAstrologyMenu()
+					createFeaturesMenu()
 					createExportMenu()
 					createAboutMenu()
 					createProfileMenu()

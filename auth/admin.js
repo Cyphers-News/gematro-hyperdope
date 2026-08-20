@@ -92,6 +92,7 @@ function adminOnline(mins)         { return adminRpc("admin_online", { window_mi
 function adminReports(status, sort){ return adminRpc("admin_reports", { status_filter: status || null, sort: sort || "newest" }).then(rowsOr) }
 function adminReportContext(id)    { return adminRpc("admin_report_context", { report: id }).then(rowsOr) }
 function adminAudit(limit)         { return adminRpc("admin_audit_list", { lim: limit || 100 }).then(rowsOr) }
+function adminPhraseQueue(status)  { return adminRpc("admin_phrase_queue", { status_filter: status || "pending" }).then(rowsOr) }
 
 function rowsOr(r) { return r || [] }
 
@@ -104,6 +105,9 @@ function adminSetAdmin(id, on)     { return adminRpc("admin_set_admin", { target
 function adminDeleteUser(id)       { return adminRpc("admin_delete_user", { target: id }) }
 function adminReportStatus(id, s, note) {
 	return adminRpc("admin_report_status", { report: id, new_status: s, note: note || null })
+}
+function adminPhraseDecide(id, decision, text) {
+	return adminRpc("admin_phrase_decide", { target: id, decision: decision, edited_text: text || null })
 }
 
 // Password resets, without the panel ever holding the address.
@@ -123,6 +127,27 @@ function adminSendReset(id) {
 			if (res.error) throw adminErr(res.error)
 			return true
 		})
+	})
+}
+
+// ---- db.txt size --------------------------------------------------------
+//
+// Not a database row - db.txt is a static file the site ships, loaded into
+// every visitor's browser on every page load, so its size is asked of the
+// file itself rather than tracked anywhere. A HEAD request reads the size
+// from Content-Length without downloading the whole ~2MB file; falls back to
+// a real fetch only if a host doesn't send that header on HEAD.
+
+var ADMIN_DB_SIZE_CAP = 4 * 1024 * 1024      // stop suggesting growth past this
+var ADMIN_DB_SIZE_WARN = 3.2 * 1024 * 1024   // 80% of the cap - a heads-up, not yet urgent
+
+function adminDbFileSize() {
+	return fetch("db.txt", { method: "HEAD", cache: "no-store" }).then(function (res) {
+		var len = res.headers.get("content-length")
+		if (len !== null) return parseInt(len, 10)
+		return fetch("db.txt", { cache: "no-store" })
+			.then(function (r) { return r.blob() })
+			.then(function (b) { return b.size })
 	})
 }
 

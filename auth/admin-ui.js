@@ -6,10 +6,11 @@
 // draws.
 
 var adminSections = [
-	{ id: "dashboard", label: "Dashboard", render: function (h) { adminRenderDashboard(h) } },
-	{ id: "reports",   label: "Reports",   render: function (h) { adminRenderReports(h) } },
-	{ id: "users",     label: "Users",     render: function (h) { adminRenderUsers(h) } },
-	{ id: "audit",     label: "Audit log", render: function (h) { adminRenderAudit(h) } }
+	{ id: "dashboard", label: "Dashboard",   render: function (h) { adminRenderDashboard(h) } },
+	{ id: "reports",   label: "Reports",     render: function (h) { adminRenderReports(h) } },
+	{ id: "phrases",   label: "Phrase queue",render: function (h) { adminRenderPhraseQueue(h) } },
+	{ id: "users",     label: "Users",       render: function (h) { adminRenderUsers(h) } },
+	{ id: "audit",     label: "Audit log",   render: function (h) { adminRenderAudit(h) } }
 ]
 
 var adminSection = "dashboard"
@@ -20,6 +21,7 @@ var adminLiveTimer = null
 var adminUserQuery = "", adminUserSort = "recent", adminUserStatus = "all"
 var adminReportStatusFilter = "open", adminReportSort = "newest"
 var adminOpenReport = null
+var adminPhraseStatusFilter = "pending"
 
 function adminEsc(s) { return authEsc(s) }
 
@@ -88,8 +90,9 @@ function adminStopLive() {
 
 function adminRenderDashboard(host) {
 	var tok = adminSeq
-	Promise.all([adminStats(), adminOnline(5), adminAudit(8)]).then(function (all) {
-		var s = all[0], online = all[1], recent = all[2]
+	Promise.all([adminStats(), adminOnline(5), adminAudit(8), adminDbFileSize().catch(function () { return null })])
+		.then(function (all) {
+		var s = all[0], online = all[1], recent = all[2], dbBytes = all[3]
 		if (s === null) { adminWrite(host, '<div class="adminNote">No statistics available.</div>', tok); return }
 
 		var o = '<div class="adminGrid">'
@@ -98,12 +101,23 @@ function adminRenderDashboard(host) {
 		o += adminStat(s.users_new_today, "Joined today")
 		o += adminStat(s.reports_open, "Open reports", s.reports_open > 0 ? "adminStatWarn" : "")
 		o += adminStat(s.reports_total, "Reports total")
+		o += adminStat(s.phrase_queue_pending, "Phrases awaiting review", s.phrase_queue_pending > 0 ? "adminStatWarn" : "")
 		o += adminStat(s.users_suspended, "Suspended")
 		o += adminStat(s.users_banned, "Banned")
 		o += adminStat(s.admins, "Administrators")
 		o += adminStat(s.messages_today, "Messages today")
 		o += adminStat(s.rejections_today, "Blocked today")
+		if (dbBytes !== null) {
+			o += adminStat(adminBytesShort(dbBytes), "db.txt size",
+				dbBytes >= ADMIN_DB_SIZE_WARN ? "adminStatWarn" : "")
+		}
 		o += '</div>'
+
+		if (dbBytes !== null && dbBytes >= ADMIN_DB_SIZE_WARN) {
+			o += '<div class="adminNote adminNoteBad">db.txt is ' + adminBytesShort(dbBytes) + ' of a ' +
+				adminBytesShort(ADMIN_DB_SIZE_CAP) + ' working limit (every visitor\'s browser parses the whole ' +
+				'file on load). Slow down approving more phrases in the queue below until this comes back down.</div>'
+		}
 
 		o += '<div class="adminSplit">'
 		o += '<div class="adminCard"><div class="adminCardHead">Online now '
@@ -476,6 +490,163 @@ function adminRenderAudit(host) {
 		o += '</tbody></table>'
 		adminWrite(host, o, tok)
 	}).catch(function (err) { adminWrite(host, adminError(err), tok) })
+}
+
+// ---- phrase queue -------------------------------------------------------
+//
+// Phrases that earned a heart/like/laugh, waiting to be decided into db.txt.
+// db.txt is a static file, not a table - nothing here writes to it. Approving
+// a phrase here means "yes, this belongs in the file", not "this is now in
+// the file". The actual file only changes when an administrator copies the
+// approved list out (below) and commits it themselves, same as any other
+// edit to a file the site ships.
+
+function adminBytesShort(n) {
+	if (n >= 1024 * 1024) return (n / (1024 * 1024)).toFixed(2) + " MB"
+	if (n >= 1024) return (n / 1024).toFixed(0) + " KB"
+	return n + " B"
+}
+
+// A best-effort suggestion, not a rule: title-cases each word, except one
+// that's already all-caps (more than one letter) in what the submitter
+// typed, on the assumption they meant it as an acronym - "NASA" stays "NASA",
+// "the" becomes "The". Shown as an editable field precisely because this
+// guess is sometimes wrong - a real acronym typed in lowercase, or a proper
+// noun with its own internal capital - and this file is read by every
+// visitor's browser, so a human confirms every row before it counts as
+// approved.
+function adminSuggestCapitalization(phrase) {
+	return String(phrase || "").split(" ").map(function (word) {
+		if (word === "") return word
+		var letters = word.replace(/[^a-zA-Z]/g, "")
+		if (letters.length > 1 && letters === letters.toUpperCase()) return word
+		return word.split("-").map(function (part) {
+			return part === "" ? part : part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+		}).join("-")
+	}).join(" ")
+}
+
+function adminSetPhraseFilter(s) { adminPhraseStatusFilter = s; adminRender() }
+
+function adminRenderPhraseQueue(host) {
+	var tok = adminSeq
+	adminPhraseQueue(adminPhraseStatusFilter).then(function (rows) {
+		var o = '<div class="adminBar">'
+		o += '<span class="adminBarLab">Status</span>'
+		;["pending", "approved", "rejected", "exported", "all"].forEach(function (s) {
+			o += '<button class="adminChip' + (adminPhraseStatusFilter === s ? ' adminChipOn' : '') +
+				'" onclick="adminSetPhraseFilter(&quot;' + s + '&quot;)">' + s + '</button>'
+		})
+		o += '</div>'
+
+		if (adminPhraseStatusFilter === "approved" && rows.length) {
+			o += '<div class="adminBar"><button class="adminBtn" onclick="adminExportApproved()">' +
+				'&#128203; Export all ' + rows.length + ' approved phrase' + (rows.length === 1 ? '' : 's') + '</button>' +
+				'<span class="adminDim">Paste into db.txt, commit, deploy - then mark them exported.</span></div>'
+			o += '<div id="adminExportBox"></div>'
+		}
+
+		if (!rows.length) { adminWrite(host, o + '<div class="adminNote">Nothing here.</div>', tok); return }
+
+		o += '<table class="adminTable"><thead><tr>'
+		o += '<th>Phrase</th><th>By</th><th>&#10084;&#65039;</th><th>&#128077;</th><th>&#128514;</th>'
+		o += '<th>Suggested / final text</th><th>Status</th><th></th>'
+		o += '</tr></thead><tbody>'
+		for (var i = 0; i < rows.length; i++) o += adminPhraseRow(rows[i])
+		o += '</tbody></table>'
+		adminWrite(host, o, tok)
+	}).catch(function (err) { adminWrite(host, adminError(err), tok) })
+}
+
+function adminPhraseRow(r) {
+	var fieldId = "adminPhraseText-" + r.id
+	var suggestion = r.final_text || adminSuggestCapitalization(r.phrase)
+	var o = '<tr>'
+	o += '<td>' + adminEsc(r.phrase)
+	if (r.cipher) o += '<div class="adminDim">' + adminEsc(r.cipher) + (r.value !== null ? ' = ' + r.value : '') + '</div>'
+	o += '</td>'
+	o += '<td class="adminDim">' + adminEsc(r.contributor_name) + '</td>'
+	o += '<td class="adminDim">' + (r.heart_count || 0) + '</td>'
+	o += '<td class="adminDim">' + (r.like_count || 0) + '</td>'
+	o += '<td class="adminDim">' + (r.laugh_count || 0) + '</td>'
+	o += '<td><input type="text" class="adminSearch" id="' + fieldId + '" value="' + adminEsc(suggestion) + '"' +
+		(r.status === 'pending' || r.status === 'approved' ? '' : ' disabled') + '></td>'
+	o += '<td><span class="adminPill adminPill-' + adminEsc(r.status) + '">' + adminEsc(r.status) + '</span>'
+	if (r.reviewed_by_name) o += '<div class="adminDim">' + adminEsc(r.reviewed_by_name) + ' &middot; ' + adminWhen(r.reviewed_at) + '</div>'
+	o += '</td>'
+	o += '<td class="adminActions">'
+	if (r.status === 'pending' || r.status === 'rejected') {
+		o += '<button class="adminBtn adminBtnGood" onclick="adminPhraseAct(&quot;' + r.id + '&quot;,&quot;approved&quot;,&quot;' + fieldId + '&quot;)">Approve</button>'
+	}
+	if (r.status === 'pending' || r.status === 'approved') {
+		o += '<button class="adminBtn adminBtnBad" onclick="adminPhraseAct(&quot;' + r.id + '&quot;,&quot;rejected&quot;,&quot;' + fieldId + '&quot;)">Reject</button>'
+	}
+	o += '</td></tr>'
+	return o
+}
+
+function adminPhraseAct(id, decision, fieldId) {
+	var box = document.getElementById(fieldId)
+	var text = box !== null ? box.value.trim() : null
+	adminPhraseDecide(id, decision, text || null).then(function () {
+		adminNotify("Marked " + decision + ".")
+		adminRender()
+	}).catch(function (err) { adminNotify(err.message || "That did not work", true) })
+}
+
+// Builds the list (one phrase per line, alphabetical, matching db.txt's own
+// convention) into an on-page textarea rather than a browser dialog -
+// window.confirm/prompt are suppressed in ordinary use (see profileArmedBtn
+// in profile-tab.js for the same reasoning), so a flow that depended on one
+// answering could silently do nothing. "Copy" and "mark exported" are two
+// separate, explicit buttons for the same reason a delete button here is
+// armed rather than confirmed: nothing happens on this list without a second,
+// deliberate click.
+function adminExportApproved() {
+	var box = document.getElementById("adminExportBox")
+	if (box === null) return
+	box.innerHTML = '<div class="adminLoading">Loading…</div>'
+	adminPhraseQueue("approved").then(function (rows) {
+		if (!rows.length) { box.innerHTML = '<div class="adminNote">Nothing approved to export.</div>'; return }
+		var lines = rows.map(function (r) { return r.final_text || adminSuggestCapitalization(r.phrase) })
+			.sort(function (a, b) { return a.localeCompare(b, undefined, { sensitivity: "base" }) })
+		var text = lines.join("\n")
+		var ids = rows.map(function (r) { return r.id })
+
+		var o = '<div class="adminCard"><div class="adminCardHead">' + rows.length + ' phrase' + (rows.length === 1 ? '' : 's') + ' ready</div>'
+		o += '<textarea class="adminExportArea" id="adminExportText" readonly>' + adminEsc(text) + '</textarea>'
+		o += '<div class="adminBar">'
+		o += '<button class="adminBtn" onclick="adminCopyExportBox()">&#128203; Copy to clipboard</button>'
+		o += '<button class="adminBtn" onclick="adminMarkExported(this,' + adminEsc(JSON.stringify(ids)) + ')">Mark all as exported</button>'
+		o += '</div>'
+		o += '<div class="adminNote">Copy, paste into db.txt, commit and deploy - then come back and mark them exported so they drop off this list.</div>'
+		o += '</div>'
+		box.innerHTML = o
+	}).catch(function (err) { box.innerHTML = adminError(err) })
+}
+
+function adminCopyExportBox() {
+	var area = document.getElementById("adminExportText")
+	if (area === null) return
+	area.focus()
+	area.select()
+	if (navigator.clipboard && navigator.clipboard.writeText) {
+		navigator.clipboard.writeText(area.value)
+			.then(function () { adminNotify("Copied."); })
+			.catch(function () { adminNotify("Could not copy automatically - it's selected, so Ctrl/Cmd+C will still work.", true) })
+	} else {
+		adminNotify("Text selected - Ctrl/Cmd+C to copy.")
+	}
+}
+
+// Same arm-then-confirm pattern as the destructive user actions above
+// (adminConfirm) - this cannot be undone from here, since it just marks rows
+// exported without touching db.txt itself.
+function adminMarkExported(btn, ids) {
+	if (!adminConfirm(btn, "Confirm?")) return
+	Promise.all(ids.map(function (id) { return adminPhraseDecide(id, "exported", null) }))
+		.then(function () { adminNotify("Marked as exported."); adminRender() })
+		.catch(function (err) { adminDisarm(); adminNotify(err.message || "Could not update", true) })
 }
 
 

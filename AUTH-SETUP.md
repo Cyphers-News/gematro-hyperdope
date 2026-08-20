@@ -420,3 +420,153 @@ supabase.from("profiles").update({ is_admin: true }).eq("id", <their id>)
 
 It must fail. If it succeeds, the column grant did not apply and nothing else
 in this panel is worth anything.
+
+---
+
+## Phrase reactions
+
+`supabase/migrations/20260820000000_phrase_reactions.sql` — run after the
+admin one, which it depends on (`admin_require`, `admin_log`, `admin_stats`).
+Safe to re-run.
+
+Until it is run, the Leaders tab's reaction buttons and Trending view fail
+with *"This feature needs its database migration to be run"* — the RPCs they
+call simply do not exist yet. Nothing else on the page is affected.
+
+### What it creates
+
+- **`public.phrase_reactions`** — one row per member per phrase: heart, like
+  or laugh. A unique index on `(submission_id, user_id)` is what a client
+  upserts against, so changing your reaction replaces the row rather than
+  adding a second one.
+- **`public.phrase_reaction_counts(target_ids)`** — batch counts plus your own
+  reaction, for a list of phrases at once (the Leaders tab opens a
+  contributor's whole list in one go, up to 2000 phrases).
+- **`public.trending_phrases(lim)`** — top phrases site-wide by reaction
+  count, aggregated in the database rather than client-side, since pulling
+  every submission down to sort it in the browser would not scale.
+- **`member_profile`, extended** — adds `reactions_received` (summed across
+  everything a member has published) and `top_phrase_reactions` (their best
+  single phrase), which feed two new badges (`frBadgesFor`,
+  `calc/friends-tab.js`) and a stat on the profile card. Dropped and
+  recreated, same reason as the last time this shape changed — `RETURNS
+  TABLE` cannot be altered with `create or replace`.
+- **`public.phrase_db_queue`** — the review queue behind `/admin.html`'s
+  Phrase queue section. A phrase is enqueued automatically (a trigger on
+  `phrase_reactions`, on-conflict-do-nothing) the moment it earns its first
+  reaction. No RLS policies at all: every access goes through
+  `admin_phrase_queue` / `admin_phrase_decide`, both `admin_require()`-gated,
+  same pattern as Reports.
+- **`admin_stats`, extended** — adds `phrase_queue_pending`, shown as a
+  dashboard tile.
+
+### db.txt is a static file — nothing here writes to it
+
+Approving a phrase in the queue means "this belongs in the database," not
+"this is now in the database." The file itself only changes when an admin
+copies the approved list out (the Phrase queue section's Export button) and
+commits it by hand, same as any other edit to a file the site ships. An
+"add automatically" version was deliberately not built: an automated
+acronym/capitalisation guess is right most of the time and silently wrong
+the rest, which is a bad trade for a file every visitor's browser parses on
+every page load.
+
+### db.txt size warning
+
+The admin dashboard reads the file's real size with a `HEAD` request (no
+migration involved — it's asking the file itself, not the database) and
+warns past 3.2MB, 80% of a 4MB working cap (`ADMIN_DB_SIZE_WARN` /
+`ADMIN_DB_SIZE_CAP`, `auth/admin.js`).
+
+## Chat presence
+
+`supabase/migrations/20260820010000_chat_presence.sql` — run after
+`20260806070000_social.sql`, which it depends on (the archived/cleared
+columns and function signature it extends). Safe to re-run.
+
+Until it is run, the Chats inbox simply shows no online dot — `last_active_at`
+comes back `null` from the old `chat_threads`, and `frOnlineDot` already
+treats a missing value as "don't draw it." Nothing breaks either way.
+
+### What it changes
+
+- **`chat_threads`, extended** — adds `last_active_at`, read straight off
+  `member_cards` (already joined in for `display_name`/`avatar`), so the
+  inbox row can call the same `frOnlineDot` every other member card in the
+  app already uses. The privacy gate is unchanged and lives where it always
+  has — `member_cards` only exposes the column at all when the member has
+  `show_last_active` on, and `frOnlineDot` only lights it up within the
+  existing "online window." Dropped and recreated, same `RETURNS TABLE`
+  reason as everywhere else in this file; the query body is otherwise
+  byte-for-byte the version in `social.sql`.
+
+## Security definer view fix
+
+`supabase/migrations/20260820020000_security_definer_view_fix.sql` — run
+after `20260820010000_chat_presence.sql`. Safe to re-run.
+
+Fixes the Supabase linter warning *"Data is publicly accessible via API as
+this is a Security definer view"*, plus a related gap found while auditing
+every grant in the project for it: no migration ever revoked a function's
+default PUBLIC execute grant, only `anon, authenticated` — meaning `anon`
+could call any function that does not itself require a session (`is_admin`,
+`account_active`, an empty-query `member_search`) the entire time, through
+PUBLIC rather than through the explicit revoke sitting next to it.
+
+**Before running it, reload PostgREST's schema cache afterwards** (Supabase
+dashboard → Database → API → "Reload schema", or `NOTIFY pgrst, 'reload
+schema';` in the SQL editor) — it drops the `leaderboard` view and adds a
+function in its place, and PostgREST otherwise keeps serving the dropped
+view's cached route until it reloads.
+
+### What it changes
+
+- **`member_cards`** — no longer granted to `anon` or `authenticated`.
+  Nothing client-side ever queried it directly (only joined inside other
+  security definer functions, which reach it through their own privilege, not
+  a grant); the grant existing at all meant `select * from member_cards` via
+  the REST API returned a member's full card — display name, avatar, roles,
+  favourite ciphers, friend policy — even with `public_profile` off, since
+  that flag was only ever checked inside `member_profile()`, never by the
+  view itself.
+- **`public_profiles`** — same fix, same reasoning: internal-only, used
+  solely inside `leaderboard_top()` below.
+- **`leaderboard` view → `leaderboard_top(lim)` function** — the one view
+  that legitimately needs to stay reachable by `authenticated` (the client
+  queries it directly for the Leaders tab), so it cannot just be
+  revoked-and-forgotten like the two above. A view cannot satisfy the linter
+  here without breaking the feature (`security_invoker = true` would apply
+  the *querying* user's own RLS on `profiles`, which only ever allows reading
+  your own row) or without loosening `profiles`' RLS table-wide, which would
+  expose more than a display name and an avatar. Converting it to a security
+  definer *function* keeps the exact same privilege and result set while
+  removing the one thing the linter actually flags — a view — from the
+  schema entirely. `calc`'s `leaderboardTop()` (`auth/profile-features.js`)
+  now calls `.rpc("leaderboard_top", ...)` instead of
+  `.from("leaderboard").select(...)`.
+- **Every security definer function's `search_path`** pinned to `''` instead
+  of `public` (`ALTER FUNCTION ... SET search_path = ''`, not a body
+  rewrite). Every reference in this project was already fully schema-qualified
+  (checked), so this changes nothing about how anything runs — it just stops
+  relying on `public` staying unwritable by ordinary roles for that safety to
+  hold.
+- **PUBLIC execute revoked** from every function this project created (a
+  `pg_depend`-filtered sweep skips anything extension-owned, so pgcrypto etc.
+  are untouched), and `alter default privileges` does the same for anything
+  created after this migration. The explicit `grant execute ... to
+  authenticated` next to each function is what actually opens it now — before
+  this, that grant was redundant, since PUBLIC already covered `anon` too.
+- **`revoke create on schema public from public`** — belt and braces for the
+  search_path change above. A no-op on Postgres 15+, which already revokes
+  this by default; stated explicitly rather than assumed.
+
+### After running it
+
+Anything that read the `leaderboard` view directly (only `leaderboardTop()`,
+already updated) needs the matching client code — already done in this
+repo, but worth knowing if you have other integrations pointed at
+`GET /rest/v1/leaderboard`. Everything else — `member_profile()`,
+`member_search()`, `friend_list()`, `chat_threads()`, and every other
+function that joins `member_cards` or `public_profiles` internally —
+continues to work unchanged, since none of them relied on their own caller
+having a grant on those views.

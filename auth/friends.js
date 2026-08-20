@@ -185,6 +185,34 @@ function friendsBadgeCounts(force) {
 
 function friendsBadgeInvalidate() { friendsBadgeCache = { at: 0, counts: null } }
 
+// Keeps [Username] and the Friends tab's own badge current even while neither
+// is on screen - a message someone sent five minutes ago while you were on
+// the Presets tab should already show by the time you glance at the nav, not
+// only once you happen to open Friends. Same cadence as the presence
+// heartbeat, and reuses whatever the 15s badge/chat caches already have if
+// they haven't gone stale.
+var friendsBadgePollTimer = null
+var FRIENDS_BADGE_POLL_MS = 20000
+
+function friendsBadgePollTick() {
+	Promise.all([
+		friendsBadgeCounts(true),
+		(typeof chatUnreadCached === "function") ? chatUnreadCached(true) : Promise.resolve(0)
+	]).then(function () {
+		if (typeof friendsRefreshBadge === "function") friendsRefreshBadge()
+	})
+}
+
+function friendsBadgePollStart() {
+	if (friendsBadgePollTimer !== null) return
+	friendsBadgePollTick()
+	friendsBadgePollTimer = setInterval(friendsBadgePollTick, FRIENDS_BADGE_POLL_MS)
+}
+
+function friendsBadgePollStop() {
+	if (friendsBadgePollTimer !== null) { clearInterval(friendsBadgePollTimer); friendsBadgePollTimer = null }
+}
+
 // ---- wiring -----------------------------------------------------------
 
 $(document).ready(function () {
@@ -192,17 +220,14 @@ $(document).ready(function () {
 	onAuthReady(function (user) {
 		if (user === null) return
 		friendsHeartbeatStart()
-		// warm the badge so the tab shows its number on first open
-		friendsBadgeCounts().then(function () {
-			if (typeof friendsRefreshBadge === "function") friendsRefreshBadge()
-		})
+		friendsBadgePollStart()
 	})
 
 	var c = (typeof getAuthClient === "function") ? getAuthClient() : null
 	if (c !== null) {
 		c.auth.onAuthStateChange(function (event) {
-			if (event === "SIGNED_OUT") { friendsHeartbeatStop(); friendsBadgeInvalidate() }
-			else if (event === "SIGNED_IN") friendsHeartbeatStart()
+			if (event === "SIGNED_OUT") { friendsHeartbeatStop(); friendsBadgePollStop(); friendsBadgeInvalidate() }
+			else if (event === "SIGNED_IN") { friendsHeartbeatStart(); friendsBadgePollStart() }
 		})
 	}
 })
@@ -258,12 +283,4 @@ function friendsSeenGet(what) {
 
 function friendsSeenSet(what, value) {
 	try { window.localStorage.setItem(friendsSeenKey(what), String(value)) } catch (e) {}
-}
-
-function friendsSeenFlag(what) {
-	try { return window.localStorage.getItem(friendsSeenKey(what)) === "1" } catch (e) { return true }
-}
-
-function friendsSeenMark(what) {
-	try { window.localStorage.setItem(friendsSeenKey(what), "1") } catch (e) {}
 }

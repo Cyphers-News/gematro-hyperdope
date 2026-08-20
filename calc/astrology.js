@@ -937,6 +937,29 @@ function astroSetNow() {
 	updateAstroChart()
 }
 
+// Rich hover meanings for planets, signs and aspects here, in the calculator's
+// own Astro panel - not just the membership Chart tab. Reuses pcTip and the
+// meaning dictionaries from profile-chart.js rather than keeping a second
+// copy: pcTip's own event handler is bound once, globally, on <body> for any
+// [data-pctip] element, so an astrology.js cell only needs the attribute.
+// Guarded in case profile-chart.js has not loaded (e.g. a future page that
+// includes astrology.js on its own) - then this is just a no-op, not an error.
+function astroTip(text) {
+	return (typeof pcTip === "function") ? pcTip(text) : ''
+}
+function astroPlanetTip(key) {
+	if (typeof pcPlanetMeaning === "undefined") return ''
+	return astroTip(pcPlanetMeaning[key] || '')
+}
+function astroSignTip(name) {
+	if (typeof pcSignMeaning === "undefined") return ''
+	return astroTip(name + ' - ' + (pcSignMeaning[name] || ''))
+}
+function astroAspectTip(name) {
+	if (typeof pcAspectMeaning === "undefined") return ''
+	return astroTip(pcAspectMeaning[name] || '')
+}
+
 function updateAstroChart() {
 	var spot = document.getElementById("astroResults")
 	if (spot === null) return
@@ -954,12 +977,12 @@ function updateAstroChart() {
 	if (chart.houses) {
 		o += '<table class="astroTable astroAngles"><tbody>'
 		o += '<tr class="astroHeadRow"><td>Angle</td><td>Position</td><td>Sign</td></tr>'
-		o += '<tr><td class="astroBody" onclick="astroSendToPhraseBox(&quot;Ascendant&quot;)">Ascendant</td>'
+		o += '<tr><td class="astroBody" onclick="astroSendToPhraseBox(&quot;Ascendant&quot;)"'+astroTip("Ascendant - the sign rising on the eastern horizon at birth. How you meet the world.")+'>Ascendant</td>'
 		o += '<td class="astroDeg">'+astroPad(chart.ascSign.deg)+'&deg; '+astroPad(chart.ascSign.min)+"'"+'</td>'
-		o += '<td class="astroSign" style="color: '+astroSignColor(chart.ascSign.idx)+';" onclick="astroSendToPhraseBox(&quot;'+chart.ascSign.sign.name+'&quot;)"><span class="astroGlyph">'+chart.ascSign.sign.glyph+'</span>'+chart.ascSign.sign.name+'</td></tr>'
-		o += '<tr><td class="astroBody" onclick="astroSendToPhraseBox(&quot;Midheaven&quot;)">Midheaven</td>'
+		o += '<td class="astroSign" style="color: '+astroSignColor(chart.ascSign.idx)+';" onclick="astroSendToPhraseBox(&quot;'+chart.ascSign.sign.name+'&quot;)"'+astroSignTip(chart.ascSign.sign.name)+'><span class="astroGlyph">'+chart.ascSign.sign.glyph+'</span>'+chart.ascSign.sign.name+'</td></tr>'
+		o += '<tr><td class="astroBody" onclick="astroSendToPhraseBox(&quot;Midheaven&quot;)"'+astroTip("Midheaven - the highest point of the chart. Career, reputation, what you are known for.")+'>Midheaven</td>'
 		o += '<td class="astroDeg">'+astroPad(chart.mcSign.deg)+'&deg; '+astroPad(chart.mcSign.min)+"'"+'</td>'
-		o += '<td class="astroSign" style="color: '+astroSignColor(chart.mcSign.idx)+';" onclick="astroSendToPhraseBox(&quot;'+chart.mcSign.sign.name+'&quot;)"><span class="astroGlyph">'+chart.mcSign.sign.glyph+'</span>'+chart.mcSign.sign.name+'</td></tr>'
+		o += '<td class="astroSign" style="color: '+astroSignColor(chart.mcSign.idx)+';" onclick="astroSendToPhraseBox(&quot;'+chart.mcSign.sign.name+'&quot;)"'+astroSignTip(chart.mcSign.sign.name)+'><span class="astroGlyph">'+chart.mcSign.sign.glyph+'</span>'+chart.mcSign.sign.name+'</td></tr>'
 		o += '</tbody></table>'
 	}
 
@@ -971,10 +994,10 @@ function updateAstroChart() {
 		var b = chart.bodies[i]
 		var col = astroSignColor(b.signIdx)
 		o += '<tr>'
-		o += '<td class="astroBody" onclick="astroSendToPhraseBox(&quot;'+b.name+'&quot;)" title="Send &quot;'+b.name+'&quot; to the phrase box">'
+		o += '<td class="astroBody" onclick="astroSendToPhraseBox(&quot;'+b.name+'&quot;)"'+astroPlanetTip(b.key)+'>'
 		o += '<span class="astroGlyph">'+b.glyph+'</span>'+b.name+'</td>'
 		o += '<td class="astroDeg">'+astroPad(b.deg)+'&deg; '+astroPad(b.min)+"'"+'</td>'
-		o += '<td class="astroSign" style="color: '+col+';" onclick="astroSendToPhraseBox(&quot;'+b.sign.name+'&quot;)" title="Send &quot;'+b.sign.name+'&quot; to the phrase box">'
+		o += '<td class="astroSign" style="color: '+col+';" onclick="astroSendToPhraseBox(&quot;'+b.sign.name+'&quot;)"'+astroSignTip(b.sign.name)+'>'
 		o += '<span class="astroGlyph">'+b.sign.glyph+'</span>'+b.sign.name+'</td>'
 		o += '<td class="astroEl">'+(chart.houses ? b.house : b.sign.el)+'</td>'
 		o += '<td class="astroMotion">'+(b.retro ? '<span class="astroRetro">Rx</span>' : '&mdash;')+'</td>'
@@ -1002,7 +1025,7 @@ function updateAstroChart() {
 			var asp = chart.aspects[k]
 			o += '<tr'+(asp.exact ? ' class="astroExact"' : '')+'>'
 			o += '<td class="astroBody">'+asp.a.glyph+' '+asp.a.name+' &nbsp;'+asp.b.glyph+' '+asp.b.name+'</td>'
-			o += '<td class="astroAspName" onclick="astroSendToPhraseBox(&quot;'+asp.aspect.name+'&quot;)" title="Send &quot;'+asp.aspect.name+'&quot; to the phrase box">'
+			o += '<td class="astroAspName" onclick="astroSendToPhraseBox(&quot;'+asp.aspect.name+'&quot;)"'+astroAspectTip(asp.aspect.name)+'>'
 			o += '<span class="astroGlyph">'+asp.aspect.glyph+'</span>'+asp.aspect.name+'</td>'
 			o += '<td class="astroDeg">'+asp.orb.toFixed(2)+'&deg;</td>'
 			o += '</tr>'
@@ -1027,6 +1050,14 @@ function astroSignColor(idx) {
 	return "hsl(205 70% 68%)" // Water
 }
 
+// Closes this panel and opens the profile menu straight to Chart - the
+// membership area's own tab bar no longer carries a Chart button of its own.
+function astroOpenMyCharts() {
+	closeAllOpenedMenus()
+	if (typeof toggleProfileMenu === "function") toggleProfileMenu()
+	if (typeof profileSetTab === "function") profileSetTab("chart")
+}
+
 function toggleAstroMenu() {
 	if (!astroMenuOpened) {
 		closeAllOpenedMenus()
@@ -1036,7 +1067,16 @@ function toggleAstroMenu() {
 		var o = '<div class="colorControlsBG astroBG">'
 		o += '<input class="closeMenuBtn" type="button" value="&#215;" onclick="closeAllOpenedMenus()">'
 
-		o += '<div class="astroIntro">Geocentric positions for any moment. Click any planet, sign or aspect name to send it to the phrase box and run it through your ciphers.</div>'
+		o += '<div class="astroIntro">Geocentric positions for any moment. Click any planet, sign or aspect name to send it to the phrase box and run it through your ciphers. Hover a planet, sign or aspect for what it means.</div>'
+
+		// Saving a chart to your profile needs an account - the drawing,
+		// printing and saved-chart list themselves live under the profile
+		// menu's own Chart tab (renderProfileChart, calc/profile-chart.js),
+		// unchanged. This is just the door to it from where people actually
+		// build a chart, rather than a tab of its own in the membership row.
+		if (typeof authUser !== "undefined" && authUser !== null) {
+			o += '<button class="intBtn3 astroMyChartsBtn" onclick="astroOpenMyCharts()">&#128190; My Charts &mdash; Membership only</button>'
+		}
 
 		o += '<div class="astroStep">Date &amp; time<span class="astroStepNote">UTC unless a birth place is set below</span></div>'
 		o += '<table class="astroInputTable"><tbody><tr>'

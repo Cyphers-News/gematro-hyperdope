@@ -231,6 +231,28 @@
 .adminPill-reviewing { color: hsl(35 80% 70%);  border-color: hsl(35 50% 42%); }
 .adminPill-dismissed { color: var(--font-white-4); }
 .adminPill-actioned  { color: hsl(140 55% 70%); border-color: hsl(140 40% 40%); }
+.adminPill-pending   { color: hsl(35 80% 70%);  border-color: hsl(35 50% 42%); }
+.adminPill-approved  { color: hsl(140 55% 70%); border-color: hsl(140 40% 40%); }
+.adminPill-rejected  { color: hsl(5 78% 74%);   border-color: hsl(5 50% 45%); }
+.adminPill-exported  { color: var(--font-white-4); }
+
+/* ---- phrase queue export ---- */
+.adminExportArea {
+	width: 100%;
+	box-sizing: border-box;
+	min-height: 10em;
+	max-height: 22em;
+	margin: 0.5em 0;
+	padding: 0.6em 0.7em;
+	font-family: var(--font-family-mono), monospace;
+	font-size: 82%;
+	line-height: 1.5em;
+	color: var(--font-white-1);
+	background-color: var(--input-bg-accent);
+	border: 1px solid var(--border-accent);
+	resize: vertical;
+}
+.adminExportArea:focus { border-color: var(--focus-outline); outline: none; }
 
 /* ---- report detail ---- */
 

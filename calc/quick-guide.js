@@ -20,7 +20,7 @@ var quickGuideTopic = "basics" // currently open topic
 
 var quickGuideTopics = [
 
-{ id: "basics", label: "🎯 Basics", html:
+{ id: "basics", label: "⌨️ Shortcuts", html:
 	'<p class="qgMedium">Phrase Box - word, phrase or numbers</p>'
 	+ '<ul>'
 	+ '<li><span class="qgBold">Enter</span> - add phrase to history table.<br><span class="qgBold">Query</span> - search the loaded database.</li>'
@@ -56,40 +56,6 @@ var quickGuideTopics = [
 	+ '<li><span class="qgBold">Empty</span>, <span class="qgBold">Default</span>, <span class="qgBold">All (EN)</span> and <span class="qgBold">All</span> set the selection in one click.</li>'
 	+ '<li><span class="qgBold">"Left Click"</span> a cypher name in the Enabled Cyphers table to make it current and show its breakdown.'
 	+ '<br><span class="qgBold">"Right Click"</span> to disable it. <span class="qgBold">"Ctrl + Right Click"</span> to reorder.</li>'
-	+ '</ul>'
-
-	+ '<p class="qgMedium">English - Modern, Archaic, Base 4</p>'
-	+ '<ul>'
-	+ '<li><span class="qgBold">English</span> - modern 26 letter 1650s+ alphabet.</li>'
-	+ '<li><span class="qgBold">Archaic</span> - 24 letter English used 1300 - 1650 AD, also called the <span class="qgBold">Elizabethan</span> or <span class="qgBold">Baconian</span> cyphers.</li>'
-	+ '<li><span class="qgBold">Standard</span> - previously known as Extended, based on the <span class="qgBold">Hebrew Gematria</span> chart.</li>'
-	+ '<li><span class="qgBold">Base 4</span> - the four most common modern cyphers.</li>'
-	+ '<li><span class="qgBold">Ordinal</span> - originating as Phoenician gematria. Each value counts up by 1.</li>'
-	+ '<li><span class="qgBold">Reduction</span> - Pythagorean numerology; digits are summed repeatedly down to one digit.</li>'
-	+ '<li><span class="qgBold">Reverse</span> - Z to A instead of A to Z.</li>'
-	+ '</ul>'
-
-	+ '<p class="qgMedium">Languages</p>'
-	+ '<ul>'
-	+ '<li><span class="qgBold">Phoenician</span> - the first phonetic alphabet and number substitution system.</li>'
-	+ '<li><span class="qgBold">Hebrew</span> - from Phoenician, 500+ BC.</li>'
-	+ '<li><span class="qgBold">Greek</span> - isopsephy from gematria, 500+ BC.</li>'
-	+ '<li><span class="qgBold">Latin</span> - 23 letters, excluding J, U and W.</li>'
-	+ '<li><span class="qgBold">Arabic</span> - the Abjad numeral system, 600+ AD.</li>'
-	+ '<li><span class="qgBold">Russian</span> - the Cyrillic alphabet, 800+ AD.</li>'
-	+ '</ul>'
-
-	+ '<p class="qgMedium">Cryptography (wheel cyphers)</p>'
-	+ '<ul>'
-	+ '<li>These do not add up to a number. Each letter is <span class="qgBold">swapped for a symbol</span>, so the result is a string'
-	+ ' such as <span class="qgBold">HAANA NHUUS</span> rather than a total.</li>'
-	+ '<li>Includes <span class="qgBold">Franz Bardon</span>, <span class="qgBold">Rydumy</span>, <span class="qgBold">Alfabeto Carbonaro</span>,'
-	+ ' <span class="qgBold">Cryptographic AQ</span>, <span class="qgBold">Heximal AQ</span>, <span class="qgBold">English Trigon</span>,'
-	+ ' <span class="qgBold">AQ Astrology</span> and <span class="qgBold">Illuminati Novice Wheel</span>.</li>'
-	+ '<li>Some map whole groups of letters, not just single ones - Bardon reads <span class="qgBold">ch</span>, <span class="qgBold">sch</span>'
-	+ ' and <span class="qgBold">tz</span> as one unit, and the longest match always wins.</li>'
-	+ '<li><span class="qgNote">Because there is no number, wheel cyphers are skipped by the highlighter, Find Matches,'
-	+ ' Numerology Mode, number properties and database queries. They still export normally.</span></li>'
 	+ '</ul>'
 
 	+ '<p class="qgMedium">Edit Cyphers</p>'
