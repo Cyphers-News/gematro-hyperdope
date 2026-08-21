@@ -485,7 +485,9 @@
 }
 .profileRowPhrase:hover { text-decoration: underline; }
 .profileRowActions { display: flex; align-items: center; gap: 0.35em; flex: 0 0 auto; }
-.profileWhen { font-size: 80%; color: var(--font-white-3); }
+/* also a timestamp in the Social lists (forum notifications, chat
+   notifications), so it moves up the ramp with the rest of them */
+.profileWhen { font-size: 80%; color: var(--font-white-2); }
 
 .profileMiniBtn {
 	font-size: 80%;
@@ -1650,7 +1652,13 @@
    a phone held at arm's length. */
 .frMsgRow .frBubble { border-left: 3px solid var(--font-white-4); }
 .frMsgMine .frBubble { border-left: 1px solid hsl(210 30% 38%); border-right: 3px solid hsl(210 55% 62%); }
-.frMsgWhen { font-size: 72%; color: var(--font-white-4); padding: 0.1em 0.2em; }
+/* Message timestamps were --font-white-4, the dimmest step in the ramp,
+   which at 72% on a near-black background was legible only if you went
+   looking for it. Now --font-white-2, the same colour the message body
+   itself uses (.frBubble), so "14h ago" reads at a glance. Size and
+   placement are unchanged - this was a contrast problem, not a layout
+   one. Shared by Forum and Chat, so both get it. */
+.frMsgWhen { font-size: 72%; color: var(--font-white-2); padding: 0.1em 0.2em; }
 
 .frChatCompose { display: flex; gap: 0.4em; align-items: flex-end; padding-top: 0.5em; }
 .frChatBox {
@@ -1968,9 +1976,14 @@
    dropped from the list entirely (still shown once the topic itself is
    open, see frRenderForumThread). */
 .frForumFeed { border-top: 1px solid var(--border-dark-accent); }
+/* align-items: center, not flex-start - the main block is a single title
+   line now that the "Started by …" second line is gone, so top-aligning
+   the meta group against it left it sitting high and reading as though a
+   line had been deleted from under it. Centred, the row is deliberately
+   one line. */
 .frForumRow2 {
 	display: flex;
-	align-items: flex-start;
+	align-items: center;
 	gap: 0.7em;
 	padding: 0.7em 0.5em;
 	border-bottom: 1px solid var(--border-dark-accent);
@@ -2012,6 +2025,8 @@
 	border-radius: 3px;
 	white-space: nowrap;
 }
+/* no padding-top any more: it existed to nudge this group down against a
+   two-line main block, and with one line the row centres instead */
 .frForumRowRight {
 	flex: 0 0 auto;
 	display: flex;
@@ -2020,8 +2035,13 @@
 	font-size: 82%;
 	color: var(--font-white-3);
 	white-space: nowrap;
-	padding-top: 0.2em;
 }
+/* the creation date sits a step quieter than the reply count next to it:
+   both are facts about the topic, but "how much discussion is in here" is
+   the one people actually scan for */
+/* readable at a glance, matching the message timestamps rather than
+   fading into the row like the chevron next to it */
+.frForumRowDate { color: var(--font-white-2); }
 .frForumRowChevron { font-size: 140%; line-height: 1; color: var(--font-white-4); }
 
 @media (max-width: 620px) {
@@ -2500,6 +2520,16 @@
    gets a quiet tint and a thin edge; the excitement lives in the preview
    text and the dot below, which is where a glance actually lands. Stops the
    moment the thread is opened, because at that point it is no longer news. */
+/* No zebra striping in the chat and notification lists.
+   .profileRow:nth-child(odd) paints every other row a neutral grey,
+   which is fine on the table-like lists it was written for (Leaders,
+   presets, saved CSVs) where rows have no read state. In here a
+   background IS the unread signal - and the grey stripe is heavier than
+   the unread tint below it, so a conversation you have already read
+   looked more unread than one you hadn't, purely by being in an odd
+   position. Background now means exactly one thing in these lists. */
+.profileRow.frRow:nth-child(odd) { background: none; }
+
 .profileRow.frRow.frThreadUnread {
 	background-color: hsla(140 55% 40% / 0.08);
 	border-left: 2px solid hsl(140 70% 50%);

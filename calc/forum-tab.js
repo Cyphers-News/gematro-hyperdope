@@ -109,12 +109,20 @@ function frForumEmptyText(filter) {
 }
 
 // Title (large, bold, the reason a member is scanning this list at all)
-// with [NEW] attached right beside it, a small "Started by / time ago"
-// line under that - the creator's name there is its own click target, same
-// pattern as a friends-list row's name (event.stopPropagation so it does
-// not also open the topic) - and reply count + a chevron on the right. The
-// opening message's own preview text is deliberately not here (see
-// frRenderForumThread for where it still shows, once a topic is open).
+// with [NEW] beside it, and reply count + creation date + a chevron on the
+// right. One line, one click target: opening the topic.
+//
+// There is deliberately no author here. The creator's name used to sit on
+// a second line as its own click target through to their profile, which
+// put a small link inside a large row whose whole point is "open this
+// topic" - so aiming at the row and hitting the name instead sent you to
+// a profile you never asked for. In a list you scan to choose a
+// discussion, who started it is not worth that. Author attribution still
+// lives where it means something: every message inside the topic carries
+// its sender's name, and that name is still a link there.
+//
+// The opening message's own preview text is likewise not here (see
+// frRenderForumThread for where it shows, once a topic is open).
 function frForumTopicRowHtml(t) {
 	var unread = t.unread_count || 0
 	var o = '<div class="frForumRow2' + (unread > 0 ? ' frForumRowUnread' : '') + '" onclick="frForumOpenTopic(&quot;' + t.id + '&quot;)">'
@@ -122,10 +130,15 @@ function frForumTopicRowHtml(t) {
 	o += '<div class="frForumRowTitleLine"><span class="frForumRowTitle">' + authEsc(t.title) + '</span>'
 	if (unread > 0) o += '<span class="frForumNew">' + (unread > 1 ? 'NEW &middot; ' + unread : 'NEW') + '</span>'
 	o += '</div>'
-	o += '<div class="frSub">Started by <span class="frForumWhoLink" onclick="event.stopPropagation();frOpenProfile(&quot;' + t.created_by + '&quot;)">' + authEsc(t.creator_name) + '</span> &middot; ' + frWhen(t.last_message_at) + '</div>'
 	o += '</div>'
 	o += '<div class="frForumRowRight">'
 	o += '<span class="frForumRowReplies">&#128172; ' + t.message_count + (t.message_count === 1 ? ' reply' : ' replies') + '</span>'
+	// the day the topic was started, not the last reply - a fixed fact
+	// about the topic rather than something that shifts under you as
+	// people post
+	if (t.created_at) {
+		o += '<span class="frForumRowDate">' + authEsc(new Date(t.created_at).toLocaleDateString()) + '</span>'
+	}
 	o += '<span class="frForumRowChevron" aria-hidden="true">&#8250;</span>'
 	o += '</div>'
 	o += '</div>'
