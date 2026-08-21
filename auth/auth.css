@@ -1660,19 +1660,25 @@
    used both here (frForumMsgWho) and in a topic row's "Started by" line */
 .frForumWhoLink { cursor: pointer; }
 .frForumWhoLink:hover { color: var(--font-white-1); text-decoration: underline; }
-/* One action bar under a forum reply's bubble: the four reactions
-   (profileChipReactionsHtml, shared with Leaders - this only adds its own
-   spacing here, not new button styling for that part) plus Reply, all the
-   same height. The explicit height on .profileReactBtn is scoped to just
-   this bar - Leaders' own reaction strip keeps its usual sizing. */
+/* One action bar under a message's bubble, in BOTH Forum and Chat: in the
+   Forum the four reactions (profileChipReactionsHtml, shared with Leaders -
+   this only adds its own spacing here, not new button styling for that
+   part) plus Reply, all the same height; in Chat, Reply plus the report
+   flag. The explicit height on .profileReactBtn is scoped to just this
+   bar - Leaders' own reaction strip keeps its usual sizing. */
 .frMsgActionBar { display: flex; align-items: center; gap: 0.4em; padding: 0.3em 0.2em 0; flex-wrap: wrap; }
 .frMsgActionBar .profileReactBtn { height: 26px; }
+/* your own messages in Chat sit against the right edge - their action bar
+   goes with them rather than staying left under a right-aligned bubble */
+.frMsgMine .frMsgActionBar { justify-content: flex-end; }
 
 /* Reply: neutral at rest, green only on hover - a wide rectangular button
    the same height as the reaction buttons beside it, bold uppercase text,
    always fully visible and readable (unlike the old hover-only icon this
    replaced), but the green itself is reserved for hover rather than
-   permanent, so it does not outshout the reactions next to it at rest. */
+   permanent, so it does not outshout the reactions next to it at rest.
+   Identical in Forum and Chat: same builder (frReplyBtnHtml,
+   calc/social-reply.js), same class, same rules, so the two cannot drift. */
 .frMsgReplyBtn {
 	height: 26px;
 	display: inline-flex;
@@ -1696,6 +1702,16 @@
 	background: hsla(140 75% 40% / 0.4);
 	border-color: hsl(140 90% 62%);
 	color: hsl(140 95% 85%);
+}
+.frMsgReplyBtn:focus-visible { outline: 1px solid var(--focus-outline); outline-offset: 2px; }
+/* armed: this is the message currently being replied to. The label itself
+   changes to REPLYING (frReplyMarkActive) rather than relying on the
+   green alone, so the state is legible without colour vision. */
+.frMsgReplyBtn.frMsgReplyBtnOn {
+	background: hsla(140 75% 40% / 0.55);
+	border-color: hsl(140 90% 62%);
+	color: hsl(140 95% 90%);
+	box-shadow: 0 0 0 1px hsla(140 90% 62% / 0.35);
 }
 @media (max-width: 620px) {
 	/* 44px minimum touch target - grown together with the reaction buttons
@@ -1726,55 +1742,132 @@
 .frMentionOpt { padding: 0.4em 0.6em; font-size: 88%; cursor: pointer; }
 .frMentionOpt:hover { background: var(--btn-hover-accent); color: var(--font-white-1); }
 
-/* Discord-style reply preview - a small quoted strip, clicking it scrolls
-   to and briefly highlights the message it quotes (frForumJumpToMessage /
-   frChatJumpToMessage), same reuse of the "briefly highlight" .frMsgNew
-   animation the @here notification jump already uses. Shown above the
-   bubble it belongs to (frForumLogHtml/frChatLogHtml) when the message
-   carries a reply_to. */
-.frMsgReplyQuote {
-	display: flex;
-	align-items: baseline;
-	gap: 0.3em;
-	font-size: 76%;
-	color: var(--font-white-4);
-	padding: 0 0.3em 0.2em 0.3em;
-	cursor: pointer;
-	max-width: 78%;
-	overflow: hidden;
-}
-.frMsgReplyQuote:hover { color: var(--font-white-2); }
-.frMsgReplyQuoteWho { font-weight: 600; color: var(--font-white-3); flex: 0 0 auto; }
-.frMsgReplyQuoteBody { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 620px) { .frMsgReplyQuote { max-width: 64%; } }
+/* ---- shared reply preview (Forum + Chat) ----
+   Built by frReplyQuoteHtml (calc/social-reply.js) and used unchanged by
+   both surfaces. Two lines - who on top, what they said underneath -
+   rather than the one squeezed nowrap line this replaced, which read as
+   metadata rather than as context.
 
-/* The "replying to X" strip above a compose box - active only while a
-   reply is armed (frForumReplyTo / frChatReplyTo), cleared on send or on
-   the strip's own Cancel. */
+   The hierarchy that matters: this is clearly readable but plainly
+   secondary to the .frBubble below it. Smaller than the message (88% vs
+   102%) but nowhere near fine print, dimmer but still high enough
+   contrast to read at a glance, and capped at two lines so a quoted
+   paragraph can never out-weigh the reply answering it.
+
+   Clicking (or Enter/Space when focused) scrolls to and pulses the
+   quoted message - frReplyJumpTo, reusing the same .frMsgNew highlight
+   an arriving message and an @here notification jump already use. */
+.frReplyQuote {
+	display: flex;
+	align-items: stretch;
+	gap: 0.5em;
+	max-width: 78%;
+	margin-bottom: 0.25em;
+	padding: 0.05em 0.2em;
+	cursor: pointer;
+	overflow: hidden;
+	background: none;
+	border: none;
+	transition: opacity 0.12s ease;
+	opacity: 0.82;
+}
+.frReplyQuote:hover, .frReplyQuote:focus-visible { opacity: 1; }
+.frReplyQuote:focus-visible { outline: 1px solid var(--focus-outline); outline-offset: 2px; }
+/* the connector: a short vertical rule tying the quote to the bubble
+   under it, so the pair reads as one unit rather than two stacked
+   things. Subtle on purpose - it is a hint of structure, not a border. */
+.frReplyQuoteConnector {
+	flex: 0 0 auto;
+	width: 2px;
+	border-radius: 2px;
+	background: var(--font-white-4);
+	opacity: 0.5;
+}
+.frReplyQuote:hover .frReplyQuoteConnector { background: hsl(140 80% 55%); opacity: 0.9; }
+.frReplyQuoteMain { display: flex; flex-direction: column; min-width: 0; gap: 0.05em; }
+.frReplyQuoteWho {
+	font-size: 80%;
+	font-weight: 700;
+	color: var(--font-white-2);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+/* clamped to two lines: enough to recognise the message, never enough to
+   compete with the reply itself */
+.frReplyQuoteBody {
+	font-size: 88%;
+	line-height: 1.35em;
+	color: var(--font-white-3);
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	overflow-wrap: anywhere;
+}
+/* a quote whose target is gone: stated plainly in the same slot, and not
+   clickable-looking, since there is nothing to jump to */
+.frReplyQuoteGone { cursor: default; font-style: italic; }
+.frReplyQuoteGone:hover { opacity: 0.82; }
+.frReplyQuoteGone:hover .frReplyQuoteConnector { background: var(--font-white-4); opacity: 0.5; }
+/* mirrored for your own messages in Chat, which sit against the right
+   edge - the connector belongs on the side the bubble is anchored to */
+.frMsgMine .frReplyQuote { flex-direction: row-reverse; }
+.frMsgMine .frReplyQuoteMain { align-items: flex-end; text-align: right; }
+@media (max-width: 620px) { .frReplyQuote { max-width: 64%; } }
+@media (prefers-reduced-motion: reduce) { .frReplyQuote { transition: none; } }
+
+/* ---- shared composer strip (Forum + Chat) ----
+   frReplyBarHtml (calc/social-reply.js). Active only while a reply is
+   armed, so it is never a guess which message is about to be answered.
+   Carries the quoted snippet as well as the name - a name alone does not
+   identify which of that person's messages was picked. */
 .frReplyBar {
 	display: flex;
 	align-items: center;
 	gap: 0.5em;
-	padding: 0.3em 0.5em;
+	padding: 0.35em 0.5em;
 	margin-bottom: 0.3em;
 	background: hsla(140 65% 42% / 0.09);
 	border-left: 3px solid hsl(140 80% 50%);
 	font-size: 82%;
 	color: var(--font-white-2);
 }
-.frReplyBarText { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.frReplyBarText b { color: var(--font-white-1); }
-/* a proper labelled button (.profileMiniBtn base) rather than a bare ×
-   glyph - "visible Cancel" means it reads as a button, not a tiny mark
-   easy to miss next to the reply preview text */
-.frReplyBarCancel { flex: 0 0 auto; }
-
-/* A labelled "↩ Reply", always visible - unlike .frMsgFlag right next to
-   it (which stays quiet until hovered on purpose, since reporting is not
-   something to advertise), replying is the everyday action and members
-   were not finding a bare icon that only appeared on hover. */
-.frMsgReplyIcon { cursor: pointer; padding-left: 0.5em; color: var(--font-white-4); font-size: 92%; transition: color 0.12s ease; }
-.frMsgReplyIcon:hover { color: hsl(140 75% 65%); }
+.frReplyBarIcon { flex: 0 0 auto; color: hsl(140 80% 60%); font-weight: 700; }
+.frReplyBarText { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 0.1em; }
+.frReplyBarWho { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.frReplyBarWho b { color: var(--font-white-1); }
+.frReplyBarSnippet {
+	font-size: 92%;
+	color: var(--font-white-3);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+/* × rather than a labelled Cancel: it sits at the end of a strip that
+   already says what it is, and this keeps the strip to one compact line.
+   Cancelling never clears what has been typed - it only disarms the
+   reply. Sized for a finger on touch (see the mobile block below). */
+.frReplyBarCancel {
+	flex: 0 0 auto;
+	width: 24px;
+	height: 24px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 130%;
+	line-height: 1;
+	color: var(--font-white-3);
+	background: none;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: color 0.12s ease, background-color 0.12s ease;
+}
+.frReplyBarCancel:hover { color: var(--font-white-1); background: hsl(0 0% 100% / 0.08); }
+.frReplyBarCancel:focus-visible { outline: 1px solid var(--focus-outline); outline-offset: 1px; }
+@media (max-width: 620px) { .frReplyBarCancel { width: 40px; height: 40px; } }
+@media (prefers-reduced-motion: reduce) { .frReplyBarCancel { transition: none; } }
 
 /* ---- forum topic feed row ---- */
 /* A discussion-feed row, not an isolated boxy card: fine separators between
@@ -1875,14 +1968,21 @@
 	.frMsgActionBar { max-width: 64%; }
 }
 
-/* the flag on a chat message: quiet until hovered, loud once armed */
+/* the flag on a chat message: quiet until hovered, loud once armed. Sits
+   in the shared .frMsgActionBar next to REPLY, so it gets a matching
+   height and its own touch target on mobile - deliberately still much
+   quieter than REPLY, since reporting is not an everyday action. */
 .frMsgFlag {
 	cursor: pointer;
-	padding-left: 0.35em;
+	padding: 0 0.4em;
+	height: 26px;
+	display: inline-flex;
+	align-items: center;
 	color: var(--font-white-4);
 	opacity: 0;
 	transition: opacity 0.15s ease;
 }
+@media (max-width: 620px) { .frMsgFlag { height: 44px; padding: 0 0.6em; } }
 .frMsgRow:hover .frMsgFlag { opacity: 1; }
 .frMsgFlag:hover { color: hsl(5 75% 70%); }
 .frMsgFlag.frMsgFlagArmed { opacity: 1; color: hsl(5 80% 72%); font-weight: 700; }

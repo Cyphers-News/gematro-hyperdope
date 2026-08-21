@@ -971,39 +971,34 @@ function frChatLogHtml(msgs, newIds, otherName) {
 		// sent yourself - you already know you sent that one.
 		var isNew = !!(newIds && newIds[m.id] && !m.mine)
 		o += '<div class="frMsgRow' + (m.mine ? ' frMsgMine' : '') + (isNew ? ' frMsgNew' : '') + '" id="frChatMsg-' + m.id + '">'
+		// Reply preview, the REPLY action and the timestamp line are all the
+		// same shape the Forum uses (frForumLogHtml) - shared component in
+		// calc/social-reply.js, so the two surfaces cannot drift apart.
 		if (m.reply_to) {
-			var quoteWho = m.reply_sender_name ? authEsc(m.reply_sender_name) : "a message"
-			var quoteBody = m.reply_body ? authEsc(m.reply_body) : "(no longer available)"
-			o += '<div class="frMsgReplyQuote" onclick="frChatJumpToMessage(&quot;' + m.reply_to + '&quot;)">'
-			o += '<span class="frMsgReplyQuoteWho">&#8618; ' + quoteWho + '</span>'
-			o += '<span class="frMsgReplyQuoteBody">' + quoteBody + '</span>'
-			o += '</div>'
+			o += frReplyQuoteHtml(m.reply_to, m.reply_sender_name, m.reply_body, "frChatMsg-")
 		}
 		o += '<div class="frBubble">' + chatRenderBody(m.body) + '</div>'
-		o += '<div class="frMsgWhen">' + frWhen(m.created_at)
-		o += '<span class="frMsgReplyIcon" title="Reply to this message" onclick="frChatStartReply(&quot;' + m.id + '&quot;,&quot;' + authEscJs(m.mine ? "yourself" : theirLabel) + '&quot;)">&#8617; Reply</span>'
+		o += '<div class="frMsgActionBar">'
+		o += frReplyBtnHtml(m.id, m.mine ? "yourself" : theirLabel, "frChatStartReply", m.body,
+			frChatReplyTo !== null && frChatReplyTo.id === m.id)
 		// reporting the message rather than the person: a moderator judging
 		// "they were rude" with no idea which line cannot judge anything
 		if (!m.mine) {
-			o += ' <span class="frMsgFlag" title="Report this message" onclick="frReportMessage(this,&quot;' +
+			o += '<span class="frMsgFlag" title="Report this message" onclick="frReportMessage(this,&quot;' +
 				m.sender_id + '&quot;,&quot;' + m.id + '&quot;)">&#9873;</span>'
 		}
 		o += '</div>'
+		o += '<div class="frMsgWhen">' + frWhen(m.created_at) + '</div>'
 		o += '</div>'
 	}
 	return o
 }
 
-function frChatJumpToMessage(messageId) {
-	var el = document.getElementById("frChatMsg-" + messageId)
-	if (el === null) { displayCalcNotification("That message is further back than what's loaded", 2200); return }
-	el.scrollIntoView({ block: "center", behavior: "smooth" })
-	el.classList.add("frMsgNew")
-	setTimeout(function () { el.classList.remove("frMsgNew") }, 3000)
-}
-
-function frChatStartReply(messageId, senderLabel) {
-	frChatReplyTo = { id: messageId, senderName: senderLabel }
+// Jumping to a quoted message is frReplyJumpTo (calc/social-reply.js),
+// called by the preview itself - shared with the Forum.
+function frChatStartReply(messageId, senderLabel, snippet) {
+	frChatReplyTo = { id: messageId, senderName: senderLabel, snippet: snippet || "" }
+	frReplyMarkActive("frChatMsg-", messageId)
 	frChatRenderReplyBar()
 	var box = document.getElementById("frChatBox")
 	if (box !== null) box.focus()
@@ -1011,18 +1006,17 @@ function frChatStartReply(messageId, senderLabel) {
 
 function frChatCancelReply() {
 	frChatReplyTo = null
+	frReplyMarkActive("frChatMsg-", null)
 	frChatRenderReplyBar()
 }
 
+// Shared with the Forum - see frReplyBarHtml (calc/social-reply.js).
+// Cancel clears only the armed reply, never the compose box.
 function frChatRenderReplyBar() {
 	var host = document.getElementById("frChatReplyBar")
 	if (host === null) return
 	if (frChatReplyTo === null) { host.innerHTML = ""; return }
-	var o = '<div class="frReplyBar">'
-	o += '<span class="frReplyBarText">Replying to <b>' + authEsc(frChatReplyTo.senderName) + '</b></span>'
-	o += '<span class="frReplyBarCancel" title="Cancel reply" onclick="frChatCancelReply()">&times;</span>'
-	o += '</div>'
-	host.innerHTML = o
+	host.innerHTML = frReplyBarHtml(frChatReplyTo.senderName, frChatReplyTo.snippet, "frChatCancelReply")
 }
 
 function frChatScrollDown() {

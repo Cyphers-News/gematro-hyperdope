@@ -314,13 +314,9 @@ function frForumLogHtml(msgs) {
 		o += '<div class="frForumMsgWho"><span class="frForumWhoLink" onclick="frOpenProfile(&quot;' + m.user_id + '&quot;)">' + authEsc(m.sender_name) + '</span>' + frAdminBadge(m.user_id)
 		if (m.sender_online) o += '<span class="frDot frDotOn" title="Online now"></span>'
 		o += '</div>'
+		// Shared with Chat - see frReplyQuoteHtml (calc/social-reply.js)
 		if (m.reply_to) {
-			var quoteWho = m.reply_sender_name ? authEsc(m.reply_sender_name) : "a message"
-			var quoteBody = m.reply_body ? authEsc(m.reply_body) : "(no longer available)"
-			o += '<div class="frMsgReplyQuote" onclick="frForumJumpToLoadedMessage(&quot;' + m.reply_to + '&quot;)">'
-			o += '<span class="frMsgReplyQuoteWho">&#8618; ' + quoteWho + '</span>'
-			o += '<span class="frMsgReplyQuoteBody">' + quoteBody + '</span>'
-			o += '</div>'
+			o += frReplyQuoteHtml(m.reply_to, m.reply_sender_name, m.reply_body, "frMsg-")
 		}
 		o += '<div class="frBubble">' + forumRenderBody(m.body, m.mentions) + '</div>'
 		// One action bar: the four reactions plus Reply, in that order, all
@@ -329,7 +325,8 @@ function frForumLogHtml(msgs) {
 		// unnoticed. The timestamp now has its own line underneath instead.
 		o += '<div class="frMsgActionBar">'
 		o += profileChipReactionsHtml(m.id, "forumToggleReaction", false)
-		o += '<button class="frMsgReplyBtn" title="Reply to this message" onclick="frForumStartReply(&quot;' + m.id + '&quot;,&quot;' + authEscJs(m.sender_name) + '&quot;)">&#8617; REPLY</button>'
+		o += frReplyBtnHtml(m.id, m.sender_name, "frForumStartReply", m.body,
+			forumReplyTo !== null && forumReplyTo.id === m.id)
 		o += '</div>'
 		o += '<div class="frMsgWhen">' + frWhen(m.created_at) + '</div>'
 		o += '</div>'
@@ -337,26 +334,14 @@ function frForumLogHtml(msgs) {
 	return o
 }
 
-// Jumps to an already-loaded message (the quoted preview only ever points
-// within the same 200-message page frRenderForumThread fetched) - reuses
-// the exact scroll-and-briefly-highlight behaviour frOpenForumNotif's own
-// frForumJumpToMessage (calc/friends-tab.js) uses for an @here mention
-// notification, just without that one's polling wait, since a quoted
-// preview's target is already in the DOM by the time it can be clicked.
-// Named differently from that one deliberately - two functions with the
-// same name in different files silently overwrite each other depending on
-// script load order, and this one must not replace the polling version
-// notification clicks still rely on.
-function frForumJumpToLoadedMessage(messageId) {
-	var el = document.getElementById("frMsg-" + messageId)
-	if (el === null) { displayCalcNotification("That message is further back than what's loaded", 2200); return }
-	el.scrollIntoView({ block: "center", behavior: "smooth" })
-	el.classList.add("frMsgNew")
-	setTimeout(function () { el.classList.remove("frMsgNew") }, 3000)
-}
-
-function frForumStartReply(messageId, senderName) {
-	forumReplyTo = { id: messageId, senderName: senderName }
+// Jumping to a quoted message is frReplyJumpTo (calc/social-reply.js),
+// called by the preview itself - shared with Chat. Note that is a
+// different thing from frForumJumpToMessage (calc/friends-tab.js), which
+// notification clicks use and which waits for the thread to finish
+// loading first; a quoted preview's target is already on screen.
+function frForumStartReply(messageId, senderName, snippet) {
+	forumReplyTo = { id: messageId, senderName: senderName, snippet: snippet || "" }
+	frReplyMarkActive("frMsg-", messageId)
 	frForumRenderReplyBar()
 	frForumUpdateComposeBtn()
 	var box = document.getElementById("frForumPostBox")
@@ -365,19 +350,18 @@ function frForumStartReply(messageId, senderName) {
 
 function frForumCancelReply() {
 	forumReplyTo = null
+	frReplyMarkActive("frMsg-", null)
 	frForumRenderReplyBar()
 	frForumUpdateComposeBtn()
 }
 
+// Shared with Chat - see frReplyBarHtml (calc/social-reply.js). Cancel
+// clears only the armed reply, never the compose box.
 function frForumRenderReplyBar() {
 	var host = document.getElementById("frForumReplyBar")
 	if (host === null) return
 	if (forumReplyTo === null) { host.innerHTML = ""; return }
-	var o = '<div class="frReplyBar">'
-	o += '<span class="frReplyBarText">Replying to <b>@' + authEsc(forumReplyTo.senderName) + '</b></span>'
-	o += '<button class="profileMiniBtn frReplyBarCancel" onclick="frForumCancelReply()">Cancel</button>'
-	o += '</div>'
-	host.innerHTML = o
+	host.innerHTML = frReplyBarHtml(forumReplyTo.senderName, forumReplyTo.snippet, "frForumCancelReply")
 }
 
 // Post doubles as Send Reply while a reply is armed, so the one button at
