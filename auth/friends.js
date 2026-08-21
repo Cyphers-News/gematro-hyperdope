@@ -30,6 +30,7 @@ function friendsError(err) {
 	// A raw Postgres error (constraint, RLS denial, type error) names real
 	// schema - not something to put in front of a member.
 	if (typeof authIsRawDbError === "function" && authIsRawDbError(msg)) {
+		if (typeof authDebugError === "function") authDebugError("friends/chat", msg)
 		return new Error("Something went wrong — try again.")
 	}
 	// the raise exception messages from the functions arrive verbatim, and are

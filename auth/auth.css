@@ -1543,6 +1543,78 @@
 .frMsgRow { display: flex; flex-direction: column; align-items: flex-start; max-width: 100%; }
 .frMsgRow.frMsgMine { align-items: flex-end; }
 
+/* Holds the bubble and, on your own messages, the delete ×. Exists so the
+   × can anchor to the BUBBLE's top-right corner: .frMsgRow is as wide as
+   the whole log, so anchoring to the row would strand the × far from a
+   narrow message and overlap the username line above it. Carries the
+   bubble's max-width so the pair are measured as one. */
+.frBubbleWrap { position: relative; max-width: 78%; }
+.frBubbleWrap .frBubble { max-width: 100%; }
+/* room for the delete × in the corner, so it never lands on the text.
+   Only your own messages carry one (frMsgDeleteHtml is rendered for
+   m.mine only), which is exactly what .frMsgMine marks. */
+.frMsgMine .frBubble { padding-right: 1.9em; }
+
+/* ---- delete your own message (Forum + Chat) ----
+   frMsgDeleteHtml (calc/social-reply.js). Absolutely positioned, so it
+   never takes part in the layout and cannot push the username, bubble,
+   action bar or timestamp around - nothing shifts when it appears on
+   hover.
+
+   Seated just INSIDE the bubble's top-right corner rather than nudged
+   outside it: .frChatLog scrolls (overflow auto both ways), so anything
+   hanging past the bubble's edge on a right-aligned message is clipped
+   by the scroll container and can provoke a horizontal scrollbar. The
+   matching padding-right on .frMsgMine .frBubble above keeps it off the
+   text instead.
+
+   Quiet until the message is hovered, like .frMsgFlag: deleting is not
+   an everyday action and should not sit in the corner of every message
+   of yours competing with Reply. */
+.frMsgDelete {
+	position: absolute;
+	top: 3px;
+	right: 3px;
+	z-index: 2;
+	width: 22px;
+	height: 22px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	font-size: 105%;
+	line-height: 1;
+	color: var(--font-white-4);
+	background: var(--btn-bg-accent);
+	border: 1px solid var(--border-dark-accent);
+	border-radius: 4px;
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity 0.15s ease, color 0.12s ease, background-color 0.12s ease;
+}
+.frMsgRow:hover .frMsgDelete, .frMsgDelete:focus-visible { opacity: 1; }
+.frMsgDelete:hover { color: hsl(5 80% 72%); border-color: hsl(5 70% 55%); background: hsla(5 70% 40% / 0.35); }
+.frMsgDelete:focus-visible { outline: 1px solid var(--focus-outline); outline-offset: 1px; }
+/* armed by profileConfirmClick - now reading "Sure?", so it needs room for
+   a word rather than a single glyph, and should be unmistakable */
+.frMsgDelete.profileArmed {
+	opacity: 1;
+	width: auto;
+	padding: 0 0.5em;
+	font-size: 72%;
+	font-weight: 700;
+	text-transform: uppercase;
+	color: hsl(5 95% 88%);
+	background: hsla(5 75% 45% / 0.85);
+	border-color: hsl(5 85% 65%);
+}
+/* no hover on touch, so it has to be permanently visible there - and big
+   enough to hit, without becoming the loudest thing on the message */
+@media (hover: none) {
+	.frMsgDelete { opacity: 0.55; width: 32px; height: 32px; }
+}
+@media (prefers-reduced-motion: reduce) { .frMsgDelete { transition: none; } }
+
 .frBubble {
 	max-width: 78%;
 	padding: 0.5em 0.75em;
@@ -1668,6 +1740,13 @@
    bar - Leaders' own reaction strip keeps its usual sizing. */
 .frMsgActionBar { display: flex; align-items: center; gap: 0.4em; padding: 0.3em 0.2em 0; flex-wrap: wrap; }
 .frMsgActionBar .profileReactBtn { height: 26px; }
+/* profileChipReact carries a padding-top for its original home under a
+   Leaders/Saved phrase row. In here the bar already provides that spacing,
+   and the extra padding made the chip taller than the Reply button beside
+   it, sitting the four reactions a couple of pixels lower than Reply -
+   visible as a slightly ragged row. Scoped to this bar only, so the
+   Leaders and Saved strips keep their own spacing untouched. */
+.frMsgActionBar .profileChipReact { padding-top: 0; }
 /* your own messages in Chat sit against the right edge - their action bar
    goes with them rather than staying left under a right-aligned bubble */
 .frMsgMine .frMsgActionBar { justify-content: flex-end; }
@@ -1771,19 +1850,22 @@
 	transition: opacity 0.12s ease;
 	opacity: 0.82;
 }
-.frReplyQuote:hover, .frReplyQuote:focus-visible { opacity: 1; }
+.frReplyQuote:hover, .frReplyQuote:focus-visible { opacity: 1; background: hsla(140 65% 42% / 0.12); }
 .frReplyQuote:focus-visible { outline: 1px solid var(--focus-outline); outline-offset: 2px; }
-/* the connector: a short vertical rule tying the quote to the bubble
+/* the connector: a green vertical rule tying the quote to the bubble
    under it, so the pair reads as one unit rather than two stacked
-   things. Subtle on purpose - it is a hint of structure, not a border. */
+   things - the same green the composer strip uses for the armed reply,
+   so "this is a reply" is one colour throughout Social. Muted at rest so
+   it marks the relationship without competing with the message, full
+   strength on hover once it is the thing being pointed at. */
 .frReplyQuoteConnector {
 	flex: 0 0 auto;
-	width: 2px;
+	width: 3px;
 	border-radius: 2px;
-	background: var(--font-white-4);
-	opacity: 0.5;
+	background: hsl(140 80% 50%);
+	opacity: 0.65;
 }
-.frReplyQuote:hover .frReplyQuoteConnector { background: hsl(140 80% 55%); opacity: 0.9; }
+.frReplyQuote:hover .frReplyQuoteConnector, .frReplyQuote:focus-visible .frReplyQuoteConnector { opacity: 1; }
 .frReplyQuoteMain { display: flex; flex-direction: column; min-width: 0; gap: 0.05em; }
 .frReplyQuoteWho {
 	font-size: 80%;
@@ -1806,10 +1888,13 @@
 	overflow-wrap: anywhere;
 }
 /* a quote whose target is gone: stated plainly in the same slot, and not
-   clickable-looking, since there is nothing to jump to */
+   clickable-looking, since there is nothing to jump to. The connector
+   drops to neutral grey - the green means "there is a message over
+   there", which is exactly what is no longer true. */
 .frReplyQuoteGone { cursor: default; font-style: italic; }
-.frReplyQuoteGone:hover { opacity: 0.82; }
-.frReplyQuoteGone:hover .frReplyQuoteConnector { background: var(--font-white-4); opacity: 0.5; }
+.frReplyQuoteGone .frReplyQuoteConnector { background: var(--font-white-4); opacity: 0.5; }
+.frReplyQuoteGone:hover { opacity: 0.82; background: none; }
+.frReplyQuoteGone:hover .frReplyQuoteConnector { opacity: 0.5; }
 /* mirrored for your own messages in Chat, which sit against the right
    edge - the connector belongs on the side the bubble is anchored to */
 .frMsgMine .frReplyQuote { flex-direction: row-reverse; }
@@ -1958,7 +2043,8 @@
    unmistakable at a glance. Long messages wrap a line more; being able to tell
    who said what is worth more than that. */
 @media (max-width: 620px) {
-	.frBubble { max-width: 64%; }
+	.frBubble, .frBubbleWrap { max-width: 64%; }
+	.frBubbleWrap .frBubble { max-width: 100%; }
 	.frChatLog { height: 300px; }
 	/* the action bar under a forum reply is often wider than the bubble
 	   above it, especially now Reply is a full button rather than small

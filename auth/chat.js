@@ -145,3 +145,73 @@ function chatUnreadCached(force) {
 }
 
 function chatUnreadInvalidate() { chatUnreadCache = { at: 0, n: 0 } }
+
+// ---- deleting your own message -----------------------------------------
+//
+// A direct delete, not an RPC: messages_delete_own (20260806010000_chat.sql)
+// already restricts this to the sender's own row, and the DELETE grant that
+// finally made that policy usable landed in
+// 20260820120000_security_audit_fixes.sql. Unlike the forum's equivalent
+// there is no counter to keep in step, so there is nothing for a function
+// to do that the policy does not already do.
+//
+// Deleting takes the message's reactions with it (message_reactions'
+// foreign key cascades) and clears the reply pointer on anything that
+// answered it (messages.reply_to is "on delete set null"), so a reply
+// survives showing "Original message unavailable" rather than vanishing.
+// Reports keep their own snapshot on purpose.
+
+function chatMessageDelete(messageId) {
+	var client = chatClient()
+	if (client === null) return Promise.reject(new Error("Not signed in"))
+	return client.from("messages").delete()
+		.eq("id", messageId).eq("sender_id", authUser.id)
+		.then(function (res) { if (res.error) throw friendsError(res.error); return true })
+}
+
+// ---- message reactions -------------------------------------------------
+//
+// Same shape as forumMessageReact/forumMessageUnreact (auth/forum.js) and
+// phraseReact before it - direct table writes, no RPC layer, because
+// there is no business logic to a reaction beyond "does this row exist".
+//
+// What is NOT the same is who may read them. The forum's equivalent is
+// world-readable to signed-in members because the forum is public; these
+// hang off private conversations, so message_reactions' policies (and
+// message_reaction_counts itself) are scoped to conversation membership.
+// See 20260820170000_chat_message_reactions.sql. Nothing on this side
+// enforces that - the database does, which is the point.
+
+function chatMessageReact(messageId, reactionType) {
+	var client = chatClient()
+	if (client === null) return Promise.reject(new Error("Not signed in"))
+	return client.from("message_reactions")
+		.insert({ message_id: messageId, user_id: authUser.id, reaction: reactionType })
+		// 23505 is the unique index doing its job - already reacted, not a failure
+		.then(function (res) { if (res.error && res.error.code !== "23505") throw friendsError(res.error); return true })
+}
+
+function chatMessageUnreact(messageId, reactionType) {
+	var client = chatClient()
+	if (client === null) return Promise.reject(new Error("Not signed in"))
+	return client.from("message_reactions").delete()
+		.eq("message_id", messageId).eq("user_id", authUser.id).eq("reaction", reactionType)
+		.then(function (res) { if (res.error) throw friendsError(res.error); return true })
+}
+
+// Folded into the same {heart,like,laugh,ccru,mine:{...}} shape
+// phraseReactionCounts and forumMessageReactionCounts already return, so
+// the shared reaction component renders chat messages unmodified.
+function chatMessageReactionCounts(messageIds) {
+	if (!messageIds || !messageIds.length) return Promise.resolve({})
+	return chatRpc("message_reaction_counts", { ids: messageIds }).then(function (rows) {
+		var out = {}
+		;(rows || []).forEach(function (r) {
+			var c = out[r.message_id] || { heart: 0, like: 0, laugh: 0, ccru: 0, mine: {} }
+			c[r.reaction] = r.cnt
+			if (r.mine) c.mine[r.reaction] = true
+			out[r.message_id] = c
+		})
+		return out
+	})
+}

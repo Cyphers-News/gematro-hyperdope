@@ -21,6 +21,7 @@ function forumError(err) {
 	// A raw Postgres error (constraint, RLS denial, type error) names real
 	// schema - not something to put in front of a member.
 	if (typeof authIsRawDbError === "function" && authIsRawDbError(msg)) {
+		if (typeof authDebugError === "function") authDebugError("forum", msg)
 		return new Error("Something went wrong — try again.")
 	}
 	return new Error(msg.replace(/^.*?:\s*/, "").trim() || "Something went wrong")
@@ -64,6 +65,14 @@ function forumPost(topicId, body, replyTo, mentionIds) {
 	if (!b) return Promise.reject(new Error("Nothing to post"))
 	if (b.length > FORUM_POST_MAX) return Promise.reject(new Error("Too long — " + FORUM_POST_MAX + " characters at most"))
 	return forumRpc("forum_post", { topic_id: topicId, body: b, reply_to: replyTo || null, mentions: (mentionIds && mentionIds.length) ? mentionIds : null })
+}
+
+// Deleting your own post. An RPC rather than a direct delete because
+// forum_topics.message_count has to come down in the same transaction -
+// see 20260820180000_forum_message_delete.sql. Ownership is enforced
+// there, not here.
+function forumMessageDelete(messageId) {
+	return forumRpc("forum_message_delete", { target: messageId })
 }
 
 // ---- follow / unfollow a topic ------------------------------------------

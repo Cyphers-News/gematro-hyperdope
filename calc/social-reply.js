@@ -70,6 +70,26 @@ function frReplyMarkActive(domPrefix, messageId) {
 	}
 }
 
+// ---- delete your own message -------------------------------------------
+//
+// A small × in the message's top-right corner, shown only on your own
+// messages, in both Forum and Chat. Quiet until the message is hovered
+// (this is not an everyday action and should not sit there competing
+// with Reply) but permanently visible on touch, where there is no hover
+// to reveal it - same treatment .frMsgFlag already gets.
+//
+// Two-step rather than a browser confirm(): the first click turns it
+// into "Sure?", the second deletes, and it disarms itself after a few
+// seconds if left alone. That is profileConfirmClick, the confirm this
+// app already uses for deleting a preset, a saved CSV and a chart - so
+// deleting a message asks the same way everything else does.
+function frMsgDeleteHtml(messageId, deleteFn) {
+	return '<button class="frMsgDelete" type="button"' +
+		' aria-label="Delete this message" title="Delete this message"' +
+		' onclick="event.stopPropagation();' + deleteFn + '(this,&quot;' + messageId + '&quot;)">' +
+		'&times;</button>'
+}
+
 // ---- the composer strip -------------------------------------------------
 //
 // Shown while a reply is armed, so it is never a guess which message the
@@ -122,9 +142,9 @@ function frReplyQuoteHtml(replyToId, replyWho, replyBody, domPrefix) {
 
 	var o = '<div class="frReplyQuote' + (gone ? ' frReplyQuoteGone' : '') + '"'
 	o += ' role="button" tabindex="0"'
-	o += ' aria-label="' + (gone ? 'The message this replies to is no longer available'
+	o += ' aria-label="' + (gone ? 'The message this replies to is unavailable'
 		: 'Jump to the message this replies to, from ' + authEsc(replyWho || "a member")) + '"'
-	o += ' title="' + (gone ? 'That message is no longer available' : 'Go to this message') + '"'
+	o += ' title="' + (gone ? 'That message is unavailable' : 'Go to this message') + '"'
 	o += ' onclick="' + jump + '"'
 	// Enter/Space on a focused div is not a click on its own - div has no
 	// implicit button behaviour, so keyboard use has to be wired by hand.
@@ -133,7 +153,7 @@ function frReplyQuoteHtml(replyToId, replyWho, replyBody, domPrefix) {
 	o += '<span class="frReplyQuoteConnector" aria-hidden="true"></span>'
 	o += '<span class="frReplyQuoteMain">'
 	if (gone) {
-		o += '<span class="frReplyQuoteWho">&#8618; Original message deleted</span>'
+		o += '<span class="frReplyQuoteWho">&#8618; Original message unavailable</span>'
 	} else {
 		o += '<span class="frReplyQuoteWho">&#8618; ' + who + '</span>'
 		o += '<span class="frReplyQuoteBody">' + authEsc(frReplyTrim(replyBody, 220)) + '</span>'
@@ -165,6 +185,30 @@ function frReplyJumpTo(domPrefix, messageId) {
 	el.classList.add("frMsgNew")
 	setTimeout(function () { el.classList.remove("frMsgNew") }, 3000)
 }
+
+// ---- one send at a time -------------------------------------------------
+//
+// Disabling the Send button is not enough on its own: both surfaces also
+// send on Enter (frChatKey / frForumPostKey), which calls the send
+// function directly and never looks at the button. Holding or mashing
+// Enter therefore fired several overlapping sends - the server's
+// duplicate-window check rejected the extras, so nothing was actually
+// posted twice, but the member got an error for something they did not
+// do wrong.
+//
+// A flag per surface rather than one shared one, so a slow Forum post
+// cannot block a Chat message. Always released in a finally-style
+// branch, including on failure - a send that errors must leave the
+// composer usable, or a single network blip locks it until reload.
+var frSendInFlight = {}
+
+function frSendBegin(key) {
+	if (frSendInFlight[key]) return false
+	frSendInFlight[key] = true
+	return true
+}
+
+function frSendEnd(key) { frSendInFlight[key] = false }
 
 // ---- shared truncation --------------------------------------------------
 //

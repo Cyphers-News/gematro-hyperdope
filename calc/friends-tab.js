@@ -902,6 +902,7 @@ function frOpenChat(id) {
 function frCloseChat() {
 	chatOpenWith = null
 	frChatReplyTo = null
+	frChatOtherName = null
 	frStopChatPoll()
 	friendsSection = "chats"
 	chatUnreadInvalidate()
@@ -915,14 +916,24 @@ function frCloseChat() {
 // this session is "new", it is just there.
 var frSeenMsgIds = {}
 
-var frChatReplyTo = null   // { id, senderName } while composing a reply, else null
+var frChatReplyTo = null   // { id, senderName, snippet } while composing a reply, else null
+var frChatOtherName = null // the open conversation's other member, for re-renders that lack their profile row
 
 function frRenderChatWindow(id, tok) {
 	profileBody('<div class="profileLoading">Loading…</div>', tok)
 	frChatReplyTo = null
 	Promise.all([friendsProfile(id), chatHistory(id, 100)]).then(function (both) {
+		// Reaction counts before the first paint, same as the Forum thread
+		// does - drawing the buttons empty and filling them a moment later
+		// makes every message twitch on open.
+		return frChatLoadReactions(both[1]).then(function () { return both })
+	}).then(function (both) {
 		var who = both[0], msgs = both[1]
 		var name = who ? who.display_name : "Conversation"
+		// Remembered for the re-renders that do not have `who` to hand (the
+		// poll tick and the redraw after sending) - without it those two
+		// rebuilt every reply control labelled "them" instead of their name.
+		frChatOtherName = name
 
 		var seen = {}
 		msgs.forEach(function (m) { seen[m.id] = true })
@@ -961,6 +972,22 @@ function frRenderChatWindow(id, tok) {
 	}).catch(function (err) { profileBody(profileErr(err), tok) })
 }
 
+// Folds a page of messages' reaction counts into profileContribReactions,
+// the same store the Forum and Leaders reaction buttons already read from.
+// Never rejects: reactions are decoration, and a chat that will not open
+// because a count failed to load is a far worse outcome than a chat whose
+// reaction buttons briefly read zero.
+function frChatLoadReactions(msgs) {
+	if (typeof chatMessageReactionCounts !== "function" || !msgs || !msgs.length) {
+		return Promise.resolve()
+	}
+	return chatMessageReactionCounts(msgs.map(function (m) { return m.id }))
+		.then(function (reactions) {
+			Object.keys(reactions).forEach(function (mid) { profileContribReactions[mid] = reactions[mid] })
+		})
+		.catch(function () { /* counts stay as they were */ })
+}
+
 function frChatLogHtml(msgs, newIds, otherName) {
 	if (!msgs.length) return '<div class="profileNote">Nothing here yet. Say hello.</div>'
 	var theirLabel = otherName || "them"
@@ -977,8 +1004,16 @@ function frChatLogHtml(msgs, newIds, otherName) {
 		if (m.reply_to) {
 			o += frReplyQuoteHtml(m.reply_to, m.reply_sender_name, m.reply_body, "frChatMsg-")
 		}
+		// wrapper so the delete × can anchor to the bubble's own top-right
+		// corner rather than the full-width row's - see .frBubbleWrap
+		o += '<div class="frBubbleWrap">'
+		// your own message only - messages_delete_own enforces that again in
+		// the database, this just does not offer what would be refused
+		if (m.mine) o += frMsgDeleteHtml(m.id, "frChatDeleteMessage")
 		o += '<div class="frBubble">' + chatRenderBody(m.body) + '</div>'
+		o += '</div>'
 		o += '<div class="frMsgActionBar">'
+		o += profileChipReactionsHtml(m.id, "chatToggleReaction", false)
 		o += frReplyBtnHtml(m.id, m.mine ? "yourself" : theirLabel, "frChatStartReply", m.body,
 			frChatReplyTo !== null && frChatReplyTo.id === m.id)
 		// reporting the message rather than the person: a moderator judging
@@ -992,6 +1027,58 @@ function frChatLogHtml(msgs, newIds, otherName) {
 		o += '</div>'
 	}
 	return o
+}
+
+// Two-step confirm (profileConfirmClick turns it into "Sure?" first), then
+// reload the conversation so the message and anything that quoted it redraw
+// from the server's answer rather than being patched out of the DOM by hand.
+// Mirrors frForumDeleteMessage exactly.
+function frChatDeleteMessage(btn, messageId) {
+	if (!profileConfirmClick(btn)) return
+	chatMessageDelete(messageId).then(function () {
+		// if the deleted message was the one being replied to, that reply is
+		// no longer aimed at anything
+		if (frChatReplyTo !== null && frChatReplyTo.id === messageId) frChatCancelReply()
+		return chatHistory(chatOpenWith, 100)
+	}).then(function (msgs) {
+		if (!msgs) return
+		return frChatLoadReactions(msgs).then(function () {
+			var log = document.getElementById("frChatLog")
+			if (log !== null) log.innerHTML = frChatLogHtml(msgs, null, frChatOtherName)
+		})
+	}).catch(function (err) {
+		displayCalcNotification(err.message || "Could not delete that", 2600)
+	})
+}
+
+// ---- message reactions ---------------------------------------------------
+//
+// Exact mirror of forumToggleReaction (calc/forum-tab.js) - optimistic
+// flip, redraw, save in the background, put it back if that fails - just
+// against message_reactions instead of forum_message_reactions. Passing
+// "chatToggleReaction" back into profileRedrawChipReactions keeps the
+// redrawn buttons wired to this function rather than falling back to the
+// phrase-reaction default.
+function chatToggleReaction(id, type) {
+	var c = profileContribReactions[id] || { heart: 0, like: 0, laugh: 0, ccru: 0, mine: {} }
+	if (!c.mine) c.mine = {}
+	var was = !!c.mine[type]
+	var now = !was
+
+	c[type] = Math.max(0, (c[type] || 0) + (now ? 1 : -1))
+	c.mine[type] = now
+	profileContribReactions[id] = c
+	profileRedrawChipReactions(id, "chatToggleReaction", false)
+	if (now && typeof profileFlashReaction === "function") profileFlashReaction(id, type)
+
+	var call = now ? chatMessageReact(id, type) : chatMessageUnreact(id, type)
+	call.catch(function (err) {
+		c[type] = Math.max(0, (c[type] || 0) + (now ? -1 : 1))
+		c.mine[type] = was
+		profileContribReactions[id] = c
+		profileRedrawChipReactions(id, "chatToggleReaction", false)
+		displayCalcNotification(err.message || "Could not react", 2400)
+	})
 }
 
 // Jumping to a quoted message is frReplyJumpTo (calc/social-reply.js),
@@ -1057,20 +1144,25 @@ function frChatSend() {
 	var body = box.value
 	if (body.trim() === "") return
 
+	// Enter-to-send (frChatKey) bypasses the disabled button entirely, so the
+	// guard has to be a flag rather than the button's own state.
+	if (!frSendBegin("chat")) return
+
 	var replyTo = frChatReplyTo ? frChatReplyTo.id : null
-	btn.disabled = true
+	if (btn !== null) btn.disabled = true
 	chatSend(chatOpenWith, body, replyTo).then(function () {
 		box.value = ""
 		frChatTyping()
-		btn.disabled = false
 		frChatReplyTo = null
+		frReplyMarkActive("frChatMsg-", null)
 		frChatRenderReplyBar()
 		return chatHistory(chatOpenWith, 100)
 	}).then(function (msgs) {
-		var log = document.getElementById("frChatLog")
-		if (log !== null) { log.innerHTML = frChatLogHtml(msgs); frChatScrollDown() }
+		return frChatLoadReactions(msgs).then(function () {
+			var log = document.getElementById("frChatLog")
+			if (log !== null) { log.innerHTML = frChatLogHtml(msgs, null, frChatOtherName); frChatScrollDown() }
+		})
 	}).catch(function (err) {
-		btn.disabled = false
 		var warn = document.getElementById("frChatWarn")
 		if (warn !== null) {
 			warn.textContent = err.message || "Not sent"
@@ -1078,6 +1170,12 @@ function frChatSend() {
 		}
 		// the message stays in the box: they wrote it, and losing it because a
 		// rule fired would be a second punishment for the same thing
+	}).then(function () {
+		// released on both paths - a failed send must leave the composer
+		// usable, or one network blip locks it until the page is reloaded
+		frSendEnd("chat")
+		var b = document.getElementById("frChatSendBtn")
+		if (b !== null) b.disabled = false
 	})
 }
 
@@ -1089,6 +1187,10 @@ function frStartChatPoll(id) {
 	chatPollTimer = setInterval(function () {
 		if (chatOpenWith !== id) { frStopChatPoll(); return }
 		chatHistory(id, 100).then(function (msgs) {
+			// counts refreshed alongside the messages, so a reaction the other
+			// person just added appears on the same tick their message does
+			return frChatLoadReactions(msgs).then(function () { return msgs })
+		}).then(function (msgs) {
 			var log = document.getElementById("frChatLog")
 			if (log === null) { frStopChatPoll(); return }
 			var atBottom = (log.scrollHeight - log.scrollTop - log.clientHeight) < 40
@@ -1102,7 +1204,7 @@ function frStartChatPoll(id) {
 			})
 			frSeenMsgIds[id] = seen
 
-			var next = frChatLogHtml(msgs, newIds)
+			var next = frChatLogHtml(msgs, newIds, frChatOtherName)
 			if (next !== log.innerHTML) {
 				log.innerHTML = next
 				if (atBottom) frChatScrollDown() // do not yank them away from what they are reading

@@ -40,6 +40,51 @@ function authIsRawDbError(msg) {
 	return /violates|constraint "|relation "|column "|permission denied|row-level security|duplicate key|null value in column|invalid input syntax/i.test(String(msg || ""))
 }
 
+// The flip side of hiding raw database errors: when something genuinely
+// breaks, "Something went wrong" is as useless to whoever has to fix it
+// as it is safe to show a member. This puts the real message back within
+// reach without putting it on screen - set CY_DEBUG = true in the
+// console and the next failure logs its actual Postgres error there.
+//
+// Off by default and never on for an ordinary visitor, so the reason
+// those messages were made generic in the first place still holds: a
+// constraint name or a policy name is not something to hand out to
+// anybody who happens to open dev tools.
+// Three ways to turn this on, in order of how little you have to know:
+//   * add ?debug=1 to the address - nothing to type into a console
+//   * be on localhost, where anyone looking is working on the site
+//   * set CY_DEBUG = true by hand
+// Anywhere else - cyphers.news without the parameter - it stays off, so
+// an ordinary visitor never sees a table or policy name.
+function authIsLocalHost() {
+	try {
+		var h = window.location.hostname
+		return h === "localhost" || h === "127.0.0.1" || h === "::1" || h === ""
+	} catch (e) { return false }
+}
+
+function authDebugOn() {
+	try {
+		if (window.CY_DEBUG) return true
+		if (authIsLocalHost()) return true
+		return /[?&]debug=1(&|$)/.test(window.location.search)
+	} catch (e) { return false }
+}
+
+// Logged to the console AND shown on screen. The on-screen half is the
+// point: reading a console means finding dev tools first, which is a
+// bigger ask than the bug is worth when the person who needs the answer
+// is the one who owns the site.
+function authDebugError(where, msg) {
+	try {
+		if (!authDebugOn()) return
+		console.warn("[cyphers] " + where + " raw error:", msg)
+		if (typeof displayCalcNotification === "function") {
+			displayCalcNotification("DEBUG (" + where + "): " + msg, 9000)
+		}
+	} catch (e) {}
+}
+
 function authEscJs(s) {
 	var raw = String(s === null || s === undefined ? "" : s)
 		.replace(/\\/g, "\\\\")

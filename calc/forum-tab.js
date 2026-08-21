@@ -184,13 +184,17 @@ var forumMentionTimer = null
 
 function frRenderForumThread(id, tok) {
 	profileBody('<div class="profileLoading">Loading…</div>', tok)
+	// Cleared here, before the fetch, not inside its .then - a reply armed
+	// in the previous thread must not survive into this one, and doing it
+	// on the success path only left it armed when a thread failed to load
+	// (matching frRenderChatWindow, which already cleared up front).
+	forumReplyTo = null
+	forumMentionSelected = []
+	forumMentionCandidates = []
 	Promise.all([forumTopicsList(50), forumMessagesList(id, 200)]).then(function (both) {
 		var topic = both[0].filter(function (t) { return t.id === id })[0]
 		var msgs = both[1]
 		forumOpenTopicData = topic || null
-		forumReplyTo = null
-		forumMentionSelected = []
-		forumMentionCandidates = []
 		// Marks read the moment the newest message here has actually been
 		// fetched, not just the moment Forum (the list) was opened - clears
 		// [NEW] for a topic you open, keeps it for every topic you didn't.
@@ -318,7 +322,14 @@ function frForumLogHtml(msgs) {
 		if (m.reply_to) {
 			o += frReplyQuoteHtml(m.reply_to, m.reply_sender_name, m.reply_body, "frMsg-")
 		}
+		// wrapper so the delete × can anchor to the bubble's own top-right
+		// corner rather than the full-width row's - see .frBubbleWrap
+		o += '<div class="frBubbleWrap">'
+		// your own post only - forum_message_delete() enforces that again on
+		// the server, this just does not offer what would be refused
+		if (m.mine) o += frMsgDeleteHtml(m.id, "frForumDeleteMessage")
 		o += '<div class="frBubble">' + forumRenderBody(m.body, m.mentions) + '</div>'
+		o += '</div>'
 		// One action bar: the four reactions plus Reply, in that order, all
 		// the same height - Reply used to live off on its own next to the
 		// timestamp as small hover-only text, which is exactly why it went
@@ -483,15 +494,19 @@ function frForumSendPost() {
 	var body = box.value
 	if (body.trim() === "") return
 
+	// Enter-to-send (frForumPostKey) bypasses the disabled button entirely,
+	// so the guard has to be a flag rather than the button's own state.
+	if (!frSendBegin("forum")) return
+
 	var replyTo = forumReplyTo ? forumReplyTo.id : null
 	var mentionIds = forumMentionSelected.map(function (sel) { return sel.id })
-	btn.disabled = true
+	if (btn !== null) btn.disabled = true
 	forumPost(forumOpenTopic, body, replyTo, mentionIds).then(function () {
 		box.value = ""
-		btn.disabled = false
 		forumReplyTo = null
 		forumMentionSelected = []
 		forumMentionClose()
+		frReplyMarkActive("frMsg-", null)
 		frForumRenderReplyBar()
 		frForumUpdateComposeBtn()
 		return forumMessagesList(forumOpenTopic, 200)
@@ -502,9 +517,14 @@ function frForumSendPost() {
 			if (log !== null) { log.innerHTML = frForumLogHtml(msgs); frChatScrollDown() }
 		})
 	}).catch(function (err) {
-		btn.disabled = false
 		var warn = document.getElementById("frForumPostWarn")
 		if (warn !== null) { warn.textContent = err.message || "Not posted"; warn.className = "frChatWarn frChatWarnBad" }
+	}).then(function () {
+		// released on both paths - a failed post must leave the composer
+		// usable, or one network blip locks it until the page is reloaded
+		frSendEnd("forum")
+		var b = document.getElementById("frForumPostBtn")
+		if (b !== null) b.disabled = false
 	})
 }
 
@@ -534,6 +554,22 @@ function forumStartPoll(id) {
 
 function forumStopPoll() {
 	if (forumPollTimer !== null) { clearInterval(forumPollTimer); forumPollTimer = null }
+}
+
+// Two-step confirm (profileConfirmClick turns it into "Sure?" first),
+// then reload the thread so the message, its reactions and anything that
+// quoted it all redraw from the server's answer rather than being
+// patched out of the DOM by hand.
+function frForumDeleteMessage(btn, messageId) {
+	if (!profileConfirmClick(btn)) return
+	forumMessageDelete(messageId).then(function () {
+		// if the deleted message was the one being replied to, that reply is
+		// no longer aimed at anything
+		if (forumReplyTo !== null && forumReplyTo.id === messageId) frForumCancelReply()
+		renderProfileFriends()
+	}).catch(function (err) {
+		displayCalcNotification(err.message || "Could not delete that", 2600)
+	})
 }
 
 // ---- message reactions ---------------------------------------------------
