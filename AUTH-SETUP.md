@@ -745,6 +745,117 @@ this - it is entirely new surface area.
 Until this migration runs: Forum shows "The forum is not set up on this
 database yet." Nothing crashes either way.
 
+## Forum extras: online status, reactions, unread tracking, notifications
+
+`supabase/migrations/20260820080000_forum_extras.sql` — depends on
+`20260820060000_forum.sql`; run after it. Safe to re-run.
+
+Five features sharing infrastructure: `forum_topic_reads` (per-member
+last-read timestamp per topic) backs both the `[NEW]`/`[NEW · 3]` indicator
+and "is this member following the topic" for `@here`; `forum_notifications`
+(a new table, not a reuse of `phrase_reaction_notifications` - the foreign
+keys are a different shape) backs both new-topic and `@here` notifications
+through one inbox.
+
+### What it creates
+
+- **`forum_messages_list`, extended** — now joins `member_cards` instead of
+  `public_profiles` (the latter carries no presence data at all) and
+  returns `sender_online`, gated by the sender's own `show_online`/
+  `last_active_at` privacy settings exactly like every other online dot in
+  the app. Dropped and recreated for the new return column.
+- **`forum_message_reactions`** — same four reactions as `phrase_reactions`
+  (heart/like/laugh/ccru), self-row RLS, but select/insert/delete only, no
+  update - a reaction is either there or it isn't. `forum_message_reaction_counts(ids)`
+  returns one row per (message, reaction) with its count and whether the
+  caller cast it; the client folds this into the same shape
+  `phraseReactionCounts` already returns per phrase, so the entire reaction
+  button component is reused unmodified (see below).
+- **`forum_topic_reads`** — one row per member per topic, pure personal
+  data (self-row RLS, direct grant, no RPC layer, same shape as
+  `member_tour_progress`). `forum_topics_list`, extended, uses it to return
+  `unread_count` per viewer: messages in the topic since the viewer last
+  read it, excluding the viewer's own messages (so posting never makes a
+  topic look unread to yourself). A topic never opened reads as
+  "everything so far is unread."
+- **`profiles.forum_notifications`** — boolean, default `true` for every
+  existing and new member. The Account toggle (below) is the only thing
+  that changes it.
+- **`forum_notifications`** — the inbox table: `recipient_id`, `actor_id`,
+  `topic_id`, `message_id` (null for a new-topic notification), `kind`
+  (`'new_topic'` or `'mention'`), `read`. Select/update-own only for the
+  client (marking read); written only by `forum_topic_notify()` (an `after
+  insert` trigger on `forum_topics`, one set-based insert covering every
+  member with `forum_notifications` on, skipping blocks) and by
+  `forum_post()` (below). `forum_notif_unread_count()`,
+  `forum_notifications_list(lim)`, `forum_notif_mark_read(target)`,
+  `forum_notif_mark_all_read()` are the read/write RPCs, mirroring the
+  phrase-notification functions' shape.
+- **`forum_post`, replaced** — adds `@here` detection (a whole-word match,
+  so it doesn't fire on "@hereinafter" or "x@here.com") and, when present,
+  notifies everyone who has ever posted in the topic or ever opened it
+  (`forum_topic_reads` doubling as "is following"), excluding the sender
+  and excluding blocks, rate-limited to 3 `@here`-containing posts per
+  member per 10 minutes. While rewriting it: fixed a latent bug in the
+  duplicate-post check, which compared a timestamp to a bare interval
+  instead of `now() - interval` - never live-tested before now since this
+  migration had not been run.
+
+### Client changes that go with it
+
+- **Online dot** — `frOnlineDot`'s own `.frDot`/`.frDotOn` styling, reused
+  directly against the new `sender_online` field in `frForumLogHtml`
+  (`calc/forum-tab.js`).
+- **Reactions** — `profileChipReactionsHtml`/`profileReactBtn`
+  (`calc/profile-tab.js`) gained an optional `toggleFn` parameter (defaults
+  to `profileToggleReaction`, so every existing call site is unaffected);
+  `forumToggleReaction` (`calc/forum-tab.js`) is an exact mirror of
+  `profileToggleReaction` against `forum_message_reactions` instead of
+  `phrase_reactions`, reusing the same TOTAL badge, green "mine" state and
+  checkmark the Leaders redesign added.
+- **`[NEW]` indicator** — `frForumTopicRowHtml` reads `t.unread_count` and
+  shows a green `NEW` / `NEW · N` pill next to the title. Marked read via
+  `forumTopicMarkRead(id)` the moment a topic's messages are actually
+  fetched (`frRenderForumThread`), and again on every poll tick while the
+  topic stays open, so a reply that arrives mid-visit doesn't still read as
+  unread once you go back to the list. Never cleared by merely opening the
+  Forum tab itself.
+- **Topic cards simplified** — title now leads, large and bold
+  (`.frForumRowTitle`); the opening message's preview text is gone from the
+  list (still shown once a topic is open); creator/reply-count/time stay,
+  demoted to one small `.frSub` line.
+- **`@here`** — `forumRenderBody` (`calc/forum-tab.js`) wraps
+  `chatRenderBody`'s escaped output and highlights the literal substring
+  `@here` in green (`.forumHereMention`) - a string replace on already-
+  escaped text, not a new escaping path, so it carries no injection risk of
+  its own. Only used for Forum; ordinary chat still calls `chatRenderBody`
+  directly and does nothing special with `@here`.
+- **One inbox** — `frRenderNews` (`calc/friends-tab.js`) now fetches both
+  `phraseNotificationsList` and `forumNotificationsList`, merges and
+  re-sorts by time, and renders each with its own row/click handler
+  (`frOpenNotif` vs `frOpenForumNotif`). `frOpenForumNotif` opens the topic
+  and, for a mention, scroll-and-highlights the specific message
+  (`frForumJumpToMessage`, a short poll for the message's DOM element
+  rather than a fixed delay, same reasoning as the guided tour's
+  `tourWaitForSelector`). The unread badge total (`frNewsTotal`, the
+  Social tab and the username dot) now includes forum notifications too,
+  and the 20s badge poll (`friendsBadgePollTick`, `auth/friends.js`)
+  refreshes them alongside chat/phrase counts.
+- **Account setting** — "Global Forum Notifications" toggle in Account,
+  under a new Notifications heading, using the existing `frSwitch`/
+  `friendsPrivacySet` mechanism (`forum_notifications` added to
+  `FRIENDS_PRIVACY_KEYS`, `auth/friends.js`) - the same direct-table-write
+  pattern as every other privacy switch, no new RPC needed. Off only stops
+  new-topic notifications; `@here` mentions and direct replies are the
+  member choosing to follow one specific topic, not a global broadcast, so
+  they are unaffected by this switch.
+
+Until this migration runs: online dots simply never show (the field is
+absent, `m.sender_online` is `undefined`, falsy); reacting to a forum
+message fails with the standard "not set up yet" error; every topic card
+shows no `[NEW]` pill (`unread_count` absent); `@here` still highlights
+client-side but no notification is created. Nothing crashes either way.
+
 ## Member tour
 
 `supabase/migrations/20260820070000_member_tour.sql` — no dependency on any

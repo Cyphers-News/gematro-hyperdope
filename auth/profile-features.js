@@ -102,10 +102,14 @@ function phraseAlreadyPublished(phrase) {
 	if (client === null) return Promise.resolve(null)
 	var needle = String(phrase || "").trim()
 	if (needle === "") return Promise.resolve(null)
+	// A literal % or _ in the phrase itself is a real SQL LIKE wildcard to
+	// ILIKE - escaped so "50% off" only ever matches "50% off", not
+	// "50X off" for any X. Same fix as entriesSearch just above.
+	var safeNeedle = needle.replace(/[%_\\]/g, function (c) { return "\\" + c })
 
 	return client.from("phrase_submissions")
 		.select("id,user_id,phrase")
-		.ilike("phrase", needle)   // ILIKE with no wildcards is a case-insensitive equality test
+		.ilike("phrase", safeNeedle)   // ILIKE with no wildcards is a case-insensitive equality test
 		.limit(1)
 		.then(function (res) {
 			if (res.error) return null

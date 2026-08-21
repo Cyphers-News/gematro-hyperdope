@@ -552,6 +552,16 @@ function adminRenderPhraseQueue(host) {
 		})
 		o += '</div>'
 
+		// The confusion this heads off: "I clicked Approve, why isn't it in
+		// the database yet" - Approve only marks a row as belonging in
+		// db.txt, it does not touch the file. Shown on every filter tab
+		// (not just "approved"), since a first-time admin sees this the
+		// moment they click Approve on a pending row, not later once they
+		// happen to switch to the approved tab and find the Export button.
+		o += '<div class="adminNote">Approve marks a phrase as belonging in db.txt - it does not add it to the file. '
+		o += 'Once you have approved everything you want, switch to the <b>approved</b> tab above, '
+		o += 'Export the list, paste it into db.txt, commit and deploy, then mark them exported.</div>'
+
 		if (adminPhraseStatusFilter === "approved" && rows.length) {
 			o += '<div class="adminBar"><button class="adminBtn" onclick="adminExportApproved()">' +
 				'&#128203; Export all ' + rows.length + ' approved phrase' + (rows.length === 1 ? '' : 's') + '</button>' +

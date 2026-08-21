@@ -880,8 +880,8 @@ function astroGeoSearch() {
 			}
 			var o = '<div class="astroGeoList">'
 			for (var i = 0; i < hits.length; i++) {
-				var hEsc = hits[i].label.replace(/"/g, "&quot;").replace(/'/g, "&#39;")
-				o += '<div class="astroGeoHit" onclick="astroPickPlace('+hits[i].lat+','+hits[i].lon+',&quot;'+hEsc+'&quot;)">'
+				var hEsc = authEsc(hits[i].label)
+				o += '<div class="astroGeoHit" onclick="astroPickPlace('+hits[i].lat+','+hits[i].lon+',&quot;'+authEscJs(hits[i].label)+'&quot;)">'
 				o += hEsc + '<span class="astroGeoCoords">' + hits[i].lat.toFixed(4) + ', ' + hits[i].lon.toFixed(4) + '</span>'
 				o += '</div>'
 			}

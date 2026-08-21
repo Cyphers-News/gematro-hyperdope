@@ -29,29 +29,71 @@ var TOUR_SECTIONS = {
 				before: function () { closeAllOpenedMenus(); return tourWait(150) }
 			},
 			{
-				selector: ".findMatchesTab",
-				title: "Find matching phrases",
-				body: "Matches searches everything already in your history for phrases sharing the same value as your current one.",
-				before: function () { closeAllOpenedMenus(); return tourWait(150) }
+				selector: "#queryDBbtn",
+				title: "Hit Query to search the database",
+				body: "Query checks your current phrase against the whole word/phrase database and lists everything sharing its value.",
+				// Hidden (.hideValue) until a real phrase makes it relevant -
+				// only remove that class if this step itself is the one that
+				// added it, so a button that was already visible for real
+				// stays exactly as it was once the step moves on.
+				before: function () {
+					closeAllOpenedMenus()
+					var el = document.getElementById("queryDBbtn")
+					if (el !== null && el.classList.contains("hideValue")) {
+						el.classList.remove("hideValue")
+						el.dataset.tourForced = "1"
+					}
+					return tourWait(150)
+				},
+				after: function () {
+					var el = document.getElementById("queryDBbtn")
+					if (el !== null && el.dataset.tourForced === "1") {
+						el.classList.add("hideValue")
+						delete el.dataset.tourForced
+					}
+				}
 			},
 			{
 				selector: "#ciphSearchBox",
-				title: "Search for a cypher",
-				body: "The Cyphers menu holds every cypher in every category - type here to jump straight to one by name instead of scrolling to find it.",
+				title: "Search ciphers in the Cyphers tab",
+				body: "Open the Cyphers menu and type here to jump straight to a cypher by name instead of scrolling through every category.",
 				before: function () { closeAllOpenedMenus(); document.body.classList.add("tourForceDropdown"); return tourWait(150) },
 				after: function () { document.body.classList.remove("tourForceDropdown") }
 			},
 			{
 				selector: ".findMatchesTab",
-				title: '"Enter As Words"',
-				body: "Open this menu and choose Enter As Words to feed a whole sentence in one word at a time, up to a length you set - the End key does the same thing without the menu.",
+				title: "Find matches",
+				body: "Matches searches everything already in your history for phrases sharing the same value as your current one.",
 				before: function () { closeAllOpenedMenus(); return tourWait(150) }
 			},
 			{
-				selector: ".phraseGemCiphName",
-				title: "Turn a cypher off",
-				body: "Right-click a cypher's name here (desktop) to switch it off instantly, or open the Cyphers menu above and un-tick it there.",
-				before: function () { closeAllOpenedMenus(); return tourWait(150) }
+				selector: "#ctxExportMenu",
+				title: "Right-click anywhere for more options",
+				body: "Right-click almost anywhere on the page to open a quick menu - print, export, clear your history, reset settings.",
+				// Opened programmatically (same function a real right-click
+				// calls) and pinned there with ctxExportTourLock (calc/export.js)
+				// so the tour's own Next/Back clicks - which land outside
+				// #ctxExportMenu, same as a normal click-away - do not close it
+				// out from under the spotlight before the user has seen it.
+				before: function () {
+					closeAllOpenedMenus()
+					return tourWait(150).then(function () {
+						if (typeof showExportContextMenu === "function") {
+							// showExportContextMenu positions in document (page)
+							// coordinates, same as a real right-click's pageX/pageY -
+							// has to include scroll offset, not just viewport centre.
+							var cx = window.scrollX + Math.max(20, window.innerWidth / 2 - 90)
+							var cy = window.scrollY + Math.max(20, window.innerHeight / 2 - 70)
+							showExportContextMenu(cx, cy)
+							ctxExportTourLock = true
+						}
+						return tourWait(150)
+					})
+				},
+				after: function () {
+					ctxExportTourLock = false
+					if (typeof closeExportContextMenu === "function") closeExportContextMenu()
+				}
 			}
 		]
 	},
@@ -260,7 +302,12 @@ function tourPickerHtml() {
 	o += '<div class="tourWelcomeTitle">Guided tour</div>'
 	o += '<div class="tourWelcomeBody">Three short sections. Do them in any order, one at a time.</div>'
 	o += '<div class="tourSectionList">'
+	var signedIn = (typeof authUser !== "undefined" && authUser !== null)
 	Object.keys(TOUR_SECTIONS).forEach(function (key) {
+		// "Your member area" needs a signed-in member for every one of its
+		// steps - showing it disabled would just invite a click that goes
+		// nowhere, so it is left out of the list entirely instead.
+		if (key === "member" && !signedIn) return
 		var sec = TOUR_SECTIONS[key]
 		var isDone = done.indexOf(key) > -1
 		o += '<button class="tourSectionBtn' + (isDone ? ' tourSectionDone' : '') + '" onclick="tourClosePicker();tourStartSection(&quot;' + key + '&quot;)">'

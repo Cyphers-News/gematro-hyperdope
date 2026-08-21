@@ -11,6 +11,45 @@ function authEsc(s) {
 		.replace(/"/g, "&quot;").replace(/'/g, "&#39;")
 }
 
+// For text going inside a JS string literal that itself sits inside an
+// inline onclick="..." HTML attribute - authEsc alone is NOT enough there.
+// authEsc escapes a raw " into the literal characters &quot;, but the
+// browser's HTML parser decodes &quot; back into a real " before handing
+// the attribute's text to the JS engine, at which point that quote can
+// close the JS string literal early and let whatever follows run as
+// script. (The rest of the payload after that point does not need to be
+// valid JS on its own - a trailing // comments out whatever the template
+// adds after the injection point.)
+//
+// The fix is to escape for the JS-string layer FIRST (so a real " becomes
+// the two characters \" , which is a valid escaped-quote inside a JS
+// string and does not close it) and only THEN escape for the HTML-
+// attribute layer (authEsc) on top of that - reversing the order leaves
+// the JS-breaking quote intact. Call this instead of
+// authEsc(x).replace(/"/g,'&quot;') at any onclick="fn(&quot;'+HERE+'&quot;)"
+// site where the value is not already known-safe (a uuid, an enum).
+// A raise exception('...') from one of this app's own functions is written
+// to be read by a member and is safe to show verbatim - that is the
+// pass-through every *Error() mapper (friendsError, forumError, ...) relies
+// on. An error Postgres raises on its own - a constraint violation, an RLS
+// denial, a type error - was never written for an end user and can name a
+// real table, column or index. Matched by shape (phrasing Postgres always
+// uses for these) rather than trying to enumerate every possible message,
+// since a mapper cannot tell the two apart just by "did .rpc() reject".
+function authIsRawDbError(msg) {
+	return /violates|constraint "|relation "|column "|permission denied|row-level security|duplicate key|null value in column|invalid input syntax/i.test(String(msg || ""))
+}
+
+function authEscJs(s) {
+	var raw = String(s === null || s === undefined ? "" : s)
+		.replace(/\\/g, "\\\\")
+		.replace(/'/g, "\\'")
+		.replace(/"/g, '\\"')
+		.replace(/\n/g, "\\n")
+		.replace(/\r/g, "\\r")
+	return authEsc(raw)
+}
+
 // ---- form feedback ----------------------------------------------------
 
 function authShowMessage(id, text, kind) {

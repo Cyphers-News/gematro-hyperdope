@@ -231,12 +231,16 @@ window.addEventListener('resize', function(){ // update interface on window resi
 	}
 })
 
+// msg reaches here from several places that are not app-authored text -
+// most notably profileUsePhrase, which includes another member's
+// published phrase verbatim. Escaped before it ever touches .html(), same
+// as every other user-controlled string in this app.
 function displayCalcNotification(msg, timeMs = 1000) {
 	if (document.getElementById('calcNotification') !== null) {
 		document.getElementById('calcNotification').remove() }
 	var alertDiv = $('<div />').appendTo('body');
 	alertDiv.attr('id', 'calcNotification');
-	alertDiv.html("<span>"+msg+"</span>")
+	alertDiv.html("<span>"+escHtml(msg)+"</span>")
 	setTimeout(function() {alertDiv.remove()}, timeMs)
 }
 
@@ -517,16 +521,21 @@ function createAboutMenu() { // create menu with all cipher catergories
 	// the envelope, which now sits on Cyphers Discord instead
 	o += '<input class="intBtn" type="button" value="&#128172; Contact Us" onclick="displayContactPanel()">'
 
-	o += '<div class="aboutGroupLabel">Check out co-founder sites here:</div>'
+	o += '<div class="aboutGroupLabel">Check out co-founder sites</div>'
+	o += '<input class="intBtn" type="button" value="&#128154; Ciphers News" onclick="gotoCiphersNews()">'
+	o += '<div style="margin: 0.5em;"></div>'
 	o += '<input class="intBtn" type="button" value="&#128218; Gematria Research" onclick="gotoAlektryonBlog()">'
 	o += '<div style="margin: 0.5em;"></div>'
-	o += '<input class="intBtn" type="button" value="&#128154; Ciphers News" onclick="gotoCiphersNews()">'
 
 	// The credit sits down here as plain text rather than up top, because
 	// Gematro took their site down and a button that leads nowhere is worse
 	// than none - it opens a panel instead of a link, so the credit still has
 	// somewhere to say who wrote this and where to reach him.
-	o += '<div class="aboutGroupLabel">Github Repos:</div>'
+	//
+	// Collapsible the same way "Visit other calculators" below is (native
+	// <details>, no JS) rather than a plain list under a label - four repo
+	// links are exactly the kind of thing worth tucking away by default too.
+	o += '<details class="qgAcc"><summary>Github Repos</summary><div class="qgAccBody">'
 	o += '<input class="intBtn" type="button" value="Coded by Gematro in 2021" onclick="displayGematroCredit()">'
 	o += '<div style="margin: 0.5em;"></div>'
 	o += '<input class="intBtn" type="button" value="Alektryon Github 2021" onclick="gotoAlektryonRepo()">'
@@ -534,6 +543,7 @@ function createAboutMenu() { // create menu with all cipher catergories
 	o += '<input class="intBtn" type="button" value="Cyphers Github 2022" onclick="gotoCyphersRepo()">'
 	o += '<div style="margin: 0.5em;"></div>'
 	o += '<input class="intBtn" type="button" value="Hyperdope Github 2023" onclick="gotoGitHubRepo()">'
+	o += '</div></details>'
 
 	o += '<div class="aboutGroupLabel">Find us on social media:</div>'
 	o += '<input class="intBtn" type="button" value="&#127916; Cyphers Youtube" onclick="gotoCyphersYoutube()">'
@@ -548,7 +558,7 @@ function createAboutMenu() { // create menu with all cipher catergories
 	// (native <details>, no JS needed to expand it) so six more buttons don't
 	// add to the length of the list for someone who came here for Cyphers'
 	// own links above, not a directory of other sites.
-	o += '<details class="qgAcc"><summary>Visit other calculators</summary><div class="qgAccBody">'
+	o += '<details class="qgAcc"><summary>Visit other calcs</summary><div class="qgAccBody">'
 	o += '<input class="intBtn" type="button" value="Alektryon Calculator" onclick="gotoAlektryonCalculator()">'
 	o += '<div style="margin: 0.5em;"></div>'
 	o += '<input class="intBtn" type="button" value="Based Atlanteanism" onclick="gotoBasedAtlantis()">'
@@ -2136,9 +2146,9 @@ function updateHistoryTable(hltBoolArr) {
 				tmpComment = commentMatch[0]
 			}
 			// comment first, phrase without comment and leading/trailing spaces
-			dispPhrase = '<span class="pCHT">'+tmpComment+'</span>' + sHistory[x].replace(/\[.+\]/g, '').trim()
+			dispPhrase = '<span class="pCHT">'+escHtml(tmpComment)+'</span>' + escHtml(sHistory[x].replace(/\[.+\]/g, '').trim())
 		} else {
-			dispPhrase = sHistory[x]
+			dispPhrase = escHtml(sHistory[x])
 		}
 		// histDelX sits inside .hP rather than .hP itself being positioned, so
 		// its position:absolute skips .hP (left position:static) and resolves

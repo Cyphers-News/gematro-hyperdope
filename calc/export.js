@@ -26,7 +26,16 @@ var ctxExportItems = [
 	  confirm: "Sure? Clears the table too" }
 ]
 
+// Set while a guided-tour step is deliberately keeping this menu open
+// (calc/tour.js "Right-click anywhere" step) - checked here rather than at
+// every call site below, so a tour-triggered open behaves exactly like a
+// real one everywhere except this one guard, and the tour's own Next/Back
+// clicks (which land outside #ctxExportMenu, same as an ordinary
+// click-away) do not close it out from under the spotlight.
+var ctxExportTourLock = false
+
 function closeExportContextMenu() {
+	if (ctxExportTourLock) return
 	$("#ctxExportMenu").remove()
 }
 

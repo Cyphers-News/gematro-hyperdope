@@ -844,9 +844,40 @@
    itself - it has to be the button, not the row, that starts invisible. */
 .profileChipReact {
 	display: flex;
+	align-items: center;
 	gap: 0.3em;
 	padding-top: 0.3em;
 	cursor: default;
+}
+
+/* The sum of all four reactions - deliberately nothing like the buttons
+   next to it: no emoji, square-ish corners instead of a pill, a solid dark
+   panel instead of a translucent tint, and no hover/pointer state at all,
+   because it is not a control. This is the one place "how many, total"
+   lives; every other pill below it answers "which ones, and did I". Plain
+   type though, matching .profileReactCount right next to it (88%, 600) -
+   the dark chip is what sets this apart, not an oversized number or a
+   spelled-out "TOTAL" label. */
+.profileReactTotal {
+	display: inline-flex;
+	align-items: center;
+	padding: 0.1em 0.5em;
+	border-radius: 5px;
+	background: hsl(220 20% 9%);
+	border: 1px solid hsl(0 0% 100% / 0.16);
+	line-height: 1.5em;
+	font-size: 88%;
+	font-weight: 600;
+	color: var(--font-white-1);
+	font-variant-numeric: tabular-nums;
+	cursor: default;
+	user-select: none;
+}
+.profileReactDivider {
+	width: 1px;
+	align-self: stretch;
+	min-height: 1.4em;
+	background: hsl(0 0% 100% / 0.16);
 }
 
 /* Nothing reacted to yet: always visible, muted rather than hidden - a
@@ -880,49 +911,42 @@
 	filter: grayscale(0);
 }
 
-/* Reacted to by at least one person (profileReactLit, count > 0): lit,
-   permanently, for every viewer - not just the reactor, and not just on
-   hover. Someone else's reaction is exactly as visible as your own.
-
-   Colour is per reaction, not one shared green - evergreen, trending and
-   funny are three different things and should never look like the same
-   glow with a different icon stuck on it. */
-.profileReactBtn.profileReactHeart.profileReactLit {
+/* Reacted to by at least one person (profileReactLit, count > 0): visible
+   and readable for every viewer, permanently, not just on hover - but
+   neutral, not coloured. A count is information ("N people reacted this
+   way"), not a claim that you are one of them - only .profileReactMine
+   below is allowed to say that, so this used to be four different hues
+   (one per reaction) and is now one shared neutral state for all of them,
+   keeping "someone reacted" and "you reacted" from reading as the same
+   kind of highlight. */
+.profileReactBtn.profileReactLit {
 	opacity: 1;
 	filter: grayscale(0);
-	background: hsla(140 55% 45% / 0.22);
-	border-color: hsl(140 55% 48%);
+	background: hsl(0 0% 100% / 0.09);
+	border-color: hsl(0 0% 100% / 0.24);
 	color: var(--font-white-1);
 }
-.profileReactBtn.profileReactFire.profileReactLit {
+/* The one you personally cast - always bright green, regardless of which
+   of the four reactions it is, so "you reacted" is one consistent signal
+   instead of four different colours each meaning something different
+   depending on which button happened to be lit. Overrides .profileReactLit
+   above since a reaction you cast is always also lit. */
+.profileReactBtn.profileReactMine {
 	opacity: 1;
 	filter: grayscale(0);
-	background: hsla(22 80% 45% / 0.22);
-	border-color: hsl(22 80% 52%);
+	background: hsl(140 60% 32% / 0.38);
+	border-color: hsl(140 75% 55%);
 	color: var(--font-white-1);
+	box-shadow: 0 0 0 1px hsl(140 75% 55% / 0.45), 0 0 9px hsl(140 85% 55% / 0.4);
 }
-.profileReactBtn.profileReactLaugh.profileReactLit {
-	opacity: 1;
-	filter: grayscale(0);
-	background: hsla(48 85% 45% / 0.22);
-	border-color: hsl(48 85% 52%);
-	color: var(--font-white-1);
+.profileReactBtn.profileReactMine:hover {
+	background: hsl(140 60% 32% / 0.5);
 }
-.profileReactBtn.profileReactCcru.profileReactLit {
-	opacity: 1;
-	filter: grayscale(0);
-	background: hsla(265 60% 55% / 0.22);
-	border-color: hsl(265 60% 62%);
-	color: var(--font-white-1);
+.profileReactMineCheck {
+	font-size: 82%;
+	line-height: 1;
+	color: hsl(140 85% 72%);
 }
-/* the one you personally cast, on top of the shared colour above - an inner
-   ring rather than a different colour, so it still reads as the same "lit"
-   state everyone else sees, just with a mark that it was you. Matches each
-   reaction's own hue rather than one fixed green ring on every type. */
-.profileReactBtn.profileReactHeart.profileReactMine { box-shadow: inset 0 0 0 1px hsl(140 80% 70%); }
-.profileReactBtn.profileReactFire.profileReactMine  { box-shadow: inset 0 0 0 1px hsl(22 90% 68%); }
-.profileReactBtn.profileReactLaugh.profileReactMine { box-shadow: inset 0 0 0 1px hsl(48 90% 68%); }
-.profileReactBtn.profileReactCcru.profileReactMine  { box-shadow: inset 0 0 0 1px hsl(265 85% 78%); }
 .profileReactCount { font-size: 88%; font-weight: 600; }
 
 /* the one-off pulse when a reaction is switched on (profileFlashReaction) -
@@ -1471,6 +1495,42 @@
 .frChatWho { flex: 1 1 auto; font-weight: 600; color: var(--font-white-1); }
 .frChatHeadActions { display: flex; gap: 0.3em; flex: 0 0 auto; }
 
+/* Following stays green permanently, not just a text change - the same
+   green the rest of the app already uses for "this is on" (frSwitchOn,
+   .frDotOn). The pulse below only plays the moment it turns on. */
+.frForumFollowBtn.frForumFollowOn {
+	background: hsla(140 65% 42% / 0.22);
+	border-color: hsl(140 80% 50%);
+	color: hsl(140 85% 78%);
+}
+.frForumFollowBtn.frForumFollowOn:hover { background: hsla(140 65% 42% / 0.32); }
+@keyframes frForumFollowPulse {
+	0%   { box-shadow: 0 0 0 0 hsla(140 90% 55% / 0.65); }
+	100% { box-shadow: 0 0 0 10px hsla(140 90% 55% / 0); }
+}
+.frForumFollowBtn.frForumFollowFlash { animation: frForumFollowPulse 0.6s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+	.frForumFollowBtn.frForumFollowFlash { animation: none; }
+}
+
+/* Report glows red on hover - the one destructive-feeling action in this
+   header, same register as .profileMiniDanger elsewhere, but only on
+   hover rather than a permanent red button, since reporting is not the
+   default expectation the way Follow or Post are. */
+.frForumReportBtn:hover {
+	background: hsla(5 70% 50% / 0.18);
+	border-color: hsl(5 75% 58%);
+	color: hsl(5 85% 82%);
+	box-shadow: 0 0 8px hsla(5 80% 55% / 0.35);
+}
+/* armed by a first click (frForumReportTopic's confirm step) - reads as
+   "one more click and this sends" before the actual report dialog opens */
+.frForumReportBtn.frForumReportArmed {
+	background: hsla(5 70% 50% / 0.22);
+	border-color: hsl(5 80% 60%);
+	color: hsl(5 90% 85%);
+}
+
 .frChatLog {
 	height: 260px;
 	overflow-y: auto;
@@ -1540,8 +1600,48 @@
 
 /* ---- forum ---- */
 
-.frForumHead { display: flex; align-items: center; justify-content: space-between; gap: 0.6em; padding-bottom: 0.6em; }
-.frForumHeadNote { font-size: 78%; color: var(--font-white-3); }
+/* Header: name/subtitle/activity line on the left, the one prominent green
+   action on the right - filled and glowing rather than the same faint
+   outlined button every other secondary action in this app uses, since
+   starting a topic is the whole point of being here, not one option among
+   several. */
+.frForumHead2 { padding-bottom: 0.6em; border-bottom: 1px solid var(--border-dark-accent); margin-bottom: 0.5em; }
+.frForumHeadTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.8em; flex-wrap: wrap; }
+.frForumHeadTitle { font-size: 118%; font-weight: 700; color: var(--font-white-1); }
+.frForumHeadSub { font-size: 82%; color: var(--font-white-3); padding-top: 0.15em; }
+.frForumActivity { font-size: 76%; color: hsl(140 75% 62%); padding-top: 0.5em; }
+.frForumStartBtn {
+	flex: 0 0 auto;
+	background: hsl(140 80% 45%);
+	color: hsl(140 95% 8%);
+	border: 1px solid hsl(140 85% 55%);
+	font-weight: 700;
+	font-size: 92%;
+	padding: 0.5em 0.9em;
+	cursor: pointer;
+	box-shadow: 0 0 10px hsla(140 85% 55% / 0.35);
+	transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+}
+.frForumStartBtn:hover { background: hsl(140 85% 52%); box-shadow: 0 0 16px hsla(140 90% 55% / 0.55); transform: translateY(-1px); }
+.frForumStartBtn:active { transform: translateY(0); }
+
+/* Small compact tabs, not buttons - a thin underline for the active one,
+   same font as the rest of the site's UI text rather than a distinct
+   monospace treatment. */
+.frForumFilterBar { display: flex; gap: 0.2em; padding-bottom: 0.5em; flex-wrap: wrap; }
+.frForumFilterTab {
+	background: none;
+	border: none;
+	border-bottom: 2px solid transparent;
+	color: var(--font-white-3);
+	font-size: 82%;
+	padding: 0.2em 0.55em 0.15em 0.55em;
+	cursor: pointer;
+	transition: color 0.12s ease, border-color 0.12s ease;
+}
+.frForumFilterTab:hover { color: var(--font-white-1); }
+.frForumFilterTab.frForumFilterOn { color: hsl(140 85% 65%); border-bottom-color: hsl(140 85% 55%); }
+
 .frForumCompose {
 	display: flex;
 	flex-direction: column;
@@ -1555,7 +1655,203 @@
 /* who posted, above their bubble - a forum reply needs the name every time
    (unlike a two-person chat, where "mine or not" already says who), except
    on your own, which .frMsgMine already sets apart by side and colour */
-.frForumMsgWho { font-size: 76%; font-weight: 600; color: var(--font-white-3); padding: 0 0.2em 0.15em 0.2em; }
+.frForumMsgWho { font-size: 76%; font-weight: 600; color: var(--font-white-3); padding: 0 0.2em 0.15em 0.2em; display: flex; align-items: center; }
+/* a sender's name, clickable through to their profile (frOpenProfile) -
+   used both here (frForumMsgWho) and in a topic row's "Started by" line */
+.frForumWhoLink { cursor: pointer; }
+.frForumWhoLink:hover { color: var(--font-white-1); text-decoration: underline; }
+/* One action bar under a forum reply's bubble: the four reactions
+   (profileChipReactionsHtml, shared with Leaders - this only adds its own
+   spacing here, not new button styling for that part) plus Reply, all the
+   same height. The explicit height on .profileReactBtn is scoped to just
+   this bar - Leaders' own reaction strip keeps its usual sizing. */
+.frMsgActionBar { display: flex; align-items: center; gap: 0.4em; padding: 0.3em 0.2em 0; flex-wrap: wrap; }
+.frMsgActionBar .profileReactBtn { height: 26px; }
+
+/* Reply: neutral at rest, green only on hover - a wide rectangular button
+   the same height as the reaction buttons beside it, bold uppercase text,
+   always fully visible and readable (unlike the old hover-only icon this
+   replaced), but the green itself is reserved for hover rather than
+   permanent, so it does not outshout the reactions next to it at rest. */
+.frMsgReplyBtn {
+	height: 26px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.3em;
+	padding: 0 0.75em;
+	font-size: 76%;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	color: var(--font-white-3);
+	background: hsl(0 0% 100% / 0.05);
+	border: 1px solid var(--border-dark-accent);
+	border-radius: 5px;
+	cursor: pointer;
+	white-space: nowrap;
+	transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.frMsgReplyBtn:hover {
+	background: hsla(140 75% 40% / 0.4);
+	border-color: hsl(140 90% 62%);
+	color: hsl(140 95% 85%);
+}
+@media (max-width: 620px) {
+	/* 44px minimum touch target - grown together with the reaction buttons
+	   next to it so the whole bar still reads as one consistent row rather
+	   than Reply suddenly looming over four small pills */
+	.frMsgActionBar .profileReactBtn, .frMsgReplyBtn { height: 44px; }
+	.frMsgReplyBtn { padding: 0 1em; font-size: 82%; }
+}
+/* the literal substring @here, highlighted wherever it appears in a posted
+   reply (forumRenderBody, calc/forum-tab.js) */
+.forumHereMention { color: hsl(140 85% 62%); font-weight: 700; }
+/* a @Name mention (forumUserMention modifier) is also a click-through to
+   their profile - @here is not, so this cursor/hover only applies here */
+.forumUserMention { cursor: pointer; }
+.forumUserMention:hover { text-decoration: underline; }
+
+/* the @mention autocomplete - flows in normal document order right under
+   the compose box rather than a caret-positioned floating popup (no
+   existing pattern in this app for that - Discover's search and the
+   Cyphers search box both replace an inline panel the same simple way) */
+.frMentionDropdown {
+	border: 1px solid var(--border-dark-accent);
+	background: var(--breakdown-bg-accent);
+	margin-top: 0.3em;
+	max-height: 160px;
+	overflow-y: auto;
+}
+.frMentionOpt { padding: 0.4em 0.6em; font-size: 88%; cursor: pointer; }
+.frMentionOpt:hover { background: var(--btn-hover-accent); color: var(--font-white-1); }
+
+/* Discord-style reply preview - a small quoted strip, clicking it scrolls
+   to and briefly highlights the message it quotes (frForumJumpToMessage /
+   frChatJumpToMessage), same reuse of the "briefly highlight" .frMsgNew
+   animation the @here notification jump already uses. Shown above the
+   bubble it belongs to (frForumLogHtml/frChatLogHtml) when the message
+   carries a reply_to. */
+.frMsgReplyQuote {
+	display: flex;
+	align-items: baseline;
+	gap: 0.3em;
+	font-size: 76%;
+	color: var(--font-white-4);
+	padding: 0 0.3em 0.2em 0.3em;
+	cursor: pointer;
+	max-width: 78%;
+	overflow: hidden;
+}
+.frMsgReplyQuote:hover { color: var(--font-white-2); }
+.frMsgReplyQuoteWho { font-weight: 600; color: var(--font-white-3); flex: 0 0 auto; }
+.frMsgReplyQuoteBody { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 620px) { .frMsgReplyQuote { max-width: 64%; } }
+
+/* The "replying to X" strip above a compose box - active only while a
+   reply is armed (frForumReplyTo / frChatReplyTo), cleared on send or on
+   the strip's own Cancel. */
+.frReplyBar {
+	display: flex;
+	align-items: center;
+	gap: 0.5em;
+	padding: 0.3em 0.5em;
+	margin-bottom: 0.3em;
+	background: hsla(140 65% 42% / 0.09);
+	border-left: 3px solid hsl(140 80% 50%);
+	font-size: 82%;
+	color: var(--font-white-2);
+}
+.frReplyBarText { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.frReplyBarText b { color: var(--font-white-1); }
+/* a proper labelled button (.profileMiniBtn base) rather than a bare ×
+   glyph - "visible Cancel" means it reads as a button, not a tiny mark
+   easy to miss next to the reply preview text */
+.frReplyBarCancel { flex: 0 0 auto; }
+
+/* A labelled "↩ Reply", always visible - unlike .frMsgFlag right next to
+   it (which stays quiet until hovered on purpose, since reporting is not
+   something to advertise), replying is the everyday action and members
+   were not finding a bare icon that only appeared on hover. */
+.frMsgReplyIcon { cursor: pointer; padding-left: 0.5em; color: var(--font-white-4); font-size: 92%; transition: color 0.12s ease; }
+.frMsgReplyIcon:hover { color: hsl(140 75% 65%); }
+
+/* ---- forum topic feed row ---- */
+/* A discussion-feed row, not an isolated boxy card: fine separators between
+   topics (frForumFeed's own border-top plus each row's border-bottom),
+   square corners throughout (no border-radius on the row itself) to stay
+   in the app's retro-terminal register rather than drift toward rounded
+   social-media cards. Title leads, large and bold, with [NEW] attached
+   right beside it; creator/time is one small line under that (the name is
+   its own clickable link, .frForumWhoLink, through to their profile);
+   reply count and a chevron sit on the right - no avatar, kept deliberately
+   text-only. The opening message's own preview text used to sit between
+   title and creator line, competing with the title for the same weight -
+   dropped from the list entirely (still shown once the topic itself is
+   open, see frRenderForumThread). */
+.frForumFeed { border-top: 1px solid var(--border-dark-accent); }
+.frForumRow2 {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.7em;
+	padding: 0.7em 0.5em;
+	border-bottom: 1px solid var(--border-dark-accent);
+	border-left: 3px solid transparent;
+	cursor: pointer;
+	transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+}
+/* a subtle tint and a lit accent bar for a topic with something unread -
+   not a loud highlight, just enough to read as "different from the rest"
+   at a glance down the list */
+.frForumRow2.frForumRowUnread { background: hsla(140 65% 42% / 0.07); border-left-color: hsl(140 80% 50%); }
+.frForumRow2:hover {
+	background: hsla(0 0% 100% / 0.045);
+	border-left-color: hsl(140 85% 55%);
+	transform: translateY(-2px);
+	box-shadow: 0 2px 10px hsla(140 85% 55% / 0.16), inset 0 0 0 1px hsla(140 85% 55% / 0.22);
+}
+.frForumRow2.frForumRowUnread:hover { background: hsla(140 65% 42% / 0.13); }
+@media (prefers-reduced-motion: reduce) {
+	.frForumRow2 { transition: background-color 0.12s ease, border-color 0.12s ease; }
+	.frForumRow2:hover { transform: none; }
+}
+
+.frForumRowMain { flex: 1 1 auto; min-width: 0; }
+.frForumRowTitleLine { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.35em; }
+.frForumRowTitle { font-size: 110%; font-weight: 700; color: var(--font-white-1); overflow-wrap: anywhere; }
+/* [NEW] / [NEW · 3] - green, attached beside the title (same flex line, so
+   it wraps with the title rather than floating off on its own), never for
+   the topic's own latest message being yours (forum_topics_list already
+   excludes your own messages from unread_count server-side) */
+.frForumNew {
+	display: inline-block;
+	padding: 0.05em 0.4em;
+	font-size: 66%;
+	font-weight: 800;
+	letter-spacing: 0.03em;
+	color: hsl(140 90% 20%);
+	background: hsl(140 85% 55%);
+	border-radius: 3px;
+	white-space: nowrap;
+}
+.frForumRowRight {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	gap: 0.5em;
+	font-size: 82%;
+	color: var(--font-white-3);
+	white-space: nowrap;
+	padding-top: 0.2em;
+}
+.frForumRowChevron { font-size: 140%; line-height: 1; color: var(--font-white-4); }
+
+@media (max-width: 620px) {
+	/* the title stays on its own top line; reply count/chevron drop to
+	   their own line underneath instead of squeezing onto the same row */
+	.frForumRow2 { flex-wrap: wrap; }
+	.frForumRowRight { flex: 1 1 100%; justify-content: flex-start; }
+}
 
 .frChatWarn { font-size: 80%; color: var(--font-white-4); min-height: 1.2em; padding-top: 0.25em; }
 .frChatWarn.frChatWarnBad { color: hsl(5 75% 72%); }
@@ -1571,6 +1867,12 @@
 @media (max-width: 620px) {
 	.frBubble { max-width: 64%; }
 	.frChatLog { height: 300px; }
+	/* the action bar under a forum reply is often wider than the bubble
+	   above it, especially now Reply is a full button rather than small
+	   text - capped to match the bubble so it never reads as wider than
+	   (and so not clearly siding with) the message it belongs to; wraps
+	   onto a second line rather than overflowing when it does not fit */
+	.frMsgActionBar { max-width: 64%; }
 }
 
 /* the flag on a chat message: quiet until hovered, loud once armed */
@@ -1868,6 +2170,48 @@
    around every phrase, no inner scrollbar to get confused with the outer
    one. */
 .phraseList { border-top: 1px solid var(--border-dark-accent); }
+
+/* New (renderProfileNewBody) is the one exception: it is a live, ever-
+   growing firehose rather than a ranked top-N list, so its own scrollbar
+   with a sane cap keeps the Leaders panel itself a stable height instead of
+   growing without bound every time somebody publishes another phrase. A
+   shorter cap on narrow screens, not a fixed pixel height, so it never eats
+   more of a small viewport than the other Leaders tabs already do. */
+.phraseListScroll {
+	max-height: 520px;
+	overflow-y: auto;
+	overflow-x: hidden;
+	-webkit-overflow-scrolling: touch;
+	padding-right: 0.2em;
+	scrollbar-width: thin;
+	scrollbar-color: var(--border-accent) transparent;
+}
+.phraseListScroll::-webkit-scrollbar { width: 8px; }
+.phraseListScroll::-webkit-scrollbar-track { background: transparent; }
+.phraseListScroll::-webkit-scrollbar-thumb { background-color: var(--border-accent); border-radius: 999px; }
+.phraseListScroll::-webkit-scrollbar-thumb:hover { background-color: var(--font-white-4); }
+@media (max-width: 620px) {
+	.phraseListScroll { max-height: 58vh; }
+}
+
+/* "little boxes for each phrase" - the look the contributor list
+   (profileRenderContributorList) had before reactions existed (.profileChip,
+   since retired) - a bordered card per phrase with a gap between, rather
+   than one flat divided row bleeding into the next. Opt-in via
+   .phraseListBoxed only, so Leaders' own New/Trending/Loved/Funny/CCRU tabs
+   keep the plain row style they already have. */
+.phraseListBoxed {
+	border-top: none;
+	display: flex;
+	flex-direction: column;
+	gap: 0.4em;
+}
+.phraseListBoxed .phraseRow {
+	border: 1px solid var(--border-dark-accent);
+	border-radius: 6px;
+	background: var(--btn-bg-accent);
+}
+.phraseListBoxed .phraseRow:hover { background: var(--btn-hover-accent); }
 .phraseListGroup {
 	padding: 0.5em 0.2em 0.3em 0.2em;
 	font-size: 78%;
@@ -1915,22 +2259,6 @@
 	align-items: center;
 	gap: 0.3em;
 }
-/* the reaction a Leaders tab is actually ranking by, ahead of the ordinary
-   four-button strip rather than lost inside it - a viewer should not have
-   to find the one number the list is sorted on */
-.phraseRowHighlight {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.25em;
-	font-size: 105%;
-	font-weight: 700;
-	color: var(--font-white-1);
-	padding-right: 0.4em;
-	margin-right: 0.2em;
-	border-right: 1px solid var(--border-dark-accent);
-}
-.phraseRowHighlightCount { font-variant-numeric: tabular-nums; }
-
 @media (max-width: 620px) {
 	/* phrase info on top, reactions underneath, full width - never a tiny
 	   side column squeezing four reaction buttons into a sliver */
@@ -2271,7 +2599,15 @@
    without the clip-path math an actual hole would need, plus a neon green
    ring so the target reads as "look here" even against a busy background */
 .tourSpotlight {
-	position: relative !important;
+	/* not !important, deliberately: an element that already sets its own
+	   position (like the absolutely-positioned #ctxExportMenu) needs to keep
+	   it - forcing relative on top of that turned its top/left, which are
+	   document-coordinate offsets under position:absolute, into an offset
+	   from its own in-flow position instead, throwing it off the bottom of
+	   the page. Plain static elements (most buttons/inputs, the common
+	   case) have nothing else setting position, so this still applies to
+	   them and still gives z-index a containing block to work in. */
+	position: relative;
 	z-index: 99993 !important;
 	box-shadow:
 		0 0 0 9999px hsla(0 0% 0% / 0.74),

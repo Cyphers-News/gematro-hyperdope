@@ -27,6 +27,11 @@ function friendsError(err) {
 		FRIENDS_READY = false
 		return new Error("Friends is not set up on this database yet — run the friends migration.")
 	}
+	// A raw Postgres error (constraint, RLS denial, type error) names real
+	// schema - not something to put in front of a member.
+	if (typeof authIsRawDbError === "function" && authIsRawDbError(msg)) {
+		return new Error("Something went wrong — try again.")
+	}
 	// the raise exception messages from the functions arrive verbatim, and are
 	// already written to be read
 	return new Error(msg.replace(/^.*?:\s*/, "").trim() || "Something went wrong")
@@ -198,7 +203,8 @@ function friendsBadgePollTick() {
 	Promise.all([
 		friendsBadgeCounts(true),
 		(typeof chatUnreadCached === "function") ? chatUnreadCached(true) : Promise.resolve(0),
-		(typeof phraseNotifCountCached === "function") ? phraseNotifCountCached(true) : Promise.resolve(0)
+		(typeof phraseNotifCountCached === "function") ? phraseNotifCountCached(true) : Promise.resolve(0),
+		(typeof forumNotifCountCached === "function") ? forumNotifCountCached(true) : Promise.resolve(0)
 	]).then(function () {
 		if (typeof friendsRefreshBadge === "function") friendsRefreshBadge()
 	})

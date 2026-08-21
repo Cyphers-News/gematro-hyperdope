@@ -39,10 +39,10 @@ function chatUnreadTotal()        { return chatRpc("chat_unread_total") }
 
 var CHAT_MAX_LEN = 500
 
-function chatSend(target, body) {
+function chatSend(target, body, replyTo) {
 	var pre = chatPrecheck(body)
 	if (!pre.ok) return Promise.reject(new Error(pre.why))
-	return chatRpc("chat_send", { target: target, body: body })
+	return chatRpc("chat_send", { target: target, body: body, reply_to: replyTo || null })
 }
 
 // ---- blocking and reporting -------------------------------------------

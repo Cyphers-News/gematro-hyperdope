@@ -33,7 +33,10 @@ function renderProfileFriends() {
 
 	// the unread count is fetched with the others rather than read from cache:
 	// a badge that is only right on a second visit is worse than none
-	Promise.all([friendsBadgeCounts(true), chatUnreadCached(true), phraseNotifCountCached(true)]).then(function (both) {
+	Promise.all([
+		friendsBadgeCounts(true), chatUnreadCached(true), phraseNotifCountCached(true),
+		(typeof forumNotifCountCached === "function") ? forumNotifCountCached(true) : Promise.resolve(0)
+	]).then(function (both) {
 		var counts = both[0]
 		var o = ''
 		var news = frNewsCounts(counts)
@@ -47,7 +50,7 @@ function renderProfileFriends() {
 
 		o += '<div class="frTabs">'
 		o += frSectionBtn("chats",    "&#128172;", "Chats",    news.chats)
-		o += frSectionBtn("forum",    "&#127760;", "Forum",    0)
+		o += frSectionBtn("forum",    "&#127760;", "Forum",    news.forum)
 		o += frSectionBtn("discover", "&#128269;", "Discover", 0)
 		o += frSectionBtn("friends",  "&#128101;", "Friends",  news.friends + news.requests)
 		o += frSectionBtn("news",     "&#128240;", "News",     news.phrases)
@@ -73,14 +76,16 @@ function renderProfileFriends() {
 // you have not seen, and a pip is a section you have never opened.
 function frSectionBtn(id, icon, label, badge, pip) {
 	var on = (friendsSection === id) ? " frTabOn" : ""
-	// Chats gets its own green glow instead of the plain red badge: "new
-	// message" is a different feeling from "somebody wants something from
-	// you" (Friends/Requests), and reads better in the app's own green.
-	var chatGlow = (id === "chats" && badge > 0) ? " frTabChatGlow" : ""
+	// Chats and Forum get their own green glow instead of the plain red
+	// badge: "new message"/"new Forum activity" are a different feeling from
+	// "somebody wants something from you" (Friends/Requests), and read
+	// better in the app's own green.
+	var greenGlow = (id === "chats" || id === "forum") && badge > 0
+	var chatGlow = greenGlow ? " frTabChatGlow" : ""
 	var o = '<button class="intBtn3 frTab' + on + chatGlow + '" id="frTab-' + id + '" onclick="frSetSection(&quot;' + id + '&quot;)" title="' + label + '">'
 	o += '<span class="frTabIcon">' + icon + '</span>'
 	o += '<span class="frTabLab">' + label + '</span>'
-	if (badge > 0) o += '<span class="frBadge' + (id === "chats" ? " frBadgeChat" : "") + '">' + (badge > 99 ? "99+" : badge) + '</span>'
+	if (badge > 0) o += '<span class="frBadge' + (greenGlow ? " frBadgeChat" : "") + '">' + (badge > 99 ? "99+" : badge) + '</span>'
 	else if (pip) o += '<span class="frPip" title="Worth a look">&#10022;</span>'
 	o += '</button>'
 	return o
@@ -96,13 +101,14 @@ function frNewsCounts(counts) {
 		friends: Math.max(0, counts.friends - friendsSeenGet("friends")),
 		requests: counts.incoming,   // a pending request stays news until answered
 		chats: chatUnreadCache.n,    // unread is "not seen" by definition
-		phrases: (typeof phraseNotifCache !== "undefined" ? phraseNotifCache.n : 0)
+		phrases: (typeof phraseNotifCache !== "undefined" ? phraseNotifCache.n : 0),
+		forum: (typeof forumNotifCache !== "undefined" ? forumNotifCache.n : 0)
 	}
 }
 
 function frNewsTotal(counts) {
 	var n = frNewsCounts(counts)
-	return n.friends + n.requests + n.chats + n.phrases
+	return n.friends + n.requests + n.chats + n.phrases + n.forum
 }
 
 function frSetSection(id) {
@@ -358,29 +364,95 @@ function frRenderFriends(tok) {
 // (phrase_notifications_list already orders unread before read), same row
 // for either kind (frNotifRowHtml/frNotifText).
 
+// One inbox, not two: a phrase-reaction notification and a Forum one come
+// from entirely different tables (forum_notifications has no reaction type
+// or submission to key off), but a member should never have to check two
+// places for "what happened while I was away" - merged and re-sorted by
+// time here, same row list either way.
 function frRenderNews(tok) {
 	frBody('<div class="profileLoading">Loading…</div>', tok)
-	phraseNotificationsList(50).then(function (notifs) {
+	Promise.all([
+		phraseNotificationsList(50),
+		(typeof forumNotificationsList === "function") ? forumNotificationsList(50).catch(function () { return [] }) : Promise.resolve([])
+	]).then(function (both) {
+		var notifs = both[0].map(function (n) { n._src = "phrase"; return n })
+			.concat(both[1].map(function (n) { n._src = "forum"; return n }))
+		notifs.sort(function (a, b) { return Date.parse(b.created_at) - Date.parse(a.created_at) })
+
 		var o = ''
 		if (!notifs.length) {
-			o += '<div class="profileNote">Nothing yet. This fills in when someone reacts to a phrase you published, or an admin adds one of yours to the database.</div>'
+			o += '<div class="profileNote">Nothing yet. This fills in when someone reacts to a phrase you published, an admin adds one of yours to the database, or there is Forum activity you are following.</div>'
 			frBody(o, tok); return
 		}
 		var unread = notifs.filter(function (n) { return !n.read }).length
 		if (unread) o += '<div class="frNewsBar"><button class="profileMiniBtn" onclick="frMarkAllNewsRead()">Mark all ' + unread + ' read</button></div>'
 		o += '<div class="profileList">'
-		notifs.forEach(function (n) { o += frNotifRowHtml(n) })
+		notifs.forEach(function (n) { o += (n._src === "forum") ? frForumNotifRowHtml(n) : frNotifRowHtml(n) })
 		o += '</div>'
 		frBody(o, tok)
 	}).catch(function (err) { frBody(profileErr(err), tok) })
 }
 
 function frMarkAllNewsRead() {
-	phraseNotifMarkAllRead().then(function () {
+	Promise.all([
+		phraseNotifMarkAllRead(),
+		(typeof forumNotifMarkAllRead === "function") ? forumNotifMarkAllRead().catch(function () {}) : Promise.resolve()
+	]).then(function () {
 		phraseNotifInvalidate()
+		if (typeof forumNotifInvalidate === "function") forumNotifInvalidate()
 		if (typeof friendsRefreshBadge === "function") friendsRefreshBadge()
 		frRenderNews(profileRenderSeq)
 	}).catch(function (err) { displayCalcNotification(err.message || "Could not mark as read", 2400) })
+}
+
+// "New Forum topic: Hello World" for a brand new topic, "@actor mentioned
+// @here in: Topic" for a mention - the two kinds forum_notifications holds
+// (forum_topic_notify trigger / forum_post's @here handling, see the
+// 20260820080000 migration).
+function frForumNotifText(n) {
+	var title = authEsc(n.topic_title || "a topic")
+	if (n.kind === "new_topic") return 'New Forum topic: <b>' + title + '</b> &#128172;'
+	return '<b>@' + authEsc(n.actor_name) + '</b> mentioned @here in: <b>' + title + '</b>'
+}
+
+function frForumNotifRowHtml(n) {
+	var o = '<div class="profileRow frRow frRowClick' + (n.read ? '' : ' frThreadUnread') + '" '
+	o += 'onclick="frOpenForumNotif(&quot;' + n.id + '&quot;,&quot;' + n.topic_id + '&quot;,&quot;' + (n.message_id || '') + '&quot;)">'
+	o += '<span class="frNotifText">' + frForumNotifText(n) + '</span>'
+	o += '<span class="profileWhen">' + frWhen(n.created_at) + '</span>'
+	o += '</div>'
+	return o
+}
+
+// Opens the topic itself (same for either kind), then - for a mention,
+// which carries the specific message it came from - scrolls to and briefly
+// highlights that message once the thread has actually painted. A short
+// poll rather than a fixed delay, same reasoning as tourWaitForSelector
+// (calc/tour.js): the thread's own render is itself waiting on a network
+// round trip (messages + reaction counts), so a delay long enough on a fast
+// connection is exactly the one that is not on a slow one.
+function frOpenForumNotif(id, topicId, messageId) {
+	forumNotifMarkRead(id).then(function () {
+		forumNotifInvalidate()
+		if (typeof friendsRefreshBadge === "function") friendsRefreshBadge()
+	}).catch(function () {})
+	friendsSection = "forum"
+	forumOpenTopic = topicId
+	renderProfilePanel()
+	if (messageId) frForumJumpToMessage(messageId)
+}
+
+function frForumJumpToMessage(messageId, attempt) {
+	attempt = attempt || 0
+	var el = document.getElementById("frMsg-" + messageId)
+	if (el === null) {
+		if (attempt > 15) return // gave it 3s - the message may be further back than the log loaded
+		setTimeout(function () { frForumJumpToMessage(messageId, attempt + 1) }, 200)
+		return
+	}
+	el.scrollIntoView({ block: "center", behavior: "smooth" })
+	el.classList.add("frMsgNew")
+	setTimeout(function () { el.classList.remove("frMsgNew") }, 3000)
 }
 
 function frSortOpt(id, label) {
@@ -407,7 +479,7 @@ function frNotifText(n) {
 }
 
 function frNotifRowHtml(n) {
-	var o = '<div class="profileRow frRow frRowClick' + (n.read ? '' : ' frThreadUnread') + '" onclick="frOpenNotif(&quot;' + n.id + '&quot;,&quot;' + authEsc(n.phrase).replace(/"/g, '&quot;') + '&quot;,&quot;' + authEsc(n.cipher || "").replace(/"/g, '&quot;') + '&quot;)">'
+	var o = '<div class="profileRow frRow frRowClick' + (n.read ? '' : ' frThreadUnread') + '" onclick="frOpenNotif(&quot;' + n.id + '&quot;,&quot;' + authEscJs(n.phrase) + '&quot;,&quot;' + authEscJs(n.cipher || "") + '&quot;)">'
 	o += '<span class="frNotifText">' + frNotifText(n) + '</span>'
 	o += '<span class="profileWhen">' + frWhen(n.created_at) + '</span>'
 	o += '</div>'
@@ -673,15 +745,22 @@ function frSwitch(key, value, icon, title, blurb) {
 
 // Flipped in place and saved in the background, then put back if the save
 // fails - so the switch never shows a state the database does not have.
+// forum_notifications is not one of FRIENDS_PRIVACY_KEYS (see
+// forumNotifSettingGet's own comment, auth/forum.js, for why it is kept out
+// of that shared select/update) so it goes through its own setter instead
+// of friendsPrivacySet - same frSwitch markup either way, just a different
+// place to save.
 function frToggleSwitch(row, key) {
 	var on = !row.classList.contains("frSwitchOn")
 	row.classList.toggle("frSwitchOn", on)
 	var sw = row.querySelector(".frSwitch")
 	if (sw !== null) sw.setAttribute("aria-checked", on ? "true" : "false")
 
-	var patch = {}
-	patch[key] = on
-	friendsPrivacySet(patch).catch(function (err) {
+	var save = (key === "forum_notifications" && typeof forumNotifSettingSet === "function")
+		? forumNotifSettingSet(on)
+		: friendsPrivacySet((function () { var p = {}; p[key] = on; return p })())
+
+	save.catch(function (err) {
 		row.classList.toggle("frSwitchOn", !on)
 		if (sw !== null) sw.setAttribute("aria-checked", !on ? "true" : "false")
 		displayCalcNotification(err.message || "Could not save", 2600)
@@ -822,6 +901,7 @@ function frOpenChat(id) {
 
 function frCloseChat() {
 	chatOpenWith = null
+	frChatReplyTo = null
 	frStopChatPoll()
 	friendsSection = "chats"
 	chatUnreadInvalidate()
@@ -835,8 +915,11 @@ function frCloseChat() {
 // this session is "new", it is just there.
 var frSeenMsgIds = {}
 
+var frChatReplyTo = null   // { id, senderName } while composing a reply, else null
+
 function frRenderChatWindow(id, tok) {
 	profileBody('<div class="profileLoading">Loading…</div>', tok)
+	frChatReplyTo = null
 	Promise.all([friendsProfile(id), chatHistory(id, 100)]).then(function (both) {
 		var who = both[0], msgs = both[1]
 		var name = who ? who.display_name : "Conversation"
@@ -853,8 +936,9 @@ function frRenderChatWindow(id, tok) {
 		o += '<button class="profileMiniBtn profileMiniDanger" onclick="frBlockMember(this,&quot;' + id + '&quot;)" title="Block: they can no longer message you, ask to be friends, or find you">Block</button>'
 		o += '</span></div>'
 
-		o += '<div id="frChatLog" class="frChatLog">' + frChatLogHtml(msgs) + '</div>'
+		o += '<div id="frChatLog" class="frChatLog">' + frChatLogHtml(msgs, null, name) + '</div>'
 
+		o += '<div id="frChatReplyBar"></div>'
 		o += '<div class="frChatCompose">'
 		o += '<textarea id="frChatBox" class="frChatBox" rows="2" maxlength="' + CHAT_MAX_LEN + '" '
 		o += 'placeholder="Say something…" oninput="frChatTyping()" onkeydown="frChatKey(event)"></textarea>'
@@ -877,17 +961,27 @@ function frRenderChatWindow(id, tok) {
 	}).catch(function (err) { profileBody(profileErr(err), tok) })
 }
 
-function frChatLogHtml(msgs, newIds) {
+function frChatLogHtml(msgs, newIds, otherName) {
 	if (!msgs.length) return '<div class="profileNote">Nothing here yet. Say hello.</div>'
+	var theirLabel = otherName || "them"
 	var o = ''
 	for (var i = 0; i < msgs.length; i++) {
 		var m = msgs[i]
 		// Highlighted like a fresh line in a highlighter pen, not a message you
 		// sent yourself - you already know you sent that one.
 		var isNew = !!(newIds && newIds[m.id] && !m.mine)
-		o += '<div class="frMsgRow' + (m.mine ? ' frMsgMine' : '') + (isNew ? ' frMsgNew' : '') + '">'
+		o += '<div class="frMsgRow' + (m.mine ? ' frMsgMine' : '') + (isNew ? ' frMsgNew' : '') + '" id="frChatMsg-' + m.id + '">'
+		if (m.reply_to) {
+			var quoteWho = m.reply_sender_name ? authEsc(m.reply_sender_name) : "a message"
+			var quoteBody = m.reply_body ? authEsc(m.reply_body) : "(no longer available)"
+			o += '<div class="frMsgReplyQuote" onclick="frChatJumpToMessage(&quot;' + m.reply_to + '&quot;)">'
+			o += '<span class="frMsgReplyQuoteWho">&#8618; ' + quoteWho + '</span>'
+			o += '<span class="frMsgReplyQuoteBody">' + quoteBody + '</span>'
+			o += '</div>'
+		}
 		o += '<div class="frBubble">' + chatRenderBody(m.body) + '</div>'
 		o += '<div class="frMsgWhen">' + frWhen(m.created_at)
+		o += '<span class="frMsgReplyIcon" title="Reply to this message" onclick="frChatStartReply(&quot;' + m.id + '&quot;,&quot;' + authEscJs(m.mine ? "yourself" : theirLabel) + '&quot;)">&#8617; Reply</span>'
 		// reporting the message rather than the person: a moderator judging
 		// "they were rude" with no idea which line cannot judge anything
 		if (!m.mine) {
@@ -898,6 +992,37 @@ function frChatLogHtml(msgs, newIds) {
 		o += '</div>'
 	}
 	return o
+}
+
+function frChatJumpToMessage(messageId) {
+	var el = document.getElementById("frChatMsg-" + messageId)
+	if (el === null) { displayCalcNotification("That message is further back than what's loaded", 2200); return }
+	el.scrollIntoView({ block: "center", behavior: "smooth" })
+	el.classList.add("frMsgNew")
+	setTimeout(function () { el.classList.remove("frMsgNew") }, 3000)
+}
+
+function frChatStartReply(messageId, senderLabel) {
+	frChatReplyTo = { id: messageId, senderName: senderLabel }
+	frChatRenderReplyBar()
+	var box = document.getElementById("frChatBox")
+	if (box !== null) box.focus()
+}
+
+function frChatCancelReply() {
+	frChatReplyTo = null
+	frChatRenderReplyBar()
+}
+
+function frChatRenderReplyBar() {
+	var host = document.getElementById("frChatReplyBar")
+	if (host === null) return
+	if (frChatReplyTo === null) { host.innerHTML = ""; return }
+	var o = '<div class="frReplyBar">'
+	o += '<span class="frReplyBarText">Replying to <b>' + authEsc(frChatReplyTo.senderName) + '</b></span>'
+	o += '<span class="frReplyBarCancel" title="Cancel reply" onclick="frChatCancelReply()">&times;</span>'
+	o += '</div>'
+	host.innerHTML = o
 }
 
 function frChatScrollDown() {
@@ -938,11 +1063,14 @@ function frChatSend() {
 	var body = box.value
 	if (body.trim() === "") return
 
+	var replyTo = frChatReplyTo ? frChatReplyTo.id : null
 	btn.disabled = true
-	chatSend(chatOpenWith, body).then(function () {
+	chatSend(chatOpenWith, body, replyTo).then(function () {
 		box.value = ""
 		frChatTyping()
 		btn.disabled = false
+		frChatReplyTo = null
+		frChatRenderReplyBar()
 		return chatHistory(chatOpenWith, 100)
 	}).then(function (msgs) {
 		var log = document.getElementById("frChatLog")
@@ -999,11 +1127,23 @@ function frStopChatPoll() {
 // A report with a reason and a requested outcome, rather than a bare flag. A
 // moderator opening "reported" with nothing else to go on has to reconstruct
 // what the problem was; two dropdowns save that entirely.
-var frReportTarget = null, frReportMessage = null
+var frReportTarget = null, frReportMessage = null, frReportForumTopic = null
 
 function frReportPrompt(btn, id, messageId) {
 	frReportTarget = id
 	frReportMessage = messageId || null
+	frReportForumTopic = null
+	frShowReportDialog()
+}
+
+// Reports a forum topic - target is its creator, same shape a message
+// report has (a member being reported, with the content attached for
+// context), just against forum_topic/member_report's forum params instead
+// of a chat message. Called from frForumReportTopic (calc/forum-tab.js).
+function frReportForumTopicPrompt(topicId, creatorId) {
+	frReportTarget = creatorId
+	frReportMessage = null
+	frReportForumTopic = topicId
 	frShowReportDialog()
 }
 
@@ -1011,7 +1151,7 @@ function frShowReportDialog() {
 	frCloseReport()
 	var o = '<div id="frReportBack" class="frReportBack" onclick="frCloseReport()"></div>'
 	o += '<div id="frReportBox" class="frReportBox">'
-	o += '<div class="frPrivHead">&#128681; Report ' + (frReportMessage ? 'this message' : 'this member') + '</div>'
+	o += '<div class="frPrivHead">&#128681; Report ' + (frReportForumTopic ? 'this topic' : (frReportMessage ? 'this message' : 'this member')) + '</div>'
 
 	o += '<div class="soComposeLab">What is wrong?</div>'
 	o += '<select id="frReportReason" class="frSelect frReportSel">'
@@ -1046,7 +1186,10 @@ function frSendReport() {
 	var note = $("#frReportNote").val()
 	var btn = document.getElementById("frReportSend")
 	if (btn) btn.disabled = true
-	chatReport(frReportTarget, reason, note || null, frReportMessage, action).then(function () {
+	var call = frReportForumTopic
+		? forumReport(frReportTarget, reason, note || null, frReportForumTopic, null, action)
+		: chatReport(frReportTarget, reason, note || null, frReportMessage, action)
+	call.then(function () {
 		frCloseReport()
 		displayCalcNotification("Reported. An administrator will look at it.", 2800)
 	}).catch(function (err) {

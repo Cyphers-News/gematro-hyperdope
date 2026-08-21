@@ -243,7 +243,7 @@ function renderProfileEntries() {
 			var refused = profileSubmitRejected[r.phrase]
 			var s = ''
 			s += '<div class="profileRow'+(refused ? ' profileRowRefused' : '')+'">'
-			s += '<span class="profileRowPhrase" onclick="profileUsePhrase(&quot;'+authEsc(r.phrase).replace(/"/g,'&quot;')+'&quot;)" title="Send to the calculator">'+authEsc(r.phrase)+'</span>'
+			s += '<span class="profileRowPhrase" onclick="profileUsePhrase(&quot;'+authEscJs(r.phrase)+'&quot;)" title="Send to the calculator">'+authEsc(r.phrase)+'</span>'
 			s += '<span class="profileRowActions">'
 			if (sub) {
 				// published: show what it was published as, and the way back out
@@ -257,9 +257,9 @@ function renderProfileEntries() {
 				// the cipher arrives prefilled from whatever is selected, so
 				// publishing stays one click unless you want to change it
 				s += profileCipherSelect(r.id, r.phrase)
-				s += '<button class="profileMiniBtn" onclick="profileSubmit(&quot;'+authEsc(r.phrase).replace(/"/g,'&quot;')+'&quot;,&quot;'+r.id+'&quot;)" title="Publish this phrase to the leaderboard">Submit</button>'
+				s += '<button class="profileMiniBtn" onclick="profileSubmit(&quot;'+authEscJs(r.phrase)+'&quot;,&quot;'+r.id+'&quot;)" title="Publish this phrase to the leaderboard">Submit</button>'
 			}
-			s += '<button class="profileMiniBtn profileMiniDanger" onclick="profileDeleteEntry(&quot;'+r.id+'&quot;,&quot;'+authEsc(r.phrase).replace(/"/g,'&quot;')+'&quot;)" title="Remove from your saved history">&#215;</button>'
+			s += '<button class="profileMiniBtn profileMiniDanger" onclick="profileDeleteEntry(&quot;'+r.id+'&quot;,&quot;'+authEscJs(r.phrase)+'&quot;)" title="Remove from your saved history">&#215;</button>'
 			s += '</span>'
 			if (refused) s += '<div class="profileRowWhy">'+authEsc(refused)+'</div>'
 			s += '</div>'
@@ -301,7 +301,7 @@ function renderProfileEntries() {
 			o += '<div class="profileList">'
 			orphans.forEach(function (sub) {
 				o += '<div class="profileRow">'
-				o += '<span class="profileRowPhrase" onclick="profileUsePhrase(&quot;'+authEsc(sub.phrase).replace(/"/g,'&quot;')+'&quot;)">'+authEsc(sub.phrase)+'</span>'
+				o += '<span class="profileRowPhrase" onclick="profileUsePhrase(&quot;'+authEscJs(sub.phrase)+'&quot;)">'+authEsc(sub.phrase)+'</span>'
 				o += '<span class="profileRowActions">'
 				o += '<span class="profileBadge profileBadgeOk">'
 				o += sub.cipher ? authEsc(sub.cipher) + (sub.value !== null && sub.value !== undefined ? ' ' + sub.value : '') : 'published'
@@ -797,7 +797,7 @@ function renderProfilePresets() {
 			o += '<span class="profileRowActions">'
 			o += '<span class="profileWhen">'+new Date(r.updated_at).toLocaleDateString()+'</span>'
 			o += '<button class="profileMiniBtn" onclick="profilePresetLoad(&quot;'+r.id+'&quot;)">Load</button>'
-			o += '<button class="profileMiniBtn" onclick="profilePresetOverwrite(&quot;'+authEsc(r.name).replace(/"/g,'&quot;')+'&quot;)" title="Replace this preset with the current setup">Overwrite</button>'
+			o += '<button class="profileMiniBtn" onclick="profilePresetOverwrite(&quot;'+authEscJs(r.name)+'&quot;)" title="Replace this preset with the current setup">Overwrite</button>'
 			o += '<button class="profileMiniBtn profileMiniDanger" onclick="profilePresetDelete(this,&quot;'+r.id+'&quot;)" title="Delete this preset">&#215;</button>'
 			o += '</span></div>'
 		})
@@ -880,7 +880,7 @@ function renderProfileSubmissions() {
 		o += '<div class="profileList">'
 		rows.forEach(function (r) {
 			o += '<div class="profileRow">'
-			o += '<span class="profileRowPhrase" onclick="profileUsePhrase(&quot;'+authEsc(r.phrase).replace(/"/g,'&quot;')+'&quot;)">'+authEsc(r.phrase)+'</span>'
+			o += '<span class="profileRowPhrase" onclick="profileUsePhrase(&quot;'+authEscJs(r.phrase)+'&quot;)">'+authEsc(r.phrase)+'</span>'
 			o += '<span class="profileRowActions">'
 			if (r.cipher) {
 				o += '<span class="profileBadge" title="Published under this cypher">'+authEsc(r.cipher)+(r.value !== null && r.value !== undefined ? ' ' + r.value : '')+'</span>'
@@ -1012,7 +1012,7 @@ function renderProfileRankingBody(tok) {
 			// actually published something - a podium in a list of one is a joke.
 			var podium = (i < 3 && rows.length > 1) ? ' frPodium' + (i + 1) : ''
 			var medal = ['&#129351;', '&#129352;', '&#129353;'][i] || ''
-			o += '<div class="profileRow profileLbRow'+podium+'" data-uid="'+r.user_id+'" onclick="profileShowContributor(&quot;'+r.user_id+'&quot;, &quot;'+authEsc(r.display_name).replace(/"/g,'&quot;')+'&quot;)">'
+			o += '<div class="profileRow profileLbRow'+podium+'" data-uid="'+r.user_id+'" onclick="profileShowContributor(&quot;'+r.user_id+'&quot;, &quot;'+authEscJs(r.display_name)+'&quot;)">'
 			o += '<span class="profileLbRank">'+(podium ? medal : (i+1))+'</span>'
 			o += av
 			o += '<span class="profileRowPhrase">'+authEsc(r.display_name)+frAdminBadge(r.user_id)+'</span>'
@@ -1037,7 +1037,7 @@ function renderProfileNewBody(tok) {
 		var host = document.getElementById("profileLeaderboardBody")
 		if (host === null || tok !== profileRenderSeq) return
 		var o = ''
-		o += '<div class="profileNote">💚 🔥 😂 📖 Nominates a phrase for review &mdash; an admin decides.</div>'
+		o += '<div class="profileNote">React with 🔥 💚 😂 or 📖 to nominate a phrase for the database. An admin makes the final decision.</div>'
 		if (rows.length === 0) {
 			o += '<div class="profileNote">Nobody has published a phrase yet. Be the first, over on Saved.</div>'
 			host.innerHTML = o; return
@@ -1045,14 +1045,14 @@ function renderProfileNewBody(tok) {
 		return phraseReactionCounts(rows.map(function (r) { return r.submission_id })).then(function (reactions) {
 			if (host === null || tok !== profileRenderSeq) return
 			profileContribReactions = reactions
-			o += '<div class="phraseList">'
+			o += '<div class="phraseListScroll"><div class="phraseList">'
 			rows.forEach(function (r) {
 				o += profilePhraseRowHtml({
 					id: r.submission_id, phrase: r.phrase, cipher: r.cipher, value: r.value,
 					sub: 'by '+authEsc(r.contributor_name)+' &middot; '+frWhen(r.created_at)
 				})
 			})
-			o += '</div>'
+			o += '</div></div>'
 			host.innerHTML = o
 		})
 	}).catch(function (err) {
@@ -1084,7 +1084,7 @@ function renderProfilePhraseRankBody(tok, tab) {
 		var host = document.getElementById("profileLeaderboardBody")
 		if (host === null || tok !== profileRenderSeq) return
 		var o = ''
-		o += '<div class="profileNote">💚 🔥 😂 📖 Nominates a phrase for review &mdash; an admin decides.</div>'
+		o += '<div class="profileNote">React with 🔥 💚 😂 or 📖 to nominate a phrase for the database. An admin makes the final decision.</div>'
 		if (rows.length === 0) {
 			o += '<div class="profileNote">'+PHRASE_RANK_EMPTY[viewId]+'</div>'
 			host.innerHTML = o; return
@@ -1101,8 +1101,7 @@ function renderProfilePhraseRankBody(tok, tab) {
 					// a rank number means "best of all time" - in newest-first
 					// order it would just be a count of rows, not a ranking, so
 					// it only shows in the all-time toggle
-					rank: profilePhraseRankMode === "top" ? (i + 1) : null,
-					highlight: { icon: icon, count: r.reaction_count, label: label }
+					rank: profilePhraseRankMode === "top" ? (i + 1) : null
 				})
 			})
 			o += '</div>'
@@ -1352,7 +1351,13 @@ function profileRenderContributorList() {
 		o += '</div>'
 
 		rows = profileSortContrib(rows)
-		o += '<div class="phraseList">'
+		// Its own scroll box, and each phrase its own bordered card
+		// (.phraseListBoxed) - the look this list had before reactions
+		// existed (.profileChip, since retired), brought back specifically
+		// here rather than for every phraseList: browsing one person's
+		// whole history benefits from cards you can scan down a fixed-height
+		// box, where Leaders' own ranked tabs read better as plain rows.
+		o += '<div class="phraseListScroll"><div class="phraseList phraseListBoxed">'
 		var lastGroup = null
 		rows.forEach(function (r) {
 			// A divider whenever the thing being sorted by changes, so a long
@@ -1369,7 +1374,7 @@ function profileRenderContributorList() {
 				sub: 'Published '+frWhen(r.created_at)
 			})
 		})
-		o += '</div>'
+		o += '</div></div>'
 	}
 	o += '</div>'
 	host.innerHTML = o
@@ -1389,33 +1394,63 @@ var REACTION_KINDS = {
 	laugh: { icon: "😂", label: "Funny",         cls: "profileReactLaugh", desc: "Funny — amusing content" },
 	ccru:  { icon: "📖", label: "CCRU",          cls: "profileReactCcru",  desc: "CCRU, hyperstition, the Numogram, accelerationism or related material" }
 }
-var REACTION_ORDER = ["heart", "like", "laugh", "ccru"]
+// Short hover/aria labels for the reaction strip itself - deliberately not
+// REACTION_KINDS.label above, which stays "Loved"/"Trending News"/etc for
+// notification text (frNotifText, calc/friends-tab.js) and the Leaders tab
+// names. This is only what a button's own tooltip says.
+var REACTION_TOOLTIP = { heart: "Love", like: "News", laugh: "Funny", ccru: "CCRU" }
+var REACTION_ORDER = ["like", "heart", "laugh", "ccru"]
 
-function profileChipReactionsHtml(id) {
+// toggleFn names the global function each button's onclick calls - defaults
+// to profileToggleReaction (phrase reactions) so every existing call site is
+// unaffected; forum-tab.js passes "forumToggleReaction" to reuse this same
+// component (buttons, TOTAL badge, mine/lit states, everything) for message
+// reactions against a completely different backend table.
+//
+// showTotal defaults to true (Leaders keeps the TOTAL badge, which is the
+// only place a member sees the sum before opening a single button's own
+// count). Forum passes false: a message bubble already shows every
+// button's own number right on the button, so a separate "how many, total"
+// badge next to them is redundant there in a way it is not on a Leaders
+// row, where the four buttons are muted/dim until lit and the total is
+// often the only number visible at a glance.
+function profileChipReactionsHtml(id, toggleFn, showTotal) {
 	var c = profileContribReactions[id] || { heart: 0, like: 0, laugh: 0, ccru: 0, mine: {} }
+	var total = (c.heart || 0) + (c.like || 0) + (c.laugh || 0) + (c.ccru || 0)
 	var o = '<span class="profileChipReact" id="profileReact-'+id+'" onclick="event.stopPropagation()">'
-	REACTION_ORDER.forEach(function (type) { o += profileReactBtn(id, type, c[type] || 0, !!(c.mine && c.mine[type])) })
+	if (total > 0 && showTotal !== false) {
+		// A plain count, not a 5th reaction pill - no emoji, no click, nothing
+		// that could read as "the same thing as the button below it but
+		// bigger". profileReactMine (below) is the only thing allowed to look
+		// like "you did this"; this only ever says how many, total, everyone.
+		// Same size type as the per-button counts (.profileReactCount) - a
+		// small dark chip sets it apart, not an oversized label/number.
+		o += '<span class="profileReactTotal" title="' + total + ' reactions in total" aria-label="Total reactions: ' + total + '">' + total + '</span>'
+		o += '<span class="profileReactDivider" aria-hidden="true"></span>'
+	}
+	REACTION_ORDER.forEach(function (type) { o += profileReactBtn(id, type, c[type] || 0, !!(c.mine && c.mine[type]), toggleFn) })
 	o += '</span>'
 	return o
 }
 
-// Visibility is keyed off count, not "did I react" - a reaction someone else
-// left is exactly as much everyone's business as one of your own, so it stays
-// lit for every viewer, not just the person who cast it. Only a reaction
-// nobody has given yet (count 0) stays muted until the phrase is hovered (or,
-// on the redesigned row list, always visible but dim - see .phraseReact
-// below) so members can see it is selectable. "mine" only changes the
-// click's meaning (toggle off vs add) and the title text, not what is
-// visible. Lit colour comes from the reaction's own class
-// (profileReactHeart/Fire/Laugh/Ccru) - four different things that should
-// never read as the same glow with a different icon on it.
-function profileReactBtn(id, type, count, mine) {
+// "Lit" (count > 0, from anyone) and "mine" (the signed-in member's own
+// reaction) are now two visually distinct things rather than one colour
+// with a ring on top: lit-but-not-mine stays neutral/dim - a count is
+// information, not a claim that you put it there - and only "mine" goes
+// bright green, the one consistent "you picked this" signal regardless of
+// which of the four reactions it is. A logged-out visitor's "mine" is
+// always false for everything, so every button reads neutral to them.
+function profileReactBtn(id, type, count, mine, toggleFn) {
 	var k = REACTION_KINDS[type]
+	var short = REACTION_TOOLTIP[type]
 	var cls = 'profileReactBtn ' + k.cls + (count > 0 ? ' profileReactLit' : '') + (mine ? ' profileReactMine' : '')
-	var title = mine ? 'Remove your ' + k.label + ' reaction' : k.desc
+	var title = mine ? 'You reacted: ' + short : short
+	var aria = short + (count > 0 ? ', ' + count + (count === 1 ? ' reaction' : ' reactions') : '') + (mine ? ' — you reacted' : '')
+	var fn = toggleFn || "profileToggleReaction"
 	var o = '<button class="'+cls+'" id="profileReactBtn-'+id+'-'+type+'" '
-	o += 'onclick="profileToggleReaction(&quot;'+id+'&quot;,&quot;'+type+'&quot;)" title="'+title+'" aria-label="'+k.label+': '+k.desc+(count > 0 ? ' — ' + count + ' reacted' : '')+(mine ? ', selected' : '')+'">'
+	o += 'onclick="'+fn+'(&quot;'+id+'&quot;,&quot;'+type+'&quot;)" title="'+authEsc(title)+'" aria-label="'+authEsc(aria)+'" aria-pressed="'+(mine ? 'true' : 'false')+'">'
 	o += k.icon
+	if (mine) o += '<span class="profileReactMineCheck" aria-hidden="true">&#10003;</span>'
 	if (count > 0) o += '<span class="profileReactCount">'+count+'</span>'
 	o += '</button>'
 	return o
@@ -1460,9 +1495,9 @@ function profileToggleReaction(id, type) {
 	})
 }
 
-function profileRedrawChipReactions(id) {
+function profileRedrawChipReactions(id, toggleFn, showTotal) {
 	var el = document.getElementById("profileReact-"+id)
-	if (el !== null) el.outerHTML = profileChipReactionsHtml(id)
+	if (el !== null) el.outerHTML = profileChipReactionsHtml(id, toggleFn, showTotal)
 }
 
 // One row in the published-phrases scrolling list - shared by a
@@ -1475,7 +1510,12 @@ function profileRedrawChipReactions(id) {
 // null), rank (an all-time position number, or null).
 function profilePhraseRowHtml(opts) {
 	var hasVal = (opts.value !== null && opts.value !== undefined)
-	var arg = function (s) { return authEsc(String(s)).replace(/"/g,'&quot;') }
+	// authEscJs, not authEsc: this text lands inside a JS string literal
+	// inside an onclick="..." attribute, and opts.phrase is another
+	// member's published phrase - real user-controlled content, not a
+	// uuid or enum. See authEscJs's own comment (auth/auth-ui.js) for why
+	// plain authEsc is not enough there.
+	var arg = function (s) { return authEscJs(String(s)) }
 	var o = '<div class="phraseRow" onclick="profileUsePhrase(&quot;'+arg(opts.phrase)+'&quot;, true, &quot;'+arg(opts.cipher || "")+'&quot;)" title="Send to the calculator">'
 	o += '<div class="phraseRowMain">'
 	o += '<div class="phraseRowTop">'
@@ -1492,14 +1532,12 @@ function profilePhraseRowHtml(opts) {
 	if (opts.sub) o += '<div class="phraseRowSub">'+opts.sub+'</div>'
 	o += '</div>'
 	o += '<div class="phraseRowReactions">'
-	// On a Leaders phrase tab, the reaction the tab is ranking by gets top
-	// billing - the other three stay reachable in the ordinary strip below,
-	// just not competing for the same visual weight as the one the list is
-	// actually sorted by.
-	if (opts.highlight) {
-		o += '<span class="phraseRowHighlight" title="'+authEsc(opts.highlight.label)+'">'
-		o += opts.highlight.icon+' <span class="phraseRowHighlightCount">'+opts.highlight.count+'</span></span>'
-	}
+	// Used to lead with a highlight pill for whichever reaction a Leaders
+	// tab ranks by (e.g. a 💚 count ahead of the strip on the Loved tab) -
+	// dropped once profileChipReactionsHtml grew its own TOTAL badge, which
+	// sat right next to it showing the same number a different way. The tab
+	// you're already on (Trending/Loved/Funny/CCRU) still says what it's
+	// ranked by; TOTAL is now the only "how many, at a glance" pill on the row.
 	o += profileChipReactionsHtml(opts.id)
 	o += '</div>'
 	o += '</div>'
@@ -1577,7 +1615,7 @@ function frFavPickerHtml(current) {
 		var col = (typeof profileCipherColor === "function") ? profileCipherColor(current[i]) : null
 		o += '<span class="frFav"' + (col ? ' style="color:' + col + ';border-color:' + col + '"' : '') + '>'
 		o += authEsc(current[i])
-		o += '<span class="frFavX" title="Remove" onclick="frRemoveFav(&quot;' + authEsc(current[i]).replace(/"/g, '&quot;') + '&quot;)">&#215;</span>'
+		o += '<span class="frFavX" title="Remove" onclick="frRemoveFav(&quot;' + authEscJs(current[i]) + '&quot;)">&#215;</span>'
 		o += '</span>'
 	}
 	if (current.length < 4) {
@@ -1693,11 +1731,15 @@ function renderProfileAccount() {
 function renderAccountPrivacy(tok) {
 	var host = document.getElementById("profileAccountPrivacy")
 	if (host === null) return
-	Promise.all([friendsPrivacyGet(), friendsRoleOptions()]).then(function (both) {
+	Promise.all([
+		friendsPrivacyGet(), friendsRoleOptions(),
+		(typeof forumNotifSettingGet === "function") ? forumNotifSettingGet() : Promise.resolve(true)
+	]).then(function (both) {
 		if (tok !== undefined && tok !== profileRenderSeq) return
 		host = document.getElementById("profileAccountPrivacy")
 		if (host === null) return
 		var s = both[0]
+		var forumNotifOn = both[2]
 		var o = ''
 
 		// One question, three answers, laid out as cards you press rather than
@@ -1731,6 +1773,13 @@ function renderAccountPrivacy(tok) {
 		o += frSwitch("show_mutuals", s.show_mutuals, "&#129309;", "Mutual friends", "")
 		o += frSwitch("show_friend_count", s.show_friend_count, "&#128101;", "How many friends I have", "")
 		o += '</div>'
+
+		o += '<div class="frPrivHead">&#128276; Notifications</div>'
+		o += '<div class="frSwitchGrid">'
+		o += frSwitch("forum_notifications", forumNotifOn, "&#127760;", "Global Forum Notifications",
+			"Receive a notification whenever somebody creates a new Forum topic.")
+		o += '</div>'
+		o += '<div class="frPrivFoot">Direct replies, @here mentions and topics you have opened notify you either way - this only covers brand new topics.</div>'
 
 		o += '<div class="frPrivFoot">&#128274; Your email address is never shown to anyone, whatever these are set to.</div>'
 		host.innerHTML = o
