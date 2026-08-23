@@ -182,6 +182,41 @@ function forumNotifMarkAllRead() {
 	return forumRpc("forum_notif_mark_all_read")
 }
 
+// Everything this topic was still notifying you about, marked read the
+// moment you open it - a notification exists to say "there is something
+// here you have not seen", and once you are looking at the thread that is
+// no longer true. Without this the badge stayed lit after you had read
+// the very message it was pointing at, and the only way to clear it was
+// to visit the notification list separately.
+//
+// A direct update rather than an RPC: forum_notifications' own policy
+// already restricts this to your own rows (forum_notif_update_own_read),
+// and the grant is column-scoped to `read` alone
+// (20260820120000_security_audit_fixes.sql), so the database is already
+// enforcing both "only your notifications" and "only the read flag".
+// There is nothing left for a function to check.
+//
+// Scoped to one topic on purpose. Opening one thread says nothing about
+// the others, and quietly clearing notifications for topics you have not
+// looked at would lose things you actually wanted to see.
+function forumNotifMarkTopicRead(topicId) {
+	var c = forumClient()
+	if (c === null || !topicId) return Promise.resolve(false)
+	return c.from("forum_notifications")
+		.update({ read: true })
+		.eq("recipient_id", authUser.id)
+		.eq("topic_id", topicId)
+		.eq("read", false)
+		.then(function (res) {
+			if (res.error) throw forumError(res.error)
+			forumNotifInvalidate()
+			return true
+		})
+		// a notification that fails to clear is not worth interrupting
+		// reading the topic for - it will clear on the next attempt
+		.catch(function () { return false })
+}
+
 var forumNotifCache = { at: 0, n: 0 }
 var FORUM_NOTIF_TTL = 15000
 

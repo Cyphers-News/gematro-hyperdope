@@ -212,6 +212,24 @@ function frRenderForumThread(id, tok) {
 		// fetched, not just the moment Forum (the list) was opened - clears
 		// [NEW] for a topic you open, keeps it for every topic you didn't.
 		if (typeof forumTopicMarkRead === "function") forumTopicMarkRead(id)
+		// Two separate "read" states, both settled here: the line above is
+		// the [NEW] marker on the topic row (forum_topic_reads), this one is
+		// the notification badge on Social (forum_notifications). They are
+		// different tables and were never linked, which is why the badge
+		// kept burning after you had read the message it pointed at.
+		if (typeof forumNotifMarkTopicRead === "function") {
+			forumNotifMarkTopicRead(id).then(function (cleared) {
+				if (!cleared) return
+				// refresh the badge from the server rather than guessing a new
+				// number, then repaint it wherever it shows
+				if (typeof forumNotifCountCached === "function") forumNotifCountCached(true)
+				if (typeof friendsBadgeCounts === "function") {
+					friendsBadgeCounts(true).then(function () {
+						if (typeof friendsRefreshBadge === "function") friendsRefreshBadge()
+					})
+				}
+			})
+		}
 		return forumMessageReactionCounts(msgs.map(function (m) { return m.id })).then(function (reactions) {
 			Object.keys(reactions).forEach(function (mid) { profileContribReactions[mid] = reactions[mid] })
 			var o = '<div class="frChatHead">'
