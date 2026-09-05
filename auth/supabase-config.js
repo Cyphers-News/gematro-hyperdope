@@ -19,6 +19,7 @@ var SUPABASE_ANON_KEY = "sb_publishable_7_PpZJAZKxxw8qCYSlQ66Q_MzCUSp4_"
 // clicking a password-reset link. Derived from wherever the site is served, so
 // it works on localhost and on cyphers.news without editing.
 function authSiteUrl(path) {
+	if (window.CyphersNative) return "news.cyphers.app://auth/" + (path || "index.html")
 	var base = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, "/")
 	return base + (path || "")
 }
