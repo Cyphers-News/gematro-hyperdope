@@ -53,6 +53,39 @@ cipherList = [
 		false
 	),
 
+	// Standard minus Alphanumeric Qabbala, divided by 9 - the two ciphers it
+	// is built from are its neighbours here, which is why it is pinned next
+	// to them rather than left to fall wherever the file order puts it.
+	//
+	// Worked through for one letter: h is 8 in Standard and 17 in AQ, so
+	// 8 - 17 = -9, and -9 / 9 = -1. Every letter divides by 9 exactly, which
+	// is the whole point of the /9 step - the raw difference is 9x this
+	// table (a..j = -9, k = 0, l = 9 ... y = 666, z = 765) and carries no
+	// extra information.
+	//
+	// "hello" = -1 -1 +1 +1 +4 = 4, the same 4 that comes out of doing it
+	// the long way round: Standard 133 - AQ 97 = 36, 36 / 9 = 4.
+	//
+	// a..j are negative and k is 0, so unlike every other cipher here a
+	// phrase can total zero or less ("cabbage" is -3). That is correct
+	// arithmetic, not a bug: reductionChain (calc.js) leaves anything at or
+	// below 9 alone, so a negative total simply does not reduce.
+	//
+	// Letters only, no digits - Standard has none, so the subtraction is
+	// only defined across a-z.
+	new cipher(
+		"Based Atlanteanism",
+		"CCRU",
+		165, 48, 58,
+		[97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
+		[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,1,2,3,4,5,6,7,8,19,30,41,52,63,74,85],
+		true,
+		false,
+		false,
+		// shows the working in the breakdown box: ((133 - 97) = 36) / 9 = 4
+		{ from: "Standard", minus: "Alphanumeric Qabbala", over: 9 }
+	),
+
 	new cipher(
 		"Standard Alternative",
 		"Extra",
@@ -2087,7 +2120,10 @@ var cipherPinnedOrder = [
 	// Standard moved into CCRU from Extra - pinned right after Synx rather than
 	// alphabetised, since CCRU is not in alphabeticalCipherCategories. Anything
 	// not named here (Numeric QWERTY, QWERTY) keeps its existing relative order.
-	{ category: "CCRU", names: ["Alphanumeric Qabbala", "Synx", "Standard"] },
+	// Based Atlanteanism last of the pinned four, directly after the two it is
+	// derived from (Standard minus Alphanumeric Qabbala, over 9) - reading the
+	// category top to bottom now goes parents, then child.
+	{ category: "CCRU", names: ["Alphanumeric Qabbala", "Synx", "Standard", "Based Atlanteanism"] },
 	// Archaic Alphanumeric pinned to lead the category on request, even though
 	// true alphabetical order (which Alphanumeric otherwise follows, see
 	// alphabeticalCipherCategories above) would put it after the "Alphanumeric

@@ -1157,6 +1157,33 @@ body {
    letters (.BreakShort) get white sums, which is just .BreakWordSum's base
    colour below with no override needed here. */
 /* the cypher name under the grid - shown only in the classic (.breakdownTinted) look */
+/* A derived cipher's breakdown (derivedBreakdownHtml, breakdown.js): the
+   working that produced the total, in place of the letter/value grid.
+   Monospace so the digits line up as an equation rather than drifting like
+   prose, and sized to sit between the letters (110%) and the total (150%)
+   the ordinary box uses. */
+.BreakDerivation {
+	text-align: center;
+	padding: 0.35em 0.6em 0.1em 0.6em;
+	font-family: var(--font-family-mono), "Arial", sans-serif;
+	font-size: 125%;
+	font-weight: 500;
+	white-space: nowrap;
+}
+/* the operands, in the cypher's own colour (set inline, same as .BreakChar) */
+.BreakDerivNum { font-weight: 600; }
+/* brackets, minus, slash and equals - structure, not content, so they stay
+   out of the way of the numbers they join */
+.BreakDerivOp { color: var(--font-white-3); font-weight: 400; }
+/* the answer, matching the scale the ordinary box gives its total */
+.BreakDerivResult { font-size: 140%; font-weight: 700; }
+/* the equation can outgrow a narrow screen; it shrinks rather than forcing
+   the whole box to scroll sideways */
+@media (max-width: 620px) {
+	.BreakDerivation { font-size: 105%; }
+	.BreakDerivResult { font-size: 130%; }
+}
+
 .BreakCipherName {
 	text-align: center;
 	font-size: 100%;

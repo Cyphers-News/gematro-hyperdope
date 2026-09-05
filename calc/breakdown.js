@@ -10,6 +10,59 @@ function gemCalcModeLabel(curCipher) {
 	return ""
 }
 
+// The breakdown box for a cipher that declares a `derivation` (see the cipher
+// class, calc/gematria.js): instead of the letter/value grid, it shows the
+// arithmetic the cipher's values came from -
+//
+//   ((133 - 97) = 36) / 9 = 4
+//
+// where 133 and 97 are the phrase in the two source ciphers. Those are read
+// with calcGematria(), which is a pure read of cArr/vArr - it does not touch
+// cp/cv/sumArr, so asking Standard and Alphanumeric Qabbala for a number here
+// cannot disturb their own breakdowns.
+//
+// Returns null whenever the working cannot be shown honestly, and the caller
+// then falls back to the ordinary grid:
+//   * either source cipher is missing or is a wheel (symbol) cipher
+//   * the arithmetic does not come out - see the check below
+//
+// That last one is the important one. The identity holds under the ordinary
+// modes, including multiply-by-position, because those are linear and the
+// factor of 9 divides straight back out. Rather than reason about which
+// future mode might break it, this simply verifies the sum it is about to
+// display and stands down if it does not match the real total.
+function derivedBreakdownHtml(curCipher, phrase, total, RTLclass, tintClass, tintStyle, curCiphCol, cipherNameFooter) {
+	var d = curCipher.derivation
+	if (!d) return null
+
+	var src = null, sub = null
+	for (var i = 0; i < cipherList.length; i++) {
+		if (cipherList[i].cipherName === d.from) src = cipherList[i]
+		if (cipherList[i].cipherName === d.minus) sub = cipherList[i]
+	}
+	if (src === null || sub === null) return null
+	if (src.wheelCipher || sub.wheelCipher) return null
+
+	var a = src.calcGematria(phrase)
+	var b = sub.calcGematria(phrase)
+	if (typeof a !== "number" || typeof b !== "number") return null
+
+	var diff = a - b
+	var over = d.over || 1
+	if (diff / over !== total) return null // working does not match the real sum
+
+	var op = '<span class="BreakDerivOp">'
+	var num = '<span class="BreakDerivNum" style="'+curCiphCol+'">'
+	var o = ''
+	o += '</div><div id="BreakTableContainer" class="'+RTLclass+tintClass+' BreakShort BreakDerivedBox"'+tintStyle+' onclick="breakdownBoxClick(event)">'
+	o += '<div class="BreakDerivation">'
+	o += op + '((</span>' + num + a + '</span>' + op + ' - </span>' + num + b + '</span>' + op + ') = </span>' + num + diff + '</span>' + op + ')</span>'
+	if (over !== 1) o += op + ' / </span>' + num + over + '</span>'
+	o += op + ' = </span><span class="BreakDerivResult" style="'+curCiphCol+'">' + total + '</span>'
+	o += '</div>' + cipherNameFooter + '</div>'
+	return o
+}
+
 function updateWordBreakdown(impName = breakCipher, impBool = false, chartUpd = true) { // false - preview temporary (hover), true - lock breakdown to a specific cipher
 	var x, curCipher, curCiphCol, cSpot
 	var o, acw, acl
@@ -129,7 +182,19 @@ function updateWordBreakdown(impName = breakCipher, impBool = false, chartUpd = 
 			oStart += '<span class="breakCipher"><font style="'+curCiphCol+'"> (' + curCipher.cipherName + gemCalcModeLabel(curCipher) + ')</font></span>'
 		}
 
-		if (optWordBreakdown == true && !curCipher.wheelCipher && curCipher.cp.length <= chLimit ) { // character limit, calculated even if out of screen bounds
+		// A derived cipher explains itself instead of listing letters - the
+		// working IS the interesting part, and the per-letter values (-1, -1,
+		// 1, 1, 4) say far less than seeing 133 - 97 come out as 36. Falls
+		// through to the ordinary grid whenever the working cannot be shown
+		// (see derivedBreakdownHtml).
+		var derivedHtml = (optWordBreakdown == true && !curCipher.wheelCipher)
+			? derivedBreakdownHtml(curCipher, breakPhraseText, breakPhraseTotal, RTLclass, tintClass, tintStyle, curCiphCol, cipherNameFooter)
+			: null
+
+		if (derivedHtml !== null) {
+			o += derivedHtml
+			o = oStart + o // prepend phrase, word/letter count
+		} else if (optWordBreakdown == true && !curCipher.wheelCipher && curCipher.cp.length <= chLimit ) { // character limit, calculated even if out of screen bounds
 			var tdCount = 0; var wCount = 0;
 
 			o += '</div><div id="BreakTableContainer" class="'+RTLclass+tintClass+' BreakShort"'+tintStyle+' onclick="breakdownBoxClick(event)"><table class="BreakTable">'

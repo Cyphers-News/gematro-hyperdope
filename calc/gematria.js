@@ -1,7 +1,7 @@
 // ========================== Cipher Class ==========================
 
 class cipher { // cipher constructor class
-	constructor(ciphName, ciphCategory, col_H, col_S, col_L, ciphCharacterSet, ciphValues, diacriticsAsRegular = true, ciphEnabled = false, caseSensitive = false) {
+	constructor(ciphName, ciphCategory, col_H, col_S, col_L, ciphCharacterSet, ciphValues, diacriticsAsRegular = true, ciphEnabled = false, caseSensitive = false, derivation = null) {
 		this.cipherName = ciphName // cipher name
 		this.cipherCategory = ciphCategory // cipher category
 		this.H = col_H // hue
@@ -12,6 +12,19 @@ class cipher { // cipher constructor class
 		this.diacriticsAsRegular = diacriticsAsRegular // if true, characters with diactritic marks have the same value as regular ones
 		this.caseSensitive = caseSensitive // capital letters have different values
 		this.enabled = ciphEnabled // cipher state on/off
+
+		// Optional. A cipher whose values were worked out from two other
+		// ciphers can say so here, and the breakdown box shows the sum being
+		// derived rather than just its answer:
+		//
+		//   { from: "Standard", minus: "Alphanumeric Qabbala", over: 9 }
+		//   -> ((133 - 97) = 36) / 9 = 4
+		//
+		// Purely a display of arithmetic that already holds: the values in
+		// vArr are the real ones and are what actually gets summed. Nothing
+		// here changes a result, so a cipher that loses this property still
+		// calculates identically - it just stops explaining itself.
+		this.derivation = derivation
 		this.cp = []; this.cv = []; this.sumArr = [] // cp - character position, cv - character value, sumArr - phrase gematria value
 
 		// A "wheel" cipher substitutes symbols rather than adding numbers, so its
