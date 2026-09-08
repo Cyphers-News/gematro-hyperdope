@@ -53,37 +53,79 @@ cipherList = [
 		false
 	),
 
-	// Standard minus Alphanumeric Qabbala, divided by 9 - the two ciphers it
-	// is built from are its neighbours here, which is why it is pinned next
-	// to them rather than left to fall wherever the file order puts it.
+	// Based Atlanteanism with the divide applied - Standard minus Alphanumeric
+	// Qabbala, over 9. The two ciphers it is built from are its neighbours
+	// here, which is why it is pinned beside them rather than left to fall
+	// wherever the file order puts it.
 	//
 	// Worked through for one letter: h is 8 in Standard and 17 in AQ, so
-	// 8 - 17 = -9, and -9 / 9 = -1. Every letter divides by 9 exactly, which
-	// is the whole point of the /9 step - the raw difference is 9x this
-	// table (a..j = -9, k = 0, l = 9 ... y = 666, z = 765) and carries no
-	// extra information.
+	// 8 - 17 = -9, and -9 / 9 = -1. Every letter divides by 9 exactly, so
+	// this table is the undivided one (a..j = -9 ... y = 666, z = 765) to
+	// scale, carrying the same information in smaller numbers.
 	//
 	// "hello" = -1 -1 +1 +1 +4 = 4, the same 4 that comes out of doing it
 	// the long way round: Standard 133 - AQ 97 = 36, 36 / 9 = 4.
 	//
 	// a..j are negative and k is 0, so unlike every other cipher here a
-	// phrase can total zero or less ("cabbage" is -3). That is correct
+	// phrase can total zero or less ("cabbage" is -7). That is correct
 	// arithmetic, not a bug: reductionChain (calc.js) leaves anything at or
 	// below 9 alone, so a negative total simply does not reduce.
 	//
-	// Letters only, no digits - Standard has none, so the subtraction is
-	// only defined across a-z.
+	// Digits are 0 rather than absent. Standard has no digits and falls back
+	// to face value, Alphanumeric Qabbala defines them AS face value, so the
+	// two cancel - the subtraction genuinely gives nothing for a digit. Left
+	// out of the table, the app's own face-value fallback would have added
+	// them unscaled and broken the 9x relationship with the cipher below.
 	new cipher(
-		"Based Atlanteanism",
+		"Based Atlanteanism Reduced",
 		"CCRU",
-		165, 48, 58,
-		[97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
-		[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,1,2,3,4,5,6,7,8,19,30,41,52,63,74,85],
+		// vivid green against Based Atlanteanism's teal - the saturation is
+		// what does the work here rather than hue alone, since the two QWERTY
+		// ciphers already sit at 120 and a merely-greenish teal collided with
+		// them. Furthest-apart option from every other cipher in the category.
+		130, 78, 50,
+		[48,49,50,51,52,53,54,55,56,57,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
+		[0,0,0,0,0,0,0,0,0,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,1,2,3,4,5,6,7,8,19,30,41,52,63,74,85],
 		true,
 		false,
 		false,
 		// shows the working in the breakdown box: ((133 - 97) = 36) / 9 = 4
 		{ from: "Standard", minus: "Alphanumeric Qabbala", over: 9 }
+	),
+
+	// Based Atlanteanism proper: Standard minus Alphanumeric Qabbala, with no
+	// divide. This is the headline cipher of the pair - "truth" is 666 here
+	// and 74 in the Reduced one above, and the 666 is the number people are
+	// actually looking for. Same for "Remigration Spirit".
+	//
+	// A separate cipher rather than a second number bolted onto the Reduced
+	// one, because every part of the app that looks up a value - Matches, the
+	// database query, encoding, export - walks the enabled ciphers and asks
+	// each for calcGematria(). Being an ordinary cipher makes this searchable
+	// everywhere for free; teaching one cipher to report two numbers would
+	// mean changing all of those instead.
+	//
+	// Worth knowing: this and Reduced are the same cipher to scale, so they
+	// always agree on WHICH phrases match - searching 666 here returns the
+	// same set as searching 74 there. The difference is what the number
+	// looks like, not what it finds.
+	//
+	// Note y is 666 on its own, so a phrase that is just "y" scores it too.
+	new cipher(
+		"Based Atlanteanism",
+		"CCRU",
+		// deeper, more saturated teal: far enough from Reduced's green (135)
+		// to read as a different cipher at a glance, and pulled off Synx's
+		// pale cyan (180 44% 66%) in hue, saturation and lightness at once,
+		// since those two sit side by side in this category
+		162, 62, 56,
+		[48,49,50,51,52,53,54,55,56,57,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
+		[0,0,0,0,0,0,0,0,0,0,-9,-9,-9,-9,-9,-9,-9,-9,-9,-9,0,9,18,27,36,45,54,63,72,171,270,369,468,567,666,765],
+		true,
+		false,
+		false,
+		// no `over`, so the box reads (798 - 132) = 666 with no divide step
+		{ from: "Standard", minus: "Alphanumeric Qabbala" }
 	),
 
 	new cipher(
@@ -2123,7 +2165,7 @@ var cipherPinnedOrder = [
 	// Based Atlanteanism last of the pinned four, directly after the two it is
 	// derived from (Standard minus Alphanumeric Qabbala, over 9) - reading the
 	// category top to bottom now goes parents, then child.
-	{ category: "CCRU", names: ["Alphanumeric Qabbala", "Synx", "Standard", "Based Atlanteanism"] },
+	{ category: "CCRU", names: ["Alphanumeric Qabbala", "Synx", "Standard", "Based Atlanteanism", "Based Atlanteanism Reduced"] },
 	// Archaic Alphanumeric pinned to lead the category on request, even though
 	// true alphabetical order (which Alphanumeric otherwise follows, see
 	// alphabeticalCipherCategories above) would put it after the "Alphanumeric

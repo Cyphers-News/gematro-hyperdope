@@ -54,10 +54,21 @@ function derivedBreakdownHtml(curCipher, phrase, total, RTLclass, tintClass, tin
 	var op = '<span class="BreakDerivOp">'
 	var num = '<span class="BreakDerivNum" style="'+curCiphCol+'">'
 	var o = ''
-	o += '</div><div id="BreakTableContainer" class="'+RTLclass+tintClass+' BreakShort BreakDerivedBox"'+tintStyle+' onclick="breakdownBoxClick(event)">'
+	o += '<div id="BreakTableContainer" class="'+RTLclass+tintClass+' BreakShort BreakDerivedBox"'+tintStyle+' onclick="breakdownBoxClick(event)">'
 	o += '<div class="BreakDerivation">'
-	o += op + '((</span>' + num + a + '</span>' + op + ' - </span>' + num + b + '</span>' + op + ') = </span>' + num + diff + '</span>' + op + ')</span>'
-	if (over !== 1) o += op + ' / </span>' + num + over + '</span>'
+
+	if (over !== 1) {
+		// ((798 - 132) = 666) / 9 = 74 - the difference is worth naming on its
+		// own here, since it is the number the divide is about to consume
+		o += op + '((</span>' + num + a + '</span>' + op + ' - </span>' + num + b + '</span>' +
+			op + ') = </span>' + num + diff + '</span>' + op + ')</span>'
+		o += op + ' / </span>' + num + over + '</span>'
+	} else {
+		// (798 - 132) = 666 - with nothing after it, restating the difference
+		// as the result would just print 666 twice
+		o += op + '(</span>' + num + a + '</span>' + op + ' - </span>' + num + b + '</span>' + op + ')</span>'
+	}
+
 	o += op + ' = </span><span class="BreakDerivResult" style="'+curCiphCol+'">' + total + '</span>'
 	o += '</div>' + cipherNameFooter + '</div>'
 	return o
@@ -192,7 +203,8 @@ function updateWordBreakdown(impName = breakCipher, impBool = false, chartUpd = 
 			: null
 
 		if (derivedHtml !== null) {
-			o += derivedHtml
+			// the leading </div> closes #SimpleBreak, opened in oStart above
+			o += '</div>' + derivedHtml
 			o = oStart + o // prepend phrase, word/letter count
 		} else if (optWordBreakdown == true && !curCipher.wheelCipher && curCipher.cp.length <= chLimit ) { // character limit, calculated even if out of screen bounds
 			var tdCount = 0; var wCount = 0;
@@ -350,6 +362,17 @@ function updateWordBreakdown(impName = breakCipher, impBool = false, chartUpd = 
 				o += '<div style="padding: 0.5em"></div>'
 			}
 		}
+	} else if (curCipher.derivation && optWordBreakdown == true && !curCipher.wheelCipher) {
+		// Nothing typed yet. Every other cipher has nothing to say at this point
+		// - an empty grid of letters is just an empty box - but a derived one
+		// still has its shape to show, and ((0 - 0) = 0) / 9 = 0 reads as "this
+		// is what this cipher does", which is worth more than blank space while
+		// the phrase box is empty.
+		//
+		// No letter/word counter or phrase line above it: there is no phrase to
+		// count, so the box stands on its own.
+		o = derivedBreakdownHtml(curCipher, "", 0, "", tintClass, tintStyle, curCiphCol, cipherNameFooter)
+		if (o === null) o = ""
 	} else {
 		o = ""
 	}
