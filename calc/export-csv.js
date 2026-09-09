@@ -391,6 +391,11 @@ function exportCurrentDBquery(arr) {
 }
 
 function download(fileName, fileData) {
+	if (window.CyphersNative) {
+		return window.CyphersNative.saveFile(fileName, fileData).catch(function () {
+			if (typeof displayCalcNotification === "function") displayCalcNotification("Export was not saved. Try again and choose Save to Files or a sharing app.");
+		});
+	}
 	var element = document.createElement('a'); // create invisible <a> element
 	//element.setAttribute('href', 'data:text/plain;charset=utf-8, '+encodeURIComponent(filedata));
 

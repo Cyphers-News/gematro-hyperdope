@@ -26,7 +26,8 @@ function getAuthClient() {
 		auth: {
 			persistSession: true,      // stay signed in across reloads
 			autoRefreshToken: true,    // renew before the JWT expires
-			detectSessionInUrl: true   // consume the token in the OAuth/reset redirect
+			detectSessionInUrl: !window.CyphersNative,
+			flowType: window.CyphersNative ? "pkce" : "implicit"
 		}
 	})
 	return authClient
@@ -204,10 +205,14 @@ function authSignInWithDiscord() {
 		provider: "discord",
 		options: {
 			redirectTo: authSiteUrl("index.html"),
-			scopes: "identify email"
+			scopes: "identify email",
+			skipBrowserRedirect: !!window.CyphersNative
 		}
 	}).then(function (res) {
 		if (res.error) throw res.error
+		if (window.CyphersNative && res.data && res.data.url) {
+			return window.CyphersNative.openAuth(res.data.url).then(function () { return res.data })
+		}
 		return res.data
 	})
 }
@@ -221,9 +226,12 @@ function authLinkDiscord() {
 	if (!client.auth.linkIdentity) return Promise.reject(new Error("This Supabase version does not support identity linking."))
 	return client.auth.linkIdentity({
 		provider: "discord",
-		options: { redirectTo: authSiteUrl("index.html") }
+		options: { redirectTo: authSiteUrl("index.html"), skipBrowserRedirect: !!window.CyphersNative }
 	}).then(function (res) {
 		if (res.error) throw res.error
+		if (window.CyphersNative && res.data && res.data.url) {
+			return window.CyphersNative.openAuth(res.data.url).then(function () { return res.data })
+		}
 		return res.data
 	})
 }

@@ -1,0 +1,8 @@
+{
+  "appId": "news.cyphers.app",
+  "appName": "Cyphers",
+  "webDir": "www",
+  "backgroundColor": "#202631",
+  "ios": { "contentInset": "automatic" },
+  "android": { "allowMixedContent": false }
+}

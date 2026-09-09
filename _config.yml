@@ -27,6 +27,19 @@
 # this file is being pushed in the middle of debugging a failed deployment and
 # is not the place for anything that needs a second look to confirm.
 exclude:
+  - android/
+  - ios/
+  - scripts/
+  - tests/
+  - dist/
+  - www/
+  - app/native.mjs
+  - app/native-auth.mjs
+  - capacitor.config.json
+  - package.json
+  - pnpm-lock.yaml
+  - pnpm-workspace.yaml
+  - APP-RELEASE.md
   - supabase/
   - .claude/
   - AUTH-SETUP.md
