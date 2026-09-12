@@ -77,7 +77,7 @@ cipherList = [
 	// out of the table, the app's own face-value fallback would have added
 	// them unscaled and broken the 9x relationship with the cipher below.
 	new cipher(
-		"Based Atlanteanism Reduced",
+		"Based Atlanteanism Denovated",
 		"CCRU",
 		// vivid green against Based Atlanteanism's teal - the saturation is
 		// what does the work here rather than hue alone, since the two QWERTY
@@ -95,7 +95,7 @@ cipherList = [
 
 	// Based Atlanteanism proper: Standard minus Alphanumeric Qabbala, with no
 	// divide. This is the headline cipher of the pair - "truth" is 666 here
-	// and 74 in the Reduced one above, and the 666 is the number people are
+	// and 74 in the Denovated one above, and the 666 is the number people are
 	// actually looking for. Same for "Remigration Spirit".
 	//
 	// A separate cipher rather than a second number bolted onto the Reduced
@@ -105,7 +105,7 @@ cipherList = [
 	// everywhere for free; teaching one cipher to report two numbers would
 	// mean changing all of those instead.
 	//
-	// Worth knowing: this and Reduced are the same cipher to scale, so they
+	// Worth knowing: this and Denovated are the same cipher to scale, so they
 	// always agree on WHICH phrases match - searching 666 here returns the
 	// same set as searching 74 there. The difference is what the number
 	// looks like, not what it finds.
@@ -114,7 +114,7 @@ cipherList = [
 	new cipher(
 		"Based Atlanteanism",
 		"CCRU",
-		// deeper, more saturated teal: far enough from Reduced's green (135)
+		// deeper, more saturated teal: far enough from Denovated's green
 		// to read as a different cipher at a glance, and pulled off Synx's
 		// pale cyan (180 44% 66%) in hue, saturation and lightness at once,
 		// since those two sit side by side in this category
@@ -2165,7 +2165,7 @@ var cipherPinnedOrder = [
 	// Based Atlanteanism last of the pinned four, directly after the two it is
 	// derived from (Standard minus Alphanumeric Qabbala, over 9) - reading the
 	// category top to bottom now goes parents, then child.
-	{ category: "CCRU", names: ["Alphanumeric Qabbala", "Synx", "Standard", "Based Atlanteanism", "Based Atlanteanism Reduced"] },
+	{ category: "CCRU", names: ["Alphanumeric Qabbala", "Synx", "Standard", "Based Atlanteanism", "Based Atlanteanism Denovated"] },
 	// Archaic Alphanumeric pinned to lead the category on request, even though
 	// true alphabetical order (which Alphanumeric otherwise follows, see
 	// alphabeticalCipherCategories above) would put it after the "Alphanumeric
@@ -2223,7 +2223,11 @@ var builtinCipherArgs = cipherList.map(function (c) {
 	return [
 		c.cipherName, c.cipherCategory, c.H, c.S, c.L,
 		c.cArr.slice(), c.vArr.slice(),
-		c.diacriticsAsRegular, c.enabled, c.caseSensitive
+		c.diacriticsAsRegular, c.enabled, c.caseSensitive,
+		// carried through too, or a cipher re-added to a restored workspace
+		// comes back without its working shown - the values would be right
+		// and the breakdown box would quietly fall back to the letter grid
+		c.derivation
 	]
 })
 
@@ -2234,8 +2238,90 @@ var builtinCipherArgs = cipherList.map(function (c) {
 // The trade-off: a built-in the user deliberately deleted comes back on the
 // next load. That is the cost of ever being able to ship a new cipher, and
 // deleting it again is one click, so it lands on the recoverable side.
+// A cipher that shipped under one name and now ships under another.
+//
+// Renaming a built-in is normally invisible to anyone who has used the site
+// before: their stored blob still holds the old name, the merge below only
+// adds names it does not already have, and so the new definition never
+// arrives. Worse when the old name gets reused - "Based Atlanteanism" used to
+// be the divided cipher and is now the undivided one, so a returning member
+// ended up with their old 74 sitting under the new name and the real 666
+// nowhere, because the name was already taken.
+//
+// Renaming their copy frees the name, and the merge then adds the current
+// cipher normally. Their values, colour and enabled state are all kept - this
+// only changes what the thing is called.
+//
+// Deliberately narrow: it fires only when the stored letter values are
+// exactly the ones that shipped under the old name. A cipher the member built
+// or retuned themselves does not match, and is left alone.
+var cipherRenames = [
+	{
+		from: "Based Atlanteanism",
+		to: "Based Atlanteanism Denovated",
+		// a..z as the divided cipher has always had them
+		letterValues: [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,1,2,3,4,5,6,7,8,19,30,41,52,63,74,85]
+	}
+]
+
+// a..z values in order, ignoring any other characters the table may carry
+// (digits were added to these ciphers later, so a stored copy may predate them)
+function cipherLetterValues(c) {
+	var out = []
+	for (var code = 97; code <= 122; code++) {
+		var at = c.cArr.indexOf(code)
+		if (at === -1) return null
+		out.push(c.vArr[at])
+	}
+	return out
+}
+
+function applyCipherRenames() {
+	var renamed = 0
+	for (var r = 0; r < cipherRenames.length; r++) {
+		var rule = cipherRenames[r]
+		for (var i = 0; i < cipherList.length; i++) {
+			var c = cipherList[i]
+			if (c.cipherName !== rule.from) continue
+			var vals = cipherLetterValues(c)
+			if (vals === null || vals.join(",") !== rule.letterValues.join(",")) continue
+			// do not collide with a copy already carrying the new name
+			var taken = false
+			for (var k = 0; k < cipherList.length; k++) {
+				if (k !== i && cipherList[k].cipherName === rule.to) taken = true
+			}
+			if (taken) break
+			c.cipherName = rule.to
+
+			// The letter values matching exactly is proof this is the shipped
+			// cipher under its old name, so bring the rest of it up to date
+			// too: digits (added later, and 0 rather than absent - see the
+			// cipher's own note) and the derivation that draws the working.
+			// Colour and enabled state stay as the member left them; only the
+			// parts that define what the cipher IS are refreshed.
+			if (typeof builtinCipherArgs !== "undefined") {
+				for (var d = 0; d < builtinCipherArgs.length; d++) {
+					var def = builtinCipherArgs[d]
+					if (def[0] !== rule.to) continue
+					c.cArr = def[5].slice()
+					c.vArr = def[6].slice()
+					c.derivation = def[10]
+					break
+				}
+			}
+
+			renamed++
+			break
+		}
+	}
+	return renamed
+}
+
 function mergeBuiltinCiphers() {
 	if (typeof builtinCipherArgs === "undefined") return 0
+
+	// before anything is matched by name, settle any names that moved
+	applyCipherRenames()
 
 	var byName = {}
 	for (var b = 0; b < builtinCipherArgs.length; b++) byName[builtinCipherArgs[b][0]] = builtinCipherArgs[b]
@@ -2262,7 +2348,7 @@ function mergeBuiltinCiphers() {
 	for (var j = 0; j < builtinCipherArgs.length; j++) {
 		var a = builtinCipherArgs[j]
 		if (have[a[0]]) continue
-		cipherList.push(new cipher(a[0], a[1], a[2], a[3], a[4], a[5].slice(), a[6].slice(), a[7], a[8], a[9]))
+		cipherList.push(new cipher(a[0], a[1], a[2], a[3], a[4], a[5].slice(), a[6].slice(), a[7], a[8], a[9], a[10]))
 		added++
 	}
 	return added
