@@ -79,11 +79,18 @@ cipherList = [
 	new cipher(
 		"Based Atlanteanism Denovated",
 		"CCRU",
-		// vivid green against Based Atlanteanism's teal - the saturation is
-		// what does the work here rather than hue alone, since the two QWERTY
-		// ciphers already sit at 120 and a merely-greenish teal collided with
-		// them. Furthest-apart option from every other cipher in the category.
-		130, 78, 50,
+		// #3dffe5 - bright aquamarine, a lighter teal than Based Atlanteanism
+		// (162 62% 56%) sitting next to it. Distances: Based Atlanteanism 73,
+		// Reverse Reduction 75, Synx 87, Reduction 104, Reverse Ordinal 122,
+		// Ordinal 142.
+		//
+		// Light teal is the most crowded part of this palette - Synx and
+		// Reverse Reduction are both pale cyan at L66/69 - so full saturation
+		// is what keeps this readable as its own colour. Going lighter still
+		// collapses into Reverse Reduction: L68 drops the nearest neighbour to
+		// 49 and L70 to 36, at which point the two are hard to tell apart.
+		// L62 is about as light as this can go and stay distinct.
+		172, 100, 62,
 		[48,49,50,51,52,53,54,55,56,57,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
 		[0,0,0,0,0,0,0,0,0,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,1,2,3,4,5,6,7,8,19,30,41,52,63,74,85],
 		true,
@@ -2255,13 +2262,16 @@ var builtinCipherArgs = cipherList.map(function (c) {
 // Deliberately narrow: it fires only when the stored letter values are
 // exactly the ones that shipped under the old name. A cipher the member built
 // or retuned themselves does not match, and is left alone.
+// The divided cipher's a..z values, which have never changed - only the name
+// on the front of them has. Used to recognise a stored copy whatever it is
+// currently called.
+var BASED_ATLANTEANISM_DIVIDED = [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,1,2,3,4,5,6,7,8,19,30,41,52,63,74,85]
+
 var cipherRenames = [
-	{
-		from: "Based Atlanteanism",
-		to: "Based Atlanteanism Denovated",
-		// a..z as the divided cipher has always had them
-		letterValues: [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,1,2,3,4,5,6,7,8,19,30,41,52,63,74,85]
-	}
+	{ from: "Based Atlanteanism",         to: "Based Atlanteanism Denovated", letterValues: BASED_ATLANTEANISM_DIVIDED },
+	// briefly shipped as "Reduced" before the name settled on "Denovated";
+	// anyone who loaded the site in between has a copy of it saved
+	{ from: "Based Atlanteanism Reduced", to: "Based Atlanteanism Denovated", letterValues: BASED_ATLANTEANISM_DIVIDED }
 ]
 
 // a..z values in order, ignoring any other characters the table may carry
@@ -2285,12 +2295,20 @@ function applyCipherRenames() {
 			if (c.cipherName !== rule.from) continue
 			var vals = cipherLetterValues(c)
 			if (vals === null || vals.join(",") !== rule.letterValues.join(",")) continue
-			// do not collide with a copy already carrying the new name
+			// Already a copy under the new name? Then this one is a leftover
+			// of the same cipher under a name that is no longer shipped, and
+			// keeping it would leave the member with the thing listed twice.
+			// Safe to drop precisely because the values matched: it is not
+			// something they built, it is our cipher wearing an old label.
 			var taken = false
 			for (var k = 0; k < cipherList.length; k++) {
 				if (k !== i && cipherList[k].cipherName === rule.to) taken = true
 			}
-			if (taken) break
+			if (taken) {
+				cipherList.splice(i, 1)
+				renamed++
+				break
+			}
 			c.cipherName = rule.to
 
 			// The letter values matching exactly is proof this is the shipped

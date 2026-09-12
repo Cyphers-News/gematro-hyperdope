@@ -1026,11 +1026,18 @@ body {
 	padding: 0em 0.6em 0em 0em;
 	white-space: nowrap;
 }
+/* Cypher names in the Cyphers menu. nowrap used to clip anything wider than
+   the column: .ciphersContent is overflow-x hidden, so a long name such as
+   "Based Atlanteanism Denovated" simply had its tail cut off with no way to
+   read it. Wrapping instead - the label already carries the left padding that
+   makes room for the checkbox, so a second line lines up under the first
+   rather than sliding back under the box. */
 .ciphCheckboxLabel2 {
 	font-size: 100%;
 	font-weight: 500;
 	padding: 0em 0em 0em 0.1em;
-	white-space: nowrap;
+	white-space: normal;
+	overflow-wrap: anywhere;
 }
 .dragOver {
 	border: 1px solid var(--drag-highlight-border) !important;
