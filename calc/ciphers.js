@@ -90,7 +90,7 @@ cipherList = [
 		// collapses into Reverse Reduction: L68 drops the nearest neighbour to
 		// 49 and L70 to 36, at which point the two are hard to tell apart.
 		// L62 is about as light as this can go and stay distinct.
-		162, 62, 56,
+		156, 80, 62,
 		[48,49,50,51,52,53,54,55,56,57,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
 		[0,0,0,0,0,0,0,0,0,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,1,2,3,4,5,6,7,8,19,30,41,52,63,74,85],
 		true,
@@ -2274,6 +2274,50 @@ var cipherRenames = [
 	{ from: "Based Atlanteanism Reduced", to: "Based Atlanteanism Denovated", letterValues: BASED_ATLANTEANISM_DIVIDED }
 ]
 
+// Colours a cipher has shipped with in the past.
+//
+// A stored workspace pins the colour it was saved with, and mergeBuiltinCiphers
+// below deliberately never overwrites one - members recolour ciphers on purpose
+// (Color Controls) and having that undone on the next load would be worse than
+// a stale colour. The cost is that a colour corrected after release never
+// reaches anyone who has used the site before.
+//
+// These two ciphers went through several colours while their naming settled,
+// so the ones below are listed explicitly: a stored cipher still wearing any
+// of them was never recoloured by hand and is safe to bring up to date. Pick
+// a colour of your own and it matches nothing here, so it stays.
+var cipherPastColours = {
+	"Based Atlanteanism":           [[165,48,58],[150,48,58],[196,100,54],[130,78,50],[162,62,56]],
+	"Based Atlanteanism Denovated": [[165,48,58],[135,55,55],[130,78,50],[196,100,54],[172,100,62],[162,62,56]]
+}
+
+function refreshShippedColours() {
+	if (typeof builtinCipherArgs === "undefined") return 0
+	var changed = 0
+	for (var i = 0; i < cipherList.length; i++) {
+		var c = cipherList[i]
+		var past = cipherPastColours[c.cipherName]
+		if (past === undefined) continue
+
+		var def = null
+		for (var d = 0; d < builtinCipherArgs.length; d++) {
+			if (builtinCipherArgs[d][0] === c.cipherName) { def = builtinCipherArgs[d]; break }
+		}
+		if (def === null) continue
+		if (c.H === def[2] && c.S === def[3] && c.L === def[4]) continue // already current
+
+		var untouched = false
+		for (var p = 0; p < past.length; p++) {
+			if (c.H === past[p][0] && c.S === past[p][1] && c.L === past[p][2]) { untouched = true; break }
+		}
+		if (!untouched) continue // a colour the member chose - leave it
+
+		c.H = def[2]; c.S = def[3]; c.L = def[4]
+		changed++
+	}
+	return changed
+}
+
 // a..z values in order, ignoring any other characters the table may carry
 // (digits were added to these ciphers later, so a stored copy may predate them)
 function cipherLetterValues(c) {
@@ -2340,6 +2384,9 @@ function mergeBuiltinCiphers() {
 
 	// before anything is matched by name, settle any names that moved
 	applyCipherRenames()
+	// ...then bring a stale shipped colour up to date, where it is clear the
+	// member never picked one themselves
+	refreshShippedColours()
 
 	var byName = {}
 	for (var b = 0; b < builtinCipherArgs.length; b++) byName[builtinCipherArgs[b][0]] = builtinCipherArgs[b]

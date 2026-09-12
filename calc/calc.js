@@ -440,9 +440,31 @@ var cipherCatSpecial = {
 	}
 }
 
+// Shorter labels for the Cyphers menu list only.
+//
+// The list is a narrow column, so a long name wraps onto two or three lines
+// and the row stops scanning as one item. Everywhere the cypher is actually
+// doing something - the results table, the word breakdown, the chart, exports,
+// saved settings - keeps the full name, because that is where knowing exactly
+// which cypher produced a number matters.
+//
+// Keyed on the real cipherName, which is what the rest of the app stores and
+// matches on; nothing here changes a cypher's identity.
+// Only names that actually overflow the column belong here. "Based
+// Atlanteanism" fits on one line as it is, so it keeps its full name and only
+// the longer one is abbreviated.
+var cipherListingNames = {
+	"Based Atlanteanism Denovated": "BA Denovated"
+}
+
+function cipherListingName(name) {
+	var short = cipherListingNames[name]
+	return (short === undefined) ? name : short
+}
+
 function cipherCheckboxRow(i) {
 	var chk = cipherList[i].enabled ? " checked" : ""
-	return '<tr><td><label class="chkLabel ciphCheckboxLabel2">'+cipherList[i].cipherName+'<input type="checkbox" id="cipher_chkbox'+i+'" onclick="toggleCipher('+i+')"'+chk+'><span class="custChkBox"></span></label></td></tr>'
+	return '<tr><td><label class="chkLabel ciphCheckboxLabel2" title="'+cipherList[i].cipherName+'">'+cipherListingName(cipherList[i].cipherName)+'<input type="checkbox" id="cipher_chkbox'+i+'" onclick="toggleCipher('+i+')"'+chk+'><span class="custChkBox"></span></label></td></tr>'
 }
 
 function displayCipherCatDetailed(curCat) {
