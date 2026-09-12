@@ -90,7 +90,7 @@ cipherList = [
 		// collapses into Reverse Reduction: L68 drops the nearest neighbour to
 		// 49 and L70 to 36, at which point the two are hard to tell apart.
 		// L62 is about as light as this can go and stay distinct.
-		172, 100, 62,
+		162, 62, 56,
 		[48,49,50,51,52,53,54,55,56,57,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
 		[0,0,0,0,0,0,0,0,0,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,1,2,3,4,5,6,7,8,19,30,41,52,63,74,85],
 		true,
@@ -125,7 +125,7 @@ cipherList = [
 		// to read as a different cipher at a glance, and pulled off Synx's
 		// pale cyan (180 44% 66%) in hue, saturation and lightness at once,
 		// since those two sit side by side in this category
-		162, 62, 56,
+		172, 100, 62,
 		[48,49,50,51,52,53,54,55,56,57,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
 		[0,0,0,0,0,0,0,0,0,0,-9,-9,-9,-9,-9,-9,-9,-9,-9,-9,0,9,18,27,36,45,54,63,72,171,270,369,468,567,666,765],
 		true,

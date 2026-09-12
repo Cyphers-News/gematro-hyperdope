@@ -1039,6 +1039,16 @@ body {
 	white-space: normal;
 	overflow-wrap: anywhere;
 }
+/* .custChkBox centres itself on the label (top:50% + translate), which is
+   right while a label is one line and wrong the moment it is two: a wrapped
+   name such as "Based Atlanteanism Denovated" left its box floating halfway
+   down the pair, reading as though it belonged to neither line. Pinned to the
+   first line here instead. Scoped to this label so every other checkbox in
+   the app keeps centring, which is still correct for those. */
+.ciphCheckboxLabel2 .custChkBox {
+	top: 0.2em;
+	transform: none;
+}
 .dragOver {
 	border: 1px solid var(--drag-highlight-border) !important;
 	background-color: var(--drag-highlight) !important;
