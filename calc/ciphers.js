@@ -2291,6 +2291,44 @@ var cipherPastColours = {
 	"Based Atlanteanism Denovated": [[165,48,58],[135,55,55],[130,78,50],[196,100,54],[172,100,62],[162,62,56],[156,80,62]]
 }
 
+// Re-attaches the shipped `derivation` to a stored cipher that is missing it.
+//
+// A saved workspace stores a cipher's characters, values, colour and flags -
+// never its derivation, which only exists in this file. mergeBuiltinCiphers
+// sets it when it ADDS a cipher, but a cipher already present by name is left
+// alone, so a member who saved their setup after one of these shipped ends up
+// with the right numbers and no working shown: the breakdown box quietly falls
+// back to the letter grid and the equation never appears again.
+//
+// Unlike a colour, this is not something a member can choose - there is no UI
+// for it - so adopting the shipped value cannot overwrite a decision. It is
+// still gated on the letter values matching, so it only ever attaches to the
+// cipher it actually describes. Nothing else about the stored cipher is
+// touched: characters and values stay exactly as saved, in case they were
+// extended by hand.
+function refreshShippedDerivations() {
+	if (typeof builtinCipherArgs === "undefined") return 0
+	var changed = 0
+	for (var i = 0; i < cipherList.length; i++) {
+		var c = cipherList[i]
+		var def = null
+		for (var d = 0; d < builtinCipherArgs.length; d++) {
+			if (builtinCipherArgs[d][0] === c.cipherName) { def = builtinCipherArgs[d]; break }
+		}
+		if (def === null || def[10] === undefined || def[10] === null) continue
+		if (c.derivation) continue // already has one
+
+		var mine = cipherLetterValues(c)
+		var theirs = cipherLetterValues({ cArr: def[5], vArr: def[6] })
+		if (mine === null || theirs === null) continue
+		if (mine.join(",") !== theirs.join(",")) continue
+
+		c.derivation = def[10]
+		changed++
+	}
+	return changed
+}
+
 function refreshShippedColours() {
 	if (typeof builtinCipherArgs === "undefined") return 0
 	var changed = 0
@@ -2387,6 +2425,9 @@ function mergeBuiltinCiphers() {
 	// ...then bring a stale shipped colour up to date, where it is clear the
 	// member never picked one themselves
 	refreshShippedColours()
+	// ...and re-attach the working shown under a derived cipher, which a
+	// stored workspace never carries
+	refreshShippedDerivations()
 
 	var byName = {}
 	for (var b = 0; b < builtinCipherArgs.length; b++) byName[builtinCipherArgs[b][0]] = builtinCipherArgs[b]
