@@ -557,7 +557,7 @@ function cipherInfoTopicHtml() {
 		o += '<details class="qgAcc"><summary>' + cat + '</summary><div class="qgAccBody">'
 		if (cipherCategoryIntro[cat]) o += '<p>' + cipherCategoryIntro[cat] + '</p>'
 		for (var j = 0; j < members.length; j++) {
-			o += '<details class="qgAcc qgAccNested"><summary>' + members[j].cipherName + '</summary><div class="qgAccBody">' + cipherInfoBody(members[j]) + '</div></details>'
+			o += '<details class="qgAcc qgAccNested"><summary>' + escHtml(members[j].cipherName) + '</summary><div class="qgAccBody">' + cipherInfoBody(members[j]) + '</div></details>'
 		}
 		o += '</div></details>'
 	}

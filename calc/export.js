@@ -166,7 +166,7 @@ function breakdownExportHeader() {
 	o += '<div class="breakExportPhrase">'+phrase+'</div>'
 	o += '<div class="breakExportMeta">'
 	o += '<span class="breakExportTotal">'+total+'</span>'
-	o += '<span class="breakExportCiph" style="'+col+'">'+curCipher.cipherName+gemCalcModeLabel(curCipher)+'</span>'
+	o += '<span class="breakExportCiph" style="'+col+'">'+escHtml(curCipher.cipherName)+gemCalcModeLabel(curCipher)+'</span>'
 	o += '</div>'
 	o += '</div>'
 	return o
