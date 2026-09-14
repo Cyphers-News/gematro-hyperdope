@@ -129,7 +129,7 @@ function updateWordBreakdown(impName = breakCipher, impBool = false, chartUpd = 
 			'background: '+bgCol+' -moz-linear-gradient(0deg,'+curGradCol+', rgba(0,0,0,0.0));' +
 			'background: '+bgCol+' linear-gradient(0deg,'+curGradCol+', rgba(0,0,0,0.0));"'
 	}
-	var cipherNameFooter = breakdownTintOn ? '<div class="BreakCipherName" style="'+curCiphCol+'">' + curCipher.cipherName + gemCalcModeLabel(curCipher) + '</div>' : ''
+	var cipherNameFooter = breakdownTintOn ? '<div class="BreakCipherName" style="'+curCiphCol+'">' + escHtml(curCipher.cipherName) + gemCalcModeLabel(curCipher) + '</div>' : ''
 
 	// tinted look drops the "=" entirely and reads as a standalone result
 	var eqSign = breakdownTintOn ? '' : '<span class="BreakEqualsSign">=</span> '
@@ -190,7 +190,7 @@ function updateWordBreakdown(impName = breakCipher, impBool = false, chartUpd = 
 			}
 			oStart += '<div id="SimpleBreak">'
 			oStart += '<span class="breakPhrase">' + simplePhr + '</span><span class="breakPhrase"> = </span><span class="breakSum">' + curCipher.sumArr.reduce(getSum) + ' </span>' // add all values in array
-			oStart += '<span class="breakCipher"><font style="'+curCiphCol+'"> (' + curCipher.cipherName + gemCalcModeLabel(curCipher) + ')</font></span>'
+			oStart += '<span class="breakCipher"><font style="'+curCiphCol+'"> (' + escHtml(curCipher.cipherName) + gemCalcModeLabel(curCipher) + ')</font></span>'
 		}
 
 		// A derived cipher explains itself instead of listing letters - the
@@ -357,7 +357,7 @@ function updateWordBreakdown(impName = breakCipher, impBool = false, chartUpd = 
 				// total and cypher name stay paired on the same line at the bottom of
 				// the box - sharing the last row's line when there's room, dropping to
 				// a line of their own together when there isn't (never separately)
-				o += '<div id="BreakSumLong">' + eqSign + '<span class="breakSumDark">' + curCipher.sumArr.reduce(getSum) + '</span>' + (breakdownTintOn ? ' <span class="breakCipher" style="'+curCiphCol+'">' + curCipher.cipherName + gemCalcModeLabel(curCipher) + '</span>' : '') + '</div></div>'
+				o += '<div id="BreakSumLong">' + eqSign + '<span class="breakSumDark">' + curCipher.sumArr.reduce(getSum) + '</span>' + (breakdownTintOn ? ' <span class="breakCipher" style="'+curCiphCol+'">' + escHtml(curCipher.cipherName) + gemCalcModeLabel(curCipher) + '</span>' : '') + '</div></div>'
 			} else {
 				o += '<div style="padding: 0.5em"></div>'
 			}
@@ -390,7 +390,7 @@ function updateWordBreakdown(impName = breakCipher, impBool = false, chartUpd = 
 		if (curCipher.cp.length > chLimit) chartClass = 'SimpleBreakChartLong'
 		o = '<tr><td colspan=' + tdCount + '>'
 		o += '<div class="'+chartClass+'"><span class="breakPhraseChart">' + simplePhr + ' = ' + curCipher.sumArr.reduce(getSum) + ' </span>' // add all values in array
-		o += '<span class="breakPhraseChartCiphName" style="'+curCiphCol+'">(' + curCipher.cipherName + gemCalcModeLabel(curCipher) + ')</span></div></td></tr>'
+		o += '<span class="breakPhraseChartCiphName" style="'+curCiphCol+'">(' + escHtml(curCipher.cipherName) + gemCalcModeLabel(curCipher) + ')</span></div></td></tr>'
 		$('#BreakTableContainer').prepend(o) // insert in the beginning of the table
 	}
 
@@ -491,7 +491,7 @@ function updateCipherChart(curCipher) {
 	o += '<tr>'
 	o += '<td id="spaceChartBtn" style="font-size: 150%; font-weight: 500; '+curCiphFaintCol+'">-</td>' // Space
 	o += '<td id="capsNameChartBtn" colspan="' + (Math.ceil(chartCh.length / 2) - 2) + '">'
-	o += '<font style="font-size: 150%; font-weight: 500; '+curCiphCol+'">' + curCipher.cipherName + '</font>'
+	o += '<font style="font-size: 150%; font-weight: 500; '+curCiphCol+'">' + escHtml(curCipher.cipherName) + '</font>'
 	o += '</td>'
 	o += '<td id="backspaceChartBtn" style="font-size: 150%; font-weight: 500; '+curCiphFaintCol+'">&#8592;</td>' // Backspace
 	o += '</tr><tr>'
@@ -590,7 +590,7 @@ function updateCipherChartGemCard(impName = breakCipher) {
 	var chartCh = curCipher.chartChars()
 
 	o += '<td colspan="' + chartCh.length + '">'
-	o += '<font style="font-size: 150%; font-weight: 500; '+curCiphCol+'">' + curCipher.cipherName + '</font>'
+	o += '<font style="font-size: 150%; font-weight: 500; '+curCiphCol+'">' + escHtml(curCipher.cipherName) + '</font>'
 	o += '</td></tr><tr>'
 
 	var halfL = chartCh.length / 2

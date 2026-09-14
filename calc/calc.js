@@ -464,7 +464,7 @@ function cipherListingName(name) {
 
 function cipherCheckboxRow(i) {
 	var chk = cipherList[i].enabled ? " checked" : ""
-	return '<tr><td><label class="chkLabel ciphCheckboxLabel2" title="'+cipherList[i].cipherName+'">'+cipherListingName(cipherList[i].cipherName)+'<input type="checkbox" id="cipher_chkbox'+i+'" onclick="toggleCipher('+i+')"'+chk+'><span class="custChkBox"></span></label></td></tr>'
+	return '<tr><td><label class="chkLabel ciphCheckboxLabel2" title="'+escHtml(cipherList[i].cipherName)+'">'+cipherListingName(cipherList[i].cipherName)+'<input type="checkbox" id="cipher_chkbox'+i+'" onclick="toggleCipher('+i+')"'+chk+'><span class="custChkBox"></span></label></td></tr>'
 }
 
 function displayCipherCatDetailed(curCat) {
@@ -1306,11 +1306,11 @@ function toggleColorControlsMenu(redraw = false) { // display control menu to ad
 			var chk = ""
 			if (ciph_in_row < colorMenuColumns) { // until number of ciphers in row equals number of columns
 				if (cipherList[i].enabled) {
-					o += '<td><span class="ciphCheckboxLabel">'+cipherList[i].cipherName+'</span></td>'
+					o += '<td><span class="ciphCheckboxLabel">'+escHtml(cipherList[i].cipherName)+'</span></td>'
 					o += '<td><input type="number" step="2" min="-360" max="360" value="'+chkboxColors[i].H+'" class="colSlider" id="sliderHue'+i+'" oninput="changeCipherColors(&quot;sliderHue'+i+'&quot;, &quot;Hue&quot;, '+i+')"></td>'
 					o += '<td><input type="number" step="1" min="-100" max="100" value="'+chkboxColors[i].S+'" class="colSlider" id="sliderSaturation'+i+'" oninput="changeCipherColors(&quot;sliderSaturation'+i+'&quot;, &quot;Saturation&quot;, '+i+')"></td>'
 					o += '<td><input type="number" step="1" min="-100" max="100" value="'+chkboxColors[i].L+'" class="colSlider" id="sliderLightness'+i+'" oninput="changeCipherColors(&quot;sliderLightness'+i+'&quot;, &quot;Lightness&quot;, '+i+')"></td>'
-					o += '<td><input type="color" class="cipherSwatch" id="cipherSwatch'+i+'" value="'+hslToHex(cipherList[i].H, cipherList[i].S, cipherList[i].L)+'" title="Pick a colour for '+cipherList[i].cipherName+'" oninput="setCipherColorFromPicker('+i+', this.value)"></td>'
+					o += '<td><input type="color" class="cipherSwatch" id="cipherSwatch'+i+'" value="'+hslToHex(cipherList[i].H, cipherList[i].S, cipherList[i].L)+'" title="Pick a colour for '+escHtml(cipherList[i].cipherName)+'" oninput="setCipherColorFromPicker('+i+', this.value)"></td>'
 					o += '<td style="min-width: 16px;"></td>'
 					ciph_in_row++
 				}
@@ -1929,14 +1929,14 @@ function updateEnabledCipherTable() { // draws a table with phrase gematria for 
 					? '<span class="wheelVal">'+cipherList[i].calcGematria(phr)+'</span>'
 					: '<span class="numProp">'+cipherList[i].calcGematria(phr)+'<span>'
 				if (odd_col) { // odd column, "cipher name - value"
-					o += '<td class="phraseGemCiphName" style="'+cur_col+'">'+cipherList[i].cipherName+'</td>'
+					o += '<td class="phraseGemCiphName" style="'+cur_col+'">'+escHtml(cipherList[i].cipherName)+'</td>'
 					o += '<td class="phraseGemValueOdd" style="'+cur_col+'">'+valSpan+'</td>'
 					ciph_in_row++
 					odd_col = false
 					//console.log(cipherList[i].cipherName+": odd")
 				} else if (!odd_col) { // even column, "value - cipher name"
 					o += '<td class="phraseGemValueEven" style="'+cur_col+'">'+valSpan+'</td>'
-					o += '<td class="phraseGemCiphName" style="'+cur_col+'">'+cipherList[i].cipherName+'</td>'
+					o += '<td class="phraseGemCiphName" style="'+cur_col+'">'+escHtml(cipherList[i].cipherName)+'</td>'
 					ciph_in_row++
 					odd_col = true
 					//console.log(cipherList[i].cipherName+": even")
