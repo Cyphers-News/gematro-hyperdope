@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Cyphers</string>
+    <string name="title_activity_main">Cyphers</string>
+    <string name="package_name">news.cyphers.app</string>
+    <string name="custom_url_scheme">news.cyphers.app</string>
+</resources>

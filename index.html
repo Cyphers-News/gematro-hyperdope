@@ -13,7 +13,7 @@
 
   gtag('config', 'G-29C7RM73G7');
 </script>
-<meta name="viewport" content="width=520, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="shortcut icon" type="image/x-icon" href="res/favicon.png?v=20260821a">
 
 <!-- Android Web App - Add to Home Screen -->
@@ -62,9 +62,15 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
+<meta name="theme-color" content="#202631">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cyphers">
+<link rel="apple-touch-icon" href="res/apple-touch-icon.png">
+<link rel="stylesheet" href="app/mobile.css">
 </head>
 
 <body>
+<p id="appConnectionStatus" class="appConnectionStatus" role="status" hidden>You’re offline. The calculator is available; accounts and community features need a connection.</p>
 <!-- initCalc() needs to run before the db loads to create menu properly-->
 <!-- <body onload="initCalc(true)"> --> 
 
@@ -118,12 +124,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
 		<div id="inputArea">
 		  <input id="queryDBbtn" class="hideValue" type="button" onclick="queryDatabase()" value="Query">
-		  <input id="phraseBox" autofocus type="text" spellcheck="false" autocomplete="off" oninput="updateEnabledCipherTable(); updateWordBreakdown(breakCipher,false,false);" onkeydown="phraseBoxKeypress(event.keyCode)" ondrop="dropHandler(event)" ondragover="dragOverHandler(event)">
+		  <input id="phraseBox" aria-label="Word or phrase to calculate" type="text" spellcheck="false" autocomplete="off" oninput="updateEnabledCipherTable(); updateWordBreakdown(breakCipher,false,false);" onkeydown="phraseBoxKeypress(event.keyCode)" ondrop="dropHandler(event)" ondragover="dragOverHandler(event)">
 		  <!-- a <button> rather than an <input>, so the return arrow can be drawn:
 		       Montserrat has no glyph for U+23CE or U+21B5, so a text one fell back
 		       to whatever the system had and came out thin and undersized -->
 		  <button id="enterPhraseBtn" type="button" title="Add this phrase to the table (Enter)" aria-label="Add phrase" onclick="phraseBoxKeypress(13);document.getElementById('phraseBox').focus()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 10 5 14 9 18"></polyline><path d="M20 6v4a4 4 0 0 1-4 4H5"></path></svg></button>
-		  <input id="highlightBox" type="text" spellcheck="false" autocomplete="off"><span id="clearFilterButton"></span>
+		  <input id="highlightBox" aria-label="Highlight a number" type="text" spellcheck="false" autocomplete="off"><span id="clearFilterButton"></span>
 		</div>
 
 		<div id="enabledCiphTable"></div>
@@ -228,4 +234,13 @@ document.addEventListener('DOMContentLoaded', function () {
 	importFileAction(theme, true);
 </script> -->
 
+<button id="installCyphers" type="button" class="appInstallButton" hidden>Install Cyphers</button>
+<dialog id="installHelp" class="appInstallDialog" aria-labelledby="installHelpTitle">
+  <h2 id="installHelpTitle">Install Cyphers</h2>
+  <p><strong>iPhone or iPad:</strong> open this page in Safari, tap Share, then Add to Home Screen. Leave Open as Web App switched on if offered.</p>
+  <p><strong>Android or computer:</strong> choose Install app or Add to Home screen from your browser’s menu.</p>
+  <p id="offlineAvailability">Open the calculator online once before using it offline. Accounts and community features need an internet connection.</p>
+  <form method="dialog"><button class="appInstallButton">Done</button></form>
+</dialog>
+<script src="app/install.js"></script>
 </body>

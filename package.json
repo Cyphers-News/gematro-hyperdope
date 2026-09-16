@@ -1,0 +1,33 @@
+{
+  "name": "cyphers-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cyphers web, iOS and Android app",
+  "license": "GPL-2.0-only",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "build": "node scripts/build.mjs",
+    "build:native": "node scripts/build.mjs --native",
+    "test": "node --test tests/app.test.cjs && node tests/localstorage.test.js",
+    "mobile:sync": "pnpm build:native && cap sync",
+    "mobile:ios": "cap open ios",
+    "mobile:android": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.1",
+    "@capacitor/app": "8.1.1",
+    "@capacitor/browser": "8.0.4",
+    "@capacitor/core": "8.5.1",
+    "@capacitor/filesystem": "8.1.3",
+    "@capacitor/ios": "8.5.1",
+    "@capacitor/share": "8.0.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.1",
+    "esbuild": "0.28.2"
+  }
+}
