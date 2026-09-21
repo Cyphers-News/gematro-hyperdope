@@ -364,6 +364,12 @@ var CIPHER_ARG_COUNT = 10 // name, category, H, S, L, cArr, vArr, diacritics, en
 // Returning null rather than throwing is deliberate: a single unreadable cipher
 // must not take the whole workspace with it. The caller skips it and carries on,
 // which is the behaviour a member wants when one entry in a long list is stale.
+// See cipherFromArgString: what an imported name, category or wheel value
+// may not contain.
+function cipherSafeText(s) {
+	return String(s).replace(/[<>"`]/g, "").replace(/&(?=#?[a-z0-9]+;?)/gi, "\uFF06")
+}
+
 function cipherFromArgString(argText) {
 	if (typeof argText !== "string") return null
 
@@ -402,9 +408,21 @@ function cipherFromArgString(argText) {
 	// A cipher with no characters divides by zero in the chart renderer
 	if (args[5].length === 0 || args[6].length === 0) return null
 
+	// Names, categories and wheel values are drawn into the page all over the
+	// calculator - as markup, inside title="..." and inside
+	// onclick="...(&quot;...&quot;)" - and an imported settings file can come
+	// from anybody. So the characters that can break out of those places are
+	// taken out here, the one door every imported cipher comes through, rather
+	// than trusting every one of those places to escape. Nothing built in uses
+	// them. A lone "&" stays ("Sun & Moon"); one that would spell an entity
+	// such as &quot; is swapped for a full-width ampersand so it cannot.
+	for (var k = 0; k < args[6].length; k++) {
+		if (typeof args[6][k] === "string") args[6][k] = cipherSafeText(args[6][k])
+	}
+
 	return new cipher(
-		String(args[0]).slice(0, 120),   // the name is drawn into the DOM; bound it
-		String(args[1]).slice(0, 120),
+		cipherSafeText(String(args[0])).slice(0, 120),   // the name is drawn into the DOM; bound it
+		cipherSafeText(String(args[1])).slice(0, 120),
 		Number(args[2]), Number(args[3]), Number(args[4]),
 		args[5], args[6],
 		args[7] === undefined ? true  : !!args[7],   // diacriticsAsRegular

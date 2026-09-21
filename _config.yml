@@ -29,6 +29,8 @@
 exclude:
   - supabase/
   - .claude/
+  - tests/
+  - .DS_Store
   - AUTH-SETUP.md
   - README.md
   - .gitignore

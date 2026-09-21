@@ -453,6 +453,84 @@ body {
 #astroCanvas:active {
 	cursor: grabbing;
 }
+.astroSystemRow {
+	display: flex;
+	align-items: center;
+	gap: 0.6em;
+	flex-wrap: wrap;
+	padding-bottom: 0.35em;
+}
+.astroSystemRow .colLabelSmall { padding: 0em; }
+.astroSystemSelect {
+	flex: 1 1 14em;
+	min-width: 12em;
+	max-width: 26em;
+	cursor: pointer;
+}
+/* the line that says what is actually being calculated */
+.astroSystemInfo {
+	font-size: 85%;
+	color: var(--font-white-2);
+	padding: 0.1em 0em 0.5em 0em;
+	letter-spacing: 0.02em;
+}
+.astroHouseBtn:disabled,
+.astroHouseBtn.astroBtnLocked {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+/* the flat map's own controls: zoom, layers and the model note */
+.feControls {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 0.3em;
+	padding: 0.2em 0em 0.3em 0em;
+}
+/* the layer toggles carry words, not a symbol, so they size to their text
+   rather than to the fixed width the zoom buttons use */
+/* .astroZoomBtn pins its width with !important, the way .astroZoomReset
+   already has to override; same trick, same reason */
+.feControls .feWideBtn {
+	width: auto !important;
+	padding: 0.05em 0.6em !important;
+	white-space: nowrap;
+}
+#feZoomLabel {
+	font-family: var(--font-family-mono), monospace;
+	font-size: 80%;
+	color: var(--font-white-3);
+	min-width: 3em;
+	text-align: center;
+}
+.feAbout {
+	font-size: 82%;
+	line-height: 1.5em;
+	color: var(--font-white-3);
+	border-left: 2px solid var(--border-dark-accent);
+	margin: 0.2em 0em 0.5em 0em;
+	padding: 0.4em 0.6em;
+}
+
+/* what the camera is following, under the solar map */
+.astroSelInfo {
+	font-size: 85%;
+	color: var(--font-white-2);
+	text-align: center;
+	padding: 0.15em 0.4em 0.35em 0.4em;
+	min-height: 1.2em;
+}
+#astroCanvas:focus-visible {
+	outline: 2px solid var(--focus-outline);
+	outline-offset: 2px;
+}
+.astroNak { white-space: nowrap; }
+.astroLord {
+	color: var(--font-white-3);
+	font-size: 88%;
+	padding-left: 0.4em;
+}
 .astroWarn {
 	color: hsl(35 80% 65%);
 }
@@ -741,7 +819,11 @@ body {
 	padding-bottom: 0.1em;
 }
 #calcOptionsPanel {
-	padding: 0.6em 0em 0em 0em;
+	/* Side padding keeps the first and last tabs clear of .focusOptionsBtn and
+	   .focusModeBtn, which are fixed in the two top corners over this row. The
+	   row is centred and spans the full width, so without it the extra Numogram
+	   tab pushes Cyphers and About straight underneath those icons. */
+	padding: 0.6em 3.2em 0em 3.2em;
 	-webkit-user-select: none;
 	-moz-user-select: none;
 	-ms-user-select: none;
@@ -1990,6 +2072,13 @@ body {
 	text-align: center;
 }
 
+/* The Matches panel took on the old Options tab's contents, so it is the one
+   dropdown long enough to run past the bottom of a short window. */
+.findMatchesContent {
+	max-height: calc(100vh - 4.5em);
+	overflow-y: auto;
+}
+
 .dropdown:hover .dropdown-content, .dropdown:hover .dropdown-content-opt {display: block;}
 /* forces a dropdown open for a tour step (calc/tour.js) that needs a button
    or field inside it visible on a device with no hover at all - the Matches
@@ -2929,11 +3018,11 @@ body.focusMode .focusModeBtn {
 }
 
 /* Mirrors .focusModeBtn on the opposite corner - opens #focusOptionsPanel,
-   which chooses what Focus Mode shows besides the equation. Only makes sense
-   once you are actually in Focus Mode, so unlike .focusModeBtn it stays
-   hidden the rest of the time rather than sitting there always-on. */
+   which now holds the everyday display toggles (breakdown, cipher chart,
+   gradients, live database) as well as the Focus Mode picks, so it is on
+   permanently rather than only once Focus Mode is entered. */
 .focusOptionsBtn {
-	display: none;
+	display: flex;
 	position: fixed;
 	top: 0.6em;
 	left: 0.6em;
@@ -2952,7 +3041,7 @@ body.focusMode .focusModeBtn {
 }
 .focusOptionsBtn svg { width: 65%; height: 65%; }
 .focusOptionsBtn:hover { opacity: 1; }
-body.focusMode .focusOptionsBtn { display: flex; }
+body.focusMode .focusOptionsBtn { opacity: 0.85; }
 
 .focusOptionsPanel {
 	position: fixed;
@@ -2963,7 +3052,12 @@ body.focusMode .focusOptionsBtn { display: flex; }
 	border: 1px solid var(--border-dark-accent);
 	border-radius: 6px;
 	padding: 0.6em 0.9em;
-	min-width: 165px;
+	min-width: 185px;
+	/* Taller now that the display toggles moved in from Options - cap it to
+	   the viewport and scroll rather than running off the bottom on short
+	   windows and phones. */
+	max-height: calc(100vh - 4em);
+	overflow-y: auto;
 }
 .focusOptionsTitle {
 	font-size: 85%;
@@ -2973,6 +3067,10 @@ body.focusMode .focusOptionsBtn { display: flex; }
 	margin-bottom: 0.3em;
 	border-bottom: 1px solid var(--separator-accent2);
 }
+/* Second and later group headings in the panel - same look as the first, but
+   spaced away from the rows above so the groups read as separate. */
+.focusOptionsTitle + .focusOptionRow { margin-top: 0; }
+.focusOptionsPanel .focusOptionsTitle ~ .focusOptionsTitle { margin-top: 0.7em; }
 /* combined with .chkLabel, which sets display/position/padding-left for the
    custom checkbox - only adding vertical spacing here so that is not undone */
 .focusOptionRow {

@@ -1,0 +1,1838 @@
+/* ===================== Numogram (Decimal Labyrinth) =====================
+ *
+ * A near-black field with the diagram drawn on it in acid green, lit.
+ *
+ * Everything here is scoped under .numField and sets its own colours from
+ * scratch. The site's theme variables deliberately do not reach in: the
+ * artefact keeps its own palette whatever skin the rest of the calculator is
+ * wearing.
+ *
+ * Two tokens carry the entire palette. --num-field is the ground, --num-ink is
+ * the diagram. [data-invert="1"] swaps them, which is the whole of the second
+ * variant - no second stylesheet, no duplicated rules. Inverting now lands on
+ * the flat green field this panel used to lead with, so that reading is still
+ * one click away.
+ */
+
+/* The site's shared panel wrapper is padded 0.5em 0em 0.75em 1em - one em on
+ * the left, nothing on the right - and sized with width:fit-content. On every
+ * other panel that is invisible, because their background is the panel's own.
+ * Here the green field IS the artwork, so the missing right-hand padding read
+ * as the field being cut off, and the 1em on the left as it being off-centre.
+ * This panel supplies its own even box instead.
+ */
+.numogramBG {
+	padding: 0.6em;
+	width: fit-content;
+	max-width: 100%;
+	margin: 0.5em auto;
+	box-sizing: border-box;
+}
+
+.numField {
+	--num-field: #06060a;          /* near-black ground */
+	--num-ink: #39ff14;            /* acid green, the only lit colour */
+	--num-glow: 0 0 6px rgba(57, 255, 20, 0.45);
+	--num-svg-glow: none;
+	--num-rule: rgba(57, 255, 20, 0.22);
+	--num-panel: rgba(11, 17, 26, 0.72);
+
+	/* The figure is not monochrome. Each zone owns a hue and keeps it in its
+	 * ring, its numeral and its direction mark, so a zone is identifiable
+	 * before you have read its number. The layers are separated the same way:
+	 * currents run green, gate courses violet, and the two never share a
+	 * treatment. --zc is the per-zone hue, set on each .numZone below and
+	 * picked up by everything inside it. */
+	--num-zone-fill: #0b0e13;      /* the discs are filled, not hollow */
+	--num-current: #3ef07a;        /* the syzygy links and their ribbons */
+	--num-channel: #7c5cff;        /* gate courses */
+	--num-faint: 0.34;             /* unselected line work sits back */
+	background: var(--num-field);
+	color: var(--num-ink);
+	padding: 1.5em;                /* even on all four sides */
+	margin: 0 auto;
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+	/* A column: the head and the foot take what they need, the diagram takes
+	 * the rest. numogramFit() sets the height from the space actually
+	 * available, so the whole artefact fits the window without scrolling
+	 * whatever the window is - which a vh unit cannot do from inside a
+	 * scrolling container. */
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	/* Monospace throughout: the figure is a table of numbers as much as it is
+	 * a drawing, and a fixed advance keeps the zone and gate numerals on the
+	 * same rhythm as the readings beside them. */
+	font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+	/* no radius, no border: it is a field, not a card - but the field itself
+	 * carries a faint bloom so it reads as lit rather than printed */
+	box-shadow: inset 0 0 120px rgba(57, 255, 20, 0.05);
+}
+
+/* The flat green artefact, one click away on INVERT. Nothing glows here: it is
+ * ink on paper, so the lit tokens are dropped rather than recoloured. */
+.numField[data-invert="1"] {
+	--num-field: #1fa14a;
+	--num-ink: #000000;
+	--num-glow: none;
+	--num-svg-glow: none;
+	--num-rule: rgba(0, 0, 0, 0.3);
+	--num-panel: transparent;
+	/* ink on paper: the hues go, the whole figure returns to one colour */
+	--num-zone-fill: transparent;
+	--num-current: var(--num-ink);
+	--num-channel: var(--num-ink);
+	--num-faint: 1;
+	box-shadow: none;
+}
+.numField[data-invert="1"] .numZone { --zc: var(--num-ink); }
+
+/* ---- typography: two words, set small, out of the diagram's way -------- */
+
+/* The name, then the two controls that set up a reading, on one line. Wraps
+ * rather than squeezing: below about 700px the trace group drops to its own
+ * row instead of the field shrinking to nothing. */
+.numTitle {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 0.7em 1.1em;
+	margin: 0 0 0.9em;
+}
+.numTitleCtl {
+	display: flex;
+	align-items: center;
+	gap: 0.45em;
+	flex: 0 1 auto;
+	min-width: 0;
+}
+.numTitleTrace { flex: 1 1 auto; }
+.numTitleCosmo { margin-left: auto; }
+.numTitleLabel {
+	font-size: 0.66em;
+	font-weight: 700;
+	letter-spacing: 0.2em;
+	opacity: 0.6;
+	white-space: nowrap;
+}
+.numTitleCosmo .numTitleLabel { color: #e8c33c; opacity: 0.85; }
+.numTitleTrace .numTitleLabel { color: #4d94ff; opacity: 0.85; }
+.numTitleCosmo .numSelect { color: #e8c33c; border-bottom-color: #e8c33c; }
+.numTitleTrace .numNumberInput {
+	flex: 1 1 4em;
+	min-width: 3.5em;
+	max-width: 9em;
+	color: #4d94ff;
+	border-bottom-color: #4d94ff;
+}
+.numTitleTrace .numTraceMsg { margin: 0; font-size: 0.66em; white-space: nowrap; }
+.numField[data-invert="1"] .numTitleLabel,
+.numField[data-invert="1"] .numTitle .numSelect,
+.numField[data-invert="1"] .numTitle .numNumberInput {
+	color: var(--num-ink);
+	border-bottom-color: var(--num-ink);
+}
+.numTitleMain {
+	font-size: 1.05em;
+	font-weight: 700;
+	letter-spacing: 0.34em;
+	color: var(--num-ink);
+	text-shadow: var(--num-glow);
+}
+.numTitleSub {
+	font-size: 0.72em;
+	font-weight: 600;
+	letter-spacing: 0.3em;
+	opacity: 0.62;
+	color: var(--num-ink);
+}
+
+/* ---- the diagram ------------------------------------------------------
+ *
+ * The SVG keeps its 2:3 ratio at every width. It is given room rather than
+ * stretched: the composition matters more than filling the panel.
+ */
+
+/* Diagram and annotation side by side. The figure is roughly 0.6 as wide as it
+ * is tall, so standing the text in the space beside it is what makes the field
+ * an even box instead of a wide one with a narrow drawing adrift in it. */
+.numBody {
+	display: flex;
+	align-items: stretch;
+	gap: 1.2em;
+	flex: 1 1 auto;
+	min-height: 0;
+	/* Nothing in here may push the field taller than the height it was given:
+	 * the panel is sized to the window once, and a column that outgrows it
+	 * scrolls on its own. Without this the field was holding 1158px of content
+	 * in 617px of box and the bottom was simply cut off. */
+	flex-wrap: nowrap;
+	overflow: hidden;
+}
+.numSide {
+	/* 32-40% of the feature, and no more: the diagram comes first. */
+	flex: 0 0 34%;
+	min-width: 15em;
+	max-width: 26em;
+	/* Stretch to the body's height and scroll its own overflow. A word trace
+	 * carries a long reading - the character values, two reductions and two
+	 * provenance lines - and that must not push the artwork out of the field
+	 * or spill over the note beneath it. The diagram stays put; only the
+	 * reading moves. */
+	align-self: stretch;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding-top: 0.2em;
+	padding-right: 0.4em;
+	text-align: left;
+}
+.numSide::-webkit-scrollbar { width: 4px; }
+/* the thumb was full-strength neon and read as a bar of light down the
+ * side of the panel rather than as a scrollbar */
+.numSide::-webkit-scrollbar-thumb { background: var(--num-rule); border-radius: 2px; }
+
+/* Two columns, one either side of the figure. The left sets up the view and
+ * lists what is in it; the right is where questions are asked of it. Splitting
+ * them halves the height of each, which is what stops either becoming the wall
+ * the single column had turned into. */
+/* Narrow enough that three columns and the figure hold together in an ordinary
+ * window, and each one scrolls its own overflow rather than pushing the field
+ * taller than the height numogramFit() gave it. */
+.numSideLeft {
+	flex: 0 1 20%;
+	min-width: 9.5em;
+	max-width: 16em;
+	padding-right: 0.5em;
+	max-height: 100%;
+}
+/* The right column holds the two actions and the reading under them. Narrow:
+ * it is a reading column, not a control column, and the figure comes first. */
+.numSideRight {
+	flex: 0 1 21%;
+	min-width: 9.5em;
+	max-width: 17em;
+	max-height: 100%;
+}
+.numSideRight .numActionRow { margin-top: 0; margin-bottom: 0.7em; }
+
+/* ---- the lookup lists ---------------------------------------------------
+ * Name, the pair it runs between, and where it lands. Zone numbers are set
+ * in their own hue in both lists, so a row and a circle are the same colour.
+ */
+.numList { display: flex; flex-direction: column; }
+.numListRow {
+	display: flex;
+	align-items: center;
+	gap: 0.5em;
+	width: 100%;
+	background: none;
+	border: none;
+	padding: 0.26em 0;
+	color: inherit;
+	font: inherit;
+	font-size: 0.78em;
+	letter-spacing: 0.06em;
+	cursor: pointer;
+	text-align: left;
+}
+.numListRow:hover { background: rgba(255, 255, 255, 0.045); }
+.numListRow:focus-visible { outline: 2px solid var(--num-ink); outline-offset: -2px; }
+.numListName { flex: 1 1 auto; font-weight: 600; }
+.numListCurrent { color: var(--num-current); }
+.numListGate { color: var(--num-channel); }
+.numListPair, .numListTo { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 0.18em; }
+.numListPair i, .numListTo i { font-style: normal; opacity: 0.4; }
+
+/* a zone number wherever it appears in prose or in a list */
+.numTag { font-weight: 700; color: var(--zc, var(--num-ink)); }
+.numTag[data-zone="0"] { --zc: #a3adb8; }
+.numTag[data-zone="1"] { --zc: #e04ff0; }
+.numTag[data-zone="2"] { --zc: #4d94ff; }
+.numTag[data-zone="3"] { --zc: #35d46a; }
+.numTag[data-zone="4"] { --zc: #f05a5a; }
+.numTag[data-zone="5"] { --zc: #f0a028; }
+.numTag[data-zone="6"] { --zc: #e8c33c; }
+.numTag[data-zone="7"] { --zc: #6e93c8; }
+.numTag[data-zone="8"] { --zc: #9a7bff; }
+.numTag[data-zone="9"] { --zc: #8a939e; }
+
+/* The left column stays on the left. An earlier rule here dropped it under
+ * the figure below 1100px, which at a typical window width meant it was never
+ * on the left at all - it just sat at the bottom. The columns narrow and
+ * scroll inside themselves instead; nothing reorders. */
+
+.numStage {
+	display: flex;
+	justify-content: center;
+	align-items: stretch;
+	gap: 1.4em;
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
+	max-height: 100%;
+	overflow: hidden;
+}
+
+/* Two panels inside the stage: the canonical figure, and - only when a
+ * cosmological model is chosen - the geocentric one beside it. Keeping them
+ * apart is the whole correction: the Ptolemaic structure used to be drawn
+ * through the Numogram, and that is what made both unreadable. */
+.numPanel {
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	min-width: 0;
+	min-height: 0;
+	max-height: 100%;
+	overflow: hidden;
+}
+.numPanelMain { flex: 1 1 auto; }
+.numPanelGeo { flex: 0 0 34%; max-width: 22em; }
+.numPanelGeo:empty { display: none; }
+
+.numGeoSvg {
+	display: block;
+	width: 100%;
+	height: 100%;
+	max-height: 100%;
+	overflow: visible;
+	color: var(--num-ink);
+}
+.numSvg {
+	display: block;
+	/* Fill the stage and let preserveAspectRatio="xMidYMid meet" do the
+	 * fitting: the drawing scales by the tighter of the two axes and stays
+	 * centred, so it is never stretched on one axis and never clipped. */
+	width: 100%;
+	height: 100%;
+	min-height: 0;
+	overflow: visible;
+	color: var(--num-ink);
+}
+/* The bloom is applied to the figure as a whole rather than per element: one
+ * filter pass, and the overlapping channels light each other the way the
+ * strokes actually cross rather than each carrying its own halo. */
+.numSvg, .numGeoSvg { filter: var(--num-svg-glow); }
+
+/* Thin technical line work throughout. Stroke widths are in user units, so
+ * they scale with the figure and keep their relative weights. */
+
+/* ---- the zone hues ------------------------------------------------------
+ * Ten values, one per zone. Read against #0b0e13 they all clear 4.5:1, and
+ * the pairs that sit closest in the figure (2/7, 8/9, 0/9) are separated by
+ * lightness as well as hue so they do not merge at small sizes. */
+.numZone[data-zone="0"] { --zc: #a3adb8; }
+.numZone[data-zone="1"] { --zc: #e04ff0; }
+.numZone[data-zone="2"] { --zc: #4d94ff; }
+.numZone[data-zone="3"] { --zc: #35d46a; }
+.numZone[data-zone="4"] { --zc: #f05a5a; }
+.numZone[data-zone="5"] { --zc: #f0a028; }
+.numZone[data-zone="6"] { --zc: #e8c33c; }
+.numZone[data-zone="7"] { --zc: #6e93c8; }
+.numZone[data-zone="8"] { --zc: #9a7bff; }
+.numZone[data-zone="9"] { --zc: #8a939e; }
+
+.numZoneRing,
+.numGateRing {
+	fill: var(--num-zone-fill);
+	stroke: var(--zc, var(--num-ink));
+	stroke-width: 3.2;
+	vector-effect: non-scaling-stroke;
+}
+/* Opaque, because the gate rides its own channel and the line must pass
+ * behind the numeral rather than through it - which is exactly how the
+ * reference draws these. */
+.numGateRing { stroke-width: 2.4; fill: var(--num-field); }
+
+.numZoneText,
+.numGateText {
+	fill: var(--zc, var(--num-ink));
+	text-anchor: middle;
+	dominant-baseline: central;
+	font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-weight: 500;
+	pointer-events: none;
+}
+.numGateText { font-size: 22px; font-weight: 600; }
+
+/* The current's own value, set in the same small circle as a gate so the two
+ * kinds of annotation read as one family - which is how the reference does it. */
+.numCurValRing {
+	fill: var(--num-field);
+	stroke: var(--num-ink);
+	stroke-width: 2.4;
+	vector-effect: non-scaling-stroke;
+}
+.numCurValText {
+	fill: var(--num-ink);
+	text-anchor: middle;
+	dominant-baseline: central;
+	font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 19px;
+	font-weight: 600;
+	pointer-events: none;
+}
+.numCurrent.numOn .numCurValRing { fill: var(--num-ink); }
+.numCurrent.numOn .numCurValText { fill: var(--num-field); }
+
+/* The tractor arrow stays fine even when its current is a broad form: the
+ * weight belongs to the link between the pair, not to where it runs. */
+.numCurTractor { stroke-width: 2.4; }
+.numCurrent.numOn .numCurTractor { stroke-width: 4; }
+
+.numChLine,
+.numCurLine {
+	fill: none;
+	stroke-width: 2.6;
+	stroke-linecap: round;
+	vector-effect: non-scaling-stroke;
+}
+
+/* Gate courses: violet, dashed, and set back. There are far more of these
+ * than anything else in the figure, and drawn solid at full strength they
+ * were the reason it read as a thicket - the eye could not tell a course
+ * from a current. Dashed and dimmed, they become the substrate the currents
+ * run over. */
+.numChLine {
+	stroke: var(--num-channel);
+	stroke-dasharray: 7 6;
+	opacity: var(--num-faint);
+}
+.numChHead { fill: var(--num-channel); stroke: none; opacity: var(--num-faint); }
+
+/* Currents: green, solid, lit. The layer that carries the reading. */
+.numCurLine { stroke: var(--num-current); stroke-width: 3.2; }
+.numCurHead, .numCurBody { fill: var(--num-current); stroke: none; }
+
+/* The Torque circuit: the broad directional form. A filled tapered ribbon,
+ * not a thick stroke - the reference's heavy currents swell along their
+ * length rather than running at one width. Held under full opacity so the
+ * channels behind it stay visible through the belly of the shape. */
+.numCurrent.numHeavy .numCurBody {
+	fill: var(--num-current);
+	opacity: 0.82;
+}
+/* the bloom belongs to this layer alone, not to the whole drawing */
+.numLayerCurrents { filter: drop-shadow(0 0 5px rgba(62, 240, 122, 0.45)); }
+.numField[data-invert="1"] .numLayerCurrents { filter: none; }
+
+/* Gates: present, not competing. They annotate the courses they sit on, so
+ * they take the course's colour rather than a hue of their own. */
+.numGateRing { stroke: var(--num-channel); }
+.numGateText { fill: var(--num-channel); }
+.numGate { opacity: 0.8; }
+
+/* ---- zones: selectable, but never buttons ------------------------------ */
+
+.numZone { cursor: pointer; }
+.numZone:focus { outline: none; }
+
+/* Hover and focus: the outline thickens. That is all. */
+.numZone:hover .numZoneRing,
+.numZone:focus-visible .numZoneRing { stroke-width: 5.4; }
+
+/* Focus needs to be visible without a glow, so the ring doubles rather than
+ * lights up - a dashed companion just outside it, in the same ink. */
+.numZone:focus-visible .numZoneRing {
+	stroke-dasharray: 5 5;
+}
+
+/* Selected: the zone inverts. Ink fills the circle, the numeral drops out to
+ * the field colour. The original diagram's own vocabulary, nothing added. */
+/* Selected: the disc fills with the zone's own hue and the numeral knocks out
+ * of it, so selection reads at a glance without changing the ring weight the
+ * hover state is already using. */
+.numZone.numOn .numZoneRing {
+	fill: var(--zc, var(--num-ink));
+	stroke-width: 3.2;
+	filter: drop-shadow(0 0 7px var(--zc, var(--num-ink)));
+}
+.numZone.numOn .numZoneText { fill: var(--num-field); }
+
+/* The syzygetic twin: heavier outline, not filled. */
+.numZone.numTwin .numZoneRing { stroke-width: 6.2; }
+
+/* Where a current or channel lands: a doubled rim. */
+.numZone.numTrace .numZoneRing { stroke-width: 4.6; }
+
+.numGate.numOn .numGateRing { fill: var(--num-ink); }
+.numGate.numOn .numGateText { fill: var(--num-field); }
+
+/* A lit current or channel thickens; it does not glow. */
+.numChannel.numOn .numChLine { stroke-width: 5.2; }
+.numCurrent.numOn .numCurLine { stroke-width: 6; }
+
+/* ---- dimming: selection, time system, layers ---------------------------
+ *
+ * Everything unselected recedes by losing opacity rather than changing hue,
+ * so the black/green relationship holds at every state.
+ */
+
+.numSvg[data-mode="torque"] .numCurrent:not([data-sys="torque"]),
+.numSvg[data-mode="torque"] .numChannel:not([data-sys="torque"]),
+.numSvg[data-mode="torque"] .numGate:not([data-sys="torque"]),
+.numSvg[data-mode="torque"] .numZone:not([data-sys="torque"]),
+.numSvg[data-mode="warp"] .numCurrent:not([data-sys="warp"]),
+.numSvg[data-mode="warp"] .numChannel:not([data-sys="warp"]),
+.numSvg[data-mode="warp"] .numGate:not([data-sys="warp"]),
+.numSvg[data-mode="warp"] .numZone:not([data-sys="warp"]),
+.numSvg[data-mode="plex"] .numCurrent:not([data-sys="plex"]),
+.numSvg[data-mode="plex"] .numChannel:not([data-sys="plex"]),
+.numSvg[data-mode="plex"] .numGate:not([data-sys="plex"]),
+.numSvg[data-mode="plex"] .numZone:not([data-sys="plex"]) {
+	opacity: 0.32;
+}
+
+/* ---- a region, lit -------------------------------------------------------
+ *
+ * Narrowing to a time system used to do one thing: drop everything else to
+ * 0.32. That reads as "the rest went quiet", not as "this one is live". The
+ * parts that belong to the chosen region now carry its own colour as a bloom
+ * and pulse gently, so choosing a region shows you the circuit rather than
+ * just hiding its surroundings.
+ */
+.numSvg[data-mode="torque"] { --reg: #e04ff0; }
+.numSvg[data-mode="warp"]   { --reg: #35d46a; }
+.numSvg[data-mode="plex"]   { --reg: #a3adb8; }
+
+.numSvg[data-mode="torque"] .numCurrent[data-sys="torque"],
+.numSvg[data-mode="torque"] .numZone[data-sys="torque"],
+.numSvg[data-mode="warp"] .numCurrent[data-sys="warp"],
+.numSvg[data-mode="warp"] .numZone[data-sys="warp"],
+.numSvg[data-mode="plex"] .numCurrent[data-sys="plex"],
+.numSvg[data-mode="plex"] .numZone[data-sys="plex"] {
+	filter: drop-shadow(0 0 6px var(--reg));
+	animation: numRegionBreathe 2.4s ease-in-out infinite;
+}
+@keyframes numRegionBreathe {
+	0%, 100% { filter: drop-shadow(0 0 4px var(--reg)); }
+	50%      { filter: drop-shadow(0 0 11px var(--reg)); }
+}
+
+/* the flat green artefact takes the narrowing without the light show */
+.numField[data-invert="1"] .numSvg [data-sys] { animation: none; filter: none; }
+@media (prefers-reduced-motion: reduce) {
+	.numSvg [data-sys] { animation: none !important; }
+}
+
+/* the bars beside the region names, in the colours above */
+.numLayerBar[data-region="torque"] { background: #e04ff0; }
+.numLayerBar[data-region="warp"]   { background: #35d46a; }
+.numLayerBar[data-region="plex"]   { background: #a3adb8; }
+.numLayerBar[data-region="all"]    { background: var(--num-current); }
+
+.numSvg[data-layer-currents="0"] .numLayerCurrents,
+.numSvg[data-layer-gates="0"] .numLayerGates,
+.numSvg[data-layer-gates="0"] .numLayerChannels,
+.numSvg[data-layer-zones="0"] .numLayerZones { display: none; }
+
+/* SYZYGIES off hides only the currents that express them, leaving the gates
+ * and channels - the secondary traffic - visible on their own. */
+.numSvg[data-layer-syzygies="0"] .numLayerCurrents { opacity: 0.22; }
+
+/* ---- annotation: typography, not a panel ------------------------------- */
+
+.numAnnot {
+	margin: 0;
+	max-width: 100%;
+	font-size: 0.76em;
+	font-weight: 500;
+	letter-spacing: 0.15em;
+	line-height: 1.5;
+	color: var(--num-ink);
+	min-height: 1.5em;
+}
+.numAnnotHead { font-weight: 700; letter-spacing: 0.24em; }
+.numAnnotFoot { opacity: 0.6; }
+.numAnnotIdle { opacity: 0.55; }
+
+/* SELECTED / RELATION / ARITHMETIC / STRUCTURES. The label column is set
+ * lighter than its value so the eye reads the values first. */
+.numAnnotGroup { margin-bottom: 0.7em; }
+.numAnnotLabel {
+	font-size: 0.88em;
+	font-weight: 600;
+	letter-spacing: 0.2em;
+	opacity: 0.55;
+}
+.numAnnotRow { display: flex; gap: 0.6em; }
+.numAnnotRow > span:first-child { flex: 0 0 5.4em; opacity: 0.55; }
+.numAnnotExp {
+	margin-top: 0.5em;
+	font-size: 0.86em;
+	letter-spacing: 0.14em;
+	opacity: 0.55;
+}
+
+/* ---- controls: text, set in a row, no containers ----------------------- */
+
+.numCtlRow {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.9em 1.15em;
+	max-width: 100%;
+	margin: 1.1em 0 0;
+}
+.numCtl {
+	background: none;
+	border: none;
+	padding: 0;
+	margin: 0;
+	font-family: inherit;
+	font-size: 0.74em;
+	font-weight: 600;
+	letter-spacing: 0.19em;
+	color: var(--num-ink);
+	opacity: 0.45;
+	cursor: pointer;
+	text-transform: uppercase;
+}
+.numCtl:hover { opacity: 0.8; }
+.numCtl.numCtlOn { opacity: 1; box-shadow: 0 2px 0 0 var(--num-ink); }
+.numCtlPlain { opacity: 0.65; }
+.numCtl:focus-visible { outline: 2px solid var(--num-ink); outline-offset: 3px; }
+
+.numNumberRow { align-items: baseline; gap: 0.7em; }
+.numNumberInput {
+	background: none;
+	border: none;
+	border-bottom: 2px solid var(--num-ink);
+	color: var(--num-ink);
+	font-family: inherit;
+	font-size: 0.86em;
+	font-weight: 600;
+	letter-spacing: 0.2em;
+	width: 6.5em;
+	padding: 0.15em 0;
+	border-radius: 0;
+}
+.numNumberInput:focus { outline: none; border-bottom-width: 4px; }
+.numNumberOut { margin-top: 0.6em; }
+
+/* ---- the note about the reference -------------------------------------
+ * Outside the field, in the site's own voice, so it cannot be mistaken for
+ * part of the diagram. */
+
+/* The panel around this is sized to fit its contents, and a paragraph's
+ * max-content width is the whole sentence on one line - which was stretching
+ * that panel to the full width of the page and leaving the green field adrift
+ * in the middle of it. width:0 keeps the note out of the intrinsic size;
+ * min-width:100% then fills whatever the field settled on. */
+.numNote {
+	text-align: left;
+	width: 0;
+	min-width: 100%;
+	box-sizing: border-box;
+	margin: 1.1em 0 0;
+	padding: 0 0.2em;
+	font-size: 0.82em;
+	line-height: 1.6;
+	color: var(--text-3, #a1a1a1);
+}
+
+/* ---- motion ------------------------------------------------------------
+ * There is none by default. A lit current traces once when it is selected,
+ * and that is the only animation in the feature. */
+
+@keyframes numTrace {
+	from { stroke-dashoffset: 320; }
+	to { stroke-dashoffset: 0; }
+}
+.numCurrent.numOn .numCurLine,
+.numChannel.numOn .numChLine {
+	stroke-dasharray: 320;
+	animation: numTrace 0.75s ease-out 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.numCurrent.numOn .numCurLine,
+	.numChannel.numOn .numChLine {
+		stroke-dasharray: none;
+		animation: none;
+	}
+}
+
+/* ---- narrow screens ----------------------------------------------------
+ *
+ * The figure keeps its proportions and its vertical arrangement; it simply
+ * gets smaller. Nothing is rearranged, nothing is dropped. Touch targets are
+ * handled by the SVG scaling with the viewport rather than by enlarging the
+ * circles, so the composition is unchanged.
+ */
+
+/* Narrow: the annotation goes back under the diagram, which is the only
+ * arrangement that keeps the figure a usable size on a phone. */
+@media (max-width: 620px) {
+	/* A column, with an order set rather than left to the source. In source
+	 * order the left-hand controls come first, which on a phone put five
+	 * panels of switches above the figure they act on before you had seen it.
+	 * Figure first, then what it says, then the controls. */
+	.numBody {
+		display: flex;
+		flex-direction: column;
+		overflow: visible;
+		max-height: none;
+		gap: 1.1em;
+	}
+	.numStage { order: 1; flex-direction: column; align-items: center; justify-content: center;
+	            gap: 1.1em; max-height: none; overflow: visible; }
+	.numSideRight { order: 2; }
+	.numSideLeft { order: 3; padding-right: 0; }
+
+	/* full width, and scrolling with the page rather than inside themselves -
+	 * a panel that scrolls within a scrolling page is unusable on a phone */
+	.numSide {
+		flex: 0 0 auto;
+		width: 100%;
+		min-width: 0;
+		max-width: none;
+		max-height: none;
+		overflow-y: visible;
+		margin-top: 0;
+	}
+	.numPanel { max-height: none; overflow: visible; }
+	.numPanelGeo { flex: 0 0 auto; width: 100%; max-width: 20em; }
+	.numGeoSvg { height: auto; max-height: 46vh; }
+	.numSvg { height: auto; width: 100%; max-height: 58vh; }
+
+	/* the title's controls each take their own line rather than crowding */
+	.numTitle { gap: 0.5em 0.8em; }
+	.numTitleCosmo { margin-left: 0; }
+	.numTitleCtl { flex: 1 1 100%; }
+	.numTitleTrace .numNumberInput { max-width: none; }
+
+	/* two-up, so five folded panels are not five full-width rows */
+	.numSideLeft { display: flex; flex-wrap: wrap; gap: 0 0.6em; }
+	.numSideLeft > .numGroupBox { flex: 1 1 13em; }
+
+	/* the deck scrolls with the page here rather than inside itself */
+	.numDeck { max-height: none; overflow-y: visible; padding-right: 0; }
+}
+
+@media (max-width: 560px) {
+	.numField { padding: 1em; }
+	.numSvg { height: 48vh; min-height: 260px; }
+	.numCtlRow { gap: 0.9em; }
+	.numAnnot { font-size: 0.72em; letter-spacing: 0.12em; }
+	.numTitleMain { font-size: 0.95em; letter-spacing: 0.26em; }
+	.numNote { padding: 0 1em; }
+}
+
+/* A short window - a laptop, or the panel opened low - shrinks the figure
+ * rather than pushing the controls off the bottom. */
+@media (max-height: 760px) {
+	.numField { padding: 1em; }
+	.numAnnot { font-size: 0.72em; }
+	.numCtlRow { margin-top: 0.8em; }
+}
+
+/* ---- the reading: labels, values, provenance --------------------------
+ *
+ * Editorial annotation rather than an application panel: a small label, the
+ * value under it, and a status line wherever the claim is not plain Numogram
+ * structure. No boxes, no rules, no containers.
+ */
+
+.numAnnotBig {
+	font-size: 1.6em;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	line-height: 1.1;
+	margin: 0.1em 0 0.15em;
+}
+
+/* Provenance. Three statuses, distinguished by weight and opacity only - the
+ * field is green and black, and a status tag is not a reason to break that. */
+.numStatus {
+	font-size: 0.78em;
+	font-weight: 600;
+	letter-spacing: 0.16em;
+	margin: -0.35em 0 0.7em;
+	opacity: 0.5;
+}
+.numStatus-canonical { opacity: 0.5; }
+.numStatus-attested { opacity: 0.66; }
+.numStatus-experimental {
+	opacity: 0.85;
+	box-shadow: inset 0 -1px 0 0 currentColor;
+	display: inline-block;
+	padding-bottom: 1px;
+}
+
+/* AQ character values, set as a run rather than a table - it is a reading of
+ * a word, so it should read along the line like one. */
+.numChars { display: flex; flex-wrap: wrap; gap: 0.5em 0.75em; margin: 0.15em 0 0.4em; }
+.numChar {
+	font-size: 0.92em;
+	letter-spacing: 0.06em;
+	white-space: nowrap;
+}
+.numChar b { font-weight: 700; margin-left: 0.28em; }
+
+/* ---- the trace input --------------------------------------------------- */
+
+.numTraceHead { align-items: baseline; gap: 1em; margin-top: 1.4em; }
+.numTraceHead .numAnnotLabel { margin: 0; }
+.numTraceMsg {
+	font-size: 0.74em;
+	font-weight: 600;
+	letter-spacing: 0.16em;
+	margin-top: 0.4em;
+	min-height: 1.1em;
+	opacity: 0.8;
+}
+
+/* ---- recent traces ----------------------------------------------------- */
+
+.numHistory { margin-top: 1.2em; display: flex; flex-wrap: wrap; gap: 0.5em 0.9em; align-items: baseline; }
+.numHistory .numAnnotLabel { flex: 0 0 100%; margin-bottom: 0.1em; }
+.numHistBtn {
+	background: none;
+	border: none;
+	padding: 0;
+	font-family: inherit;
+	font-size: 0.74em;
+	font-weight: 600;
+	letter-spacing: 0.12em;
+	color: var(--num-ink);
+	opacity: 0.55;
+	cursor: pointer;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.numHistBtn:hover { opacity: 0.9; }
+.numHistBtn:focus-visible { outline: 2px solid var(--num-ink); outline-offset: 2px; }
+
+/* ---- sources, folded away ---------------------------------------------- */
+
+/* The full-width neon rule that used to run above this was the brightest
+ * thing in the panel and sat under the figure doing nothing but separating a
+ * credit line. A hairline at a fraction of the weight does the same job. */
+.numDetails {
+	margin-top: 0.9em;
+	border-top: 1px solid var(--num-rule);
+	padding-top: 0.6em;
+	color: var(--num-ink);
+	opacity: 0.7;
+}
+.numDetails > summary {
+	cursor: pointer;
+	font-size: 0.74em;
+	font-weight: 600;
+	letter-spacing: 0.22em;
+	opacity: 0.7;
+	list-style: none;
+}
+.numDetails > summary::-webkit-details-marker { display: none; }
+.numDetails > summary::before { content: "+ "; }
+.numDetails[open] > summary::before { content: "\2212 "; }
+.numDetails > summary:focus-visible { outline: 2px solid var(--num-ink); outline-offset: 3px; }
+.numDetailsBody { margin-top: 0.9em; column-gap: 2.2em; }
+.numSrc { margin-bottom: 1em; break-inside: avoid; }
+.numSrcClaim { font-size: 0.82em; line-height: 1.5; }
+.numSrcFrom { font-size: 0.78em; line-height: 1.5; opacity: 0.62; margin-top: 0.25em; }
+
+@media (min-width: 760px) {
+	.numDetailsBody { column-count: 2; }
+}
+
+/* ---- the geocentric overlay (experimental) ----------------------------
+ *
+ * Secondary to the Numogram throughout: thinner than any canonical line,
+ * lower in contrast, and drawn underneath the zones so it can never cover
+ * them. With the mode off none of this is rendered at all, so the canonical
+ * diagram is exactly what it was.
+ */
+
+.numGeoSphere {
+	fill: none;
+	stroke: var(--num-ink);
+	stroke-width: 1.2;
+	opacity: 0.5;
+	vector-effect: non-scaling-stroke;
+}
+.numGeoMark {
+	fill: var(--num-field);
+	stroke: var(--num-ink);
+	stroke-width: 1.8;
+	vector-effect: non-scaling-stroke;
+}
+.numGeoDot { fill: var(--num-ink); }
+.numGeoLabel {
+	fill: var(--num-ink);
+	font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 21px;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	opacity: 0.72;
+	pointer-events: none;
+}
+
+/* The tie from a body to the zone the Planetwork gives it. Dashed, because it
+ * is a correspondence this application is drawing between two systems - not a
+ * current, not a channel, and not anything either system asserts. */
+.numGeoTie {
+	fill: none;
+	stroke: var(--num-ink);
+	stroke-width: 1.2;
+	stroke-dasharray: 3 6;
+	opacity: 0.45;
+	vector-effect: non-scaling-stroke;
+}
+
+.numGeoBody { cursor: pointer; }
+.numGeoBody:focus { outline: none; }
+.numGeoBody:hover .numGeoSphere,
+.numGeoBody:focus-visible .numGeoSphere { opacity: 0.9; stroke-width: 2; }
+.numGeoBody:focus-visible .numGeoMark { stroke-dasharray: 3 3; }
+
+.numGeoBody.numOn .numGeoSphere { opacity: 1; stroke-width: 2.4; }
+.numGeoBody.numOn .numGeoMark { fill: var(--num-ink); }
+.numGeoBody.numOn .numGeoLabel { opacity: 1; font-weight: 700; }
+.numGeoBody.numOn .numGeoTie { opacity: 0.85; stroke-width: 2; }
+
+/* Deferent and epicycle, drawn for a selected superior planet. Schematic
+ * geometry showing why the model produces an apparent reversal - not a
+ * simulation, and not Ptolemy's own figures. */
+.numGeoEpicycle {
+	fill: none;
+	stroke: var(--num-ink);
+	stroke-width: 1.6;
+	vector-effect: non-scaling-stroke;
+}
+.numGeoApparent {
+	fill: none;
+	stroke: var(--num-ink);
+	stroke-width: 2.2;
+	stroke-linecap: round;
+	vector-effect: non-scaling-stroke;
+}
+
+/* Post-Ptolemaic bodies are held at arm's length even in the drawing. */
+.numGeoBody[data-set="extended"] .numGeoSphere { stroke-dasharray: 8 7; }
+.numGeoBody[data-set="extended"] .numGeoLabel { opacity: 0.55; }
+
+/* ---- the two controls that lead the column -----------------------------
+ *
+ * COSMOLOGY and TRACE. Everything else in the side column operates inside
+ * whichever cosmology is selected, so these two are set apart from the rest
+ * rather than queued among it: full-strength labels against the 0.55 opacity
+ * the other labels carry, and a rule under each block.
+ */
+
+.numPrimary {
+	/* A lit block rather than a hairline-separated run of controls - the two
+	 * things that steer the whole figure should look like instruments, not
+	 * like the rest of the list. */
+	background: var(--num-panel);
+	border: 1px solid var(--num-rule);
+	border-left: 2px solid var(--num-ink);
+	padding: 0.75em 0.85em 0.85em;
+	margin-bottom: 0.9em;
+}
+.numPrimary:first-child { margin-top: 0; }
+.numPrimaryLabel {
+	font-size: 0.95em;
+	font-weight: 700;
+	letter-spacing: 0.22em;
+	opacity: 1;
+	margin: 0;
+	text-shadow: var(--num-glow);
+}
+/* The same instrument block at a lower weight: a hairline all round instead of
+ * the lit left edge, for the groups that read the figure rather than change
+ * which figure it is. The readout and RECENT take it too, so the column reads
+ * as a stack of panels the way the rest of the drawing reads as one system. */
+.numGroupBox {
+	background: var(--num-panel);
+	border: 1px solid var(--num-rule);
+	padding: 0.15em 0.85em 0.6em;
+	margin-bottom: 0.55em;
+}
+/* the reading and the history are inside a section now, so they no longer
+ * carry a box of their own - that was a border inside a border */
+.numGroupBox .numCtlRow:first-of-type { margin-top: 0; }
+.numGroupLabel {
+	font-size: 0.72em;
+	font-weight: 700;
+	letter-spacing: 0.22em;
+	opacity: 0.55;
+	margin-bottom: 0;
+}
+
+/* ---- folding sections ---------------------------------------------------
+ * The whole header is the hit target, with the caret on the left and, while
+ * the section is shut, a note on the right saying what it is holding - ALL,
+ * 7/10, ZONE 4 - so folding never costs you the state. */
+.numSectionHead {
+	display: flex;
+	align-items: center;
+	gap: 0.55em;
+	width: 100%;
+	background: none;
+	border: none;
+	padding: 0.55em 0;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+	text-align: left;
+}
+.numSectionHead:focus-visible { outline: 2px solid var(--num-ink); outline-offset: 2px; }
+.numSectionHead .numGroupLabel { flex: 1 1 auto; }
+.numSectionCaret {
+	flex: 0 0 auto;
+	width: 0;
+	height: 0;
+	border-left: 4px solid currentColor;
+	border-top: 3.5px solid transparent;
+	border-bottom: 3.5px solid transparent;
+	opacity: 0.6;
+	transform: rotate(90deg);
+	transition: transform 0.15s ease;
+}
+.numSectionShut .numSectionCaret { transform: rotate(0deg); }
+.numSectionNote {
+	flex: 0 0 auto;
+	font-size: 0.68em;
+	letter-spacing: 0.14em;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+
+/* ---- the right column, in colour ---------------------------------------
+ *
+ * Cosmology, Trace and Reading were three identical green headers over three
+ * identical green boxes, which made the column read as one undifferentiated
+ * block. Each takes a colour of its own now - the same hues the figure
+ * already uses, so nothing new is introduced - and carries it in its header,
+ * its caret, its left edge and its folded note. */
+.numSideRight [data-section="cosmology"] { --sec: #e8c33c; }
+.numSideRight [data-section="trace"]     { --sec: #4d94ff; }
+.numSideRight [data-section="reading"]   { --sec: #e04ff0; }
+.numSideLeft  [data-section="zones"]     { --sec: #35d46a; }
+.numSideLeft  [data-section="layers"]    { --sec: #9a7bff; }
+.numSideLeft  [data-section="regions"]   { --sec: #f0a028; }
+.numSideLeft  [data-section="currents"]  { --sec: #3ef07a; }
+.numSideLeft  [data-section="gates"]     { --sec: #7c5cff; }
+
+[data-section] .numGroupLabel { color: var(--sec, var(--num-ink)); opacity: 0.92; }
+[data-section] .numSectionCaret { border-left-color: var(--sec, currentColor); opacity: 0.85; }
+[data-section] .numSectionNote { color: var(--sec, var(--num-ink)); }
+.numGroupBox[data-section] { border-left: 2px solid var(--sec, var(--num-rule)); }
+.numSectionHead:hover .numGroupLabel { text-shadow: 0 0 7px var(--sec, var(--num-ink)); }
+
+/* the trace field and its buttons pick up their section's colour too */
+[data-section="trace"] .numNumberInput { border-bottom-color: var(--sec); color: var(--sec); }
+[data-section="cosmology"] .numSelectPrimary { color: var(--sec); border-bottom-color: var(--sec); }
+
+/* invert is ink on paper: one colour, no exceptions */
+.numField[data-invert="1"] [data-section] { --sec: var(--num-ink); }
+.numSectionShut .numSectionNote { opacity: 0.6; }
+.numSectionBody { padding-bottom: 0.2em; }
+.numSectionShut .numSectionBody { display: none; }
+.numSectionShut { padding-bottom: 0.15em; }
+
+/* ---- layer rows ---------------------------------------------------------
+ * Name on the left behind a bar in the colour that layer is drawn in, state
+ * on the right. The bar is the point: the panel is the figure's key as well
+ * as its switchboard, so you can tell which colour you are turning off. */
+.numLayerRow {
+	display: flex;
+	align-items: center;
+	gap: 0.6em;
+	width: 100%;
+	background: none;
+	border: none;
+	padding: 0.3em 0;
+	color: inherit;
+	font: inherit;
+	font-size: 0.82em;
+	letter-spacing: 0.08em;
+	cursor: pointer;
+	text-align: left;
+}
+.numLayerBar {
+	flex: 0 0 auto;
+	width: 3px;
+	height: 1.1em;
+	background: var(--num-ink);
+}
+.numLayerBar[data-bar="currents"] { background: var(--num-current); }
+.numLayerBar[data-bar="gates"]    { background: var(--num-channel); }
+.numLayerBar[data-bar="syzygies"] { background: #c7d0da; }
+.numLayerName { flex: 1 1 auto; }
+.numLayerState {
+	flex: 0 0 auto;
+	font-size: 0.82em;
+	letter-spacing: 0.16em;
+	opacity: 0.7;
+}
+.numLayerRow:hover .numLayerName { text-shadow: var(--num-glow); }
+.numLayerRow.numLayerOff { opacity: 0.4; }
+/* A switched-off LAYER greys its bar; a REGION that simply is not the current
+ * one keeps its colour, because that bar is the only thing naming which part
+ * of the figure "torque" or "plex" refers to. */
+.numLayerRow.numLayerOff[data-layer] .numLayerBar { background: currentColor; opacity: 0.45; }
+.numRegionRow.numLayerOff { opacity: 0.62; }
+.numLayerRow:focus-visible { outline: 2px solid var(--num-ink); outline-offset: 2px; }
+
+/* ---- the zone switches --------------------------------------------------
+ * Ten chips, each in its own zone's colour, so the control and the thing it
+ * controls are the same colour in both places. */
+.numZoneFilter {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.3em;
+	margin-bottom: 0.6em;
+}
+.numZoneChip {
+	width: 1.9em;
+	height: 1.9em;
+	padding: 0;
+	background: none;
+	border: 1px solid var(--zc, var(--num-ink));
+	border-radius: 50%;
+	color: var(--zc, var(--num-ink));
+	font: inherit;
+	font-size: 0.78em;
+	font-weight: 600;
+	cursor: pointer;
+	transition: opacity 0.15s ease, box-shadow 0.15s ease;
+}
+.numZoneChip[data-zonechip="0"] { --zc: #a3adb8; }
+.numZoneChip[data-zonechip="1"] { --zc: #e04ff0; }
+.numZoneChip[data-zonechip="2"] { --zc: #4d94ff; }
+.numZoneChip[data-zonechip="3"] { --zc: #35d46a; }
+.numZoneChip[data-zonechip="4"] { --zc: #f05a5a; }
+.numZoneChip[data-zonechip="5"] { --zc: #f0a028; }
+.numZoneChip[data-zonechip="6"] { --zc: #e8c33c; }
+.numZoneChip[data-zonechip="7"] { --zc: #6e93c8; }
+.numZoneChip[data-zonechip="8"] { --zc: #9a7bff; }
+.numZoneChip[data-zonechip="9"] { --zc: #8a939e; }
+.numZoneChip:hover { box-shadow: 0 0 7px var(--zc, var(--num-ink)); }
+.numZoneChip.numZoneChipOff { opacity: 0.28; }
+.numZoneChip:focus-visible { outline: 2px solid var(--num-ink); outline-offset: 2px; }
+
+/* A filtered-out element leaves the figure entirely rather than dimming:
+ * a half-visible zone reads as a state of that zone, which it is not. */
+.numHidden { display: none; }
+
+/* ---- holding zones ------------------------------------------------------
+ *
+ * With anything picked the figure goes into focus: the rest drops back far
+ * enough to read as background but not so far as to vanish, because the
+ * point of holding two zones is to see them AGAINST the figure, not instead
+ * of it. Filtering (numHidden) removes; this only recedes.
+ */
+.numSvg[data-focus="1"] .numLayerChannels,
+.numSvg[data-focus="1"] .numLayerCurrents,
+.numSvg[data-focus="1"] .numLayerGates {
+	opacity: 0.16;
+	transition: opacity 0.2s ease;
+}
+.numSvg[data-focus="1"] .numZone:not(.numPick) {
+	opacity: 0.22;
+	transition: opacity 0.2s ease;
+}
+.numSvg[data-focus="1"] .numZone.numPick {
+	opacity: 1;
+}
+.numZone.numPick .numZoneRing {
+	stroke-width: 4.6;
+	filter: drop-shadow(0 0 9px var(--zc, var(--num-ink)));
+}
+
+/* The arc itself, in three passes: a wide soft bloom, the line, and a dash
+ * that travels along it. Three cheap strokes rather than an SVG filter, so it
+ * stays sharp at any zoom and costs nothing to animate. */
+.numLinkGlow, .numLinkLine, .numLinkPulse {
+	fill: none;
+	stroke-linecap: round;
+	vector-effect: non-scaling-stroke;
+	pointer-events: none;
+}
+.numLinkGlow {
+	stroke: var(--num-current);
+	stroke-width: 13;
+	opacity: 0.18;
+	filter: blur(3px);
+}
+.numLinkLine {
+	stroke: var(--num-current);
+	stroke-width: 2.4;
+	opacity: 0.85;
+}
+.numLinkPulse {
+	stroke: #ffffff;
+	stroke-width: 3.2;
+	stroke-dasharray: 16 150;
+	opacity: 0.9;
+	animation: numPulse 1.6s linear infinite;
+}
+@keyframes numPulse { to { stroke-dashoffset: -166; } }
+
+/* the flat green artefact takes the link without the bloom */
+.numField[data-invert="1"] .numLinkGlow { display: none; }
+.numField[data-invert="1"] .numLinkPulse { stroke: var(--num-field); }
+
+@media (prefers-reduced-motion: reduce) {
+	.numLinkPulse { animation: none; opacity: 0.55; }
+}
+
+.numPrimaryHint {
+	font-size: 0.7em;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	opacity: 0.6;
+	margin-top: 0.35em;
+}
+/* the leading controls carry the weight their labels do */
+.numSelectPrimary {
+	font-size: 0.92em;
+	border-bottom-width: 2px;
+}
+.numPrimary .numCtlRow { margin-top: 0; }
+.numPrimary .numTraceHead { margin-top: 0; }
+.numPrimary .numNumberRow { margin-top: 0.7em; }
+.numPrimary .numGeoSetRow { margin-top: 0.8em; }
+
+/* ---- information containers -------------------------------------------
+ *
+ * Quiet research sections, not dashboard cards: one hairline rule above each,
+ * a small label, then the values. No fill, no radius, no shadow, no badge.
+ */
+
+.numBox {
+	border-top: 1px solid currentColor;
+	padding-top: 0.55em;
+	margin-bottom: 0.9em;
+	opacity: 1;
+}
+.numBox:first-child { border-top: none; padding-top: 0; }
+.numBoxLabel {
+	margin: 0 0 0.3em;
+	font-size: 0.72em;
+	font-weight: 600;
+	letter-spacing: 0.2em;
+	opacity: 0.55;
+	text-transform: uppercase;
+}
+/* the rule is what separates sections, so a status tag sits tight under its
+ * own box rather than floating between two */
+.numBox + .numStatus { margin: -0.7em 0 0.9em; }
+
+/* ---- the cosmology selector -------------------------------------------- */
+
+.numSelect {
+	background: none;
+	border: none;
+	border-bottom: 1px solid currentColor;
+	border-radius: 0;
+	color: var(--num-ink);
+	font-family: inherit;
+	font-size: 0.78em;
+	font-weight: 600;
+	letter-spacing: 0.12em;
+	padding: 0.1em 1.2em 0.15em 0;
+	cursor: pointer;
+	/* the site's own select styling would bring a panel background in with it */
+	-webkit-appearance: none;
+	appearance: none;
+	background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+	                  linear-gradient(135deg, currentColor 50%, transparent 50%);
+	background-position: right 4px center, right 0px center;
+	background-size: 4px 4px, 4px 4px;
+	background-repeat: no-repeat;
+}
+.numSelect:focus-visible { outline: 2px solid var(--num-ink); outline-offset: 3px; }
+/* the option list is drawn by the platform, so it needs real colours */
+.numSelect option { background: #101010; color: #ededed; }
+
+.numCosmoRow, .numGeoSetRow { align-items: baseline; gap: 0.9em; margin-top: 1.2em; }
+.numCosmoRow .numAnnotLabel,
+.numGeoSetRow .numAnnotLabel { margin: 0; }
+
+/* ---- the direction marks ----------------------------------------------
+ * The small solid triangle the reference draws inside every zone. Purely
+ * visual: it never takes a pointer event. */
+.numZoneMark { fill: var(--zc, var(--num-ink)); stroke: none; pointer-events: none; }
+.numZone.numOn .numZoneMark { fill: var(--num-field); }
+
+/* ---- hit areas ---------------------------------------------------------
+ *
+ * The visible linework is thin, and a thin stroke is a poor target. These sit
+ * over the artwork, take the pointer events, and are invisible - the design
+ * is unchanged, only the reach of the cursor is.
+ */
+.numHit {
+	fill: transparent;
+	stroke: none;
+	pointer-events: all;
+	cursor: pointer;
+}
+.numHitLine {
+	fill: none;
+	stroke: transparent;
+	stroke-width: 16;
+	stroke-linecap: round;
+	pointer-events: stroke;
+	cursor: pointer;
+	vector-effect: non-scaling-stroke;
+}
+
+/* The visible parts no longer need to catch anything, so a click in the
+ * middle of a zone cannot be swallowed by the ring or the numeral. */
+.numZoneRing, .numGateRing, .numZoneText, .numGateText,
+.numCurValRing, .numCurValText, .numCurLine, .numCurBody, .numCurHead,
+.numChLine, .numChHead { pointer-events: none; }
+
+.numGate { cursor: pointer; }
+.numGate:focus-visible .numGateRing { stroke-dasharray: 3 3; }
+
+/* ---- the geocentric panel: radial bands -------------------------------
+ *
+ * One band per body. Concentric rings put two labels on the same circle and
+ * they collided; a band per body cannot. Earth is on the floor and the
+ * spheres rise from it in the Ptolemaic order.
+ *
+ * Every stroke here is lighter than the canonical linework: this is the
+ * secondary model and it must read as secondary.
+ */
+
+/* A rule under each row, not a track through it. The row used to be a
+ * full-width line with a knob sitting at its midpoint, which is the shape of
+ * a slider: it promised something to drag and had nothing. It is a table of
+ * bodies, so it is set as one. */
+.numBandRule {
+	stroke: var(--num-ink);
+	stroke-width: 1;
+	opacity: 0.18;
+	vector-effect: non-scaling-stroke;
+}
+
+.numBandName {
+	fill: var(--num-ink);
+	font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 22px;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	text-anchor: start;
+	pointer-events: none;
+}
+.numBandRole {
+	fill: var(--num-ink);
+	font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 17px;
+	font-weight: 500;
+	letter-spacing: 0.08em;
+	text-anchor: end;
+	opacity: 0.55;
+	pointer-events: none;
+}
+
+/* The zone, on every row, in that zone's own colour - the same colour the
+ * zone carries in the Numogram beside it, so the attribution can be checked
+ * by eye instead of taken on trust. */
+.numBandZone {
+	fill: none;
+	stroke: var(--zc, var(--num-ink));
+	stroke-width: 2;
+	vector-effect: non-scaling-stroke;
+	pointer-events: none;
+}
+.numBandZoneText {
+	fill: var(--zc, var(--num-ink));
+	font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 18px;
+	font-weight: 700;
+	text-anchor: middle;
+	dominant-baseline: central;
+	pointer-events: none;
+}
+.numBandZone[data-zone="0"], .numBandZoneText[data-zone="0"] { --zc: #a3adb8; }
+.numBandZone[data-zone="1"], .numBandZoneText[data-zone="1"] { --zc: #e04ff0; }
+.numBandZone[data-zone="2"], .numBandZoneText[data-zone="2"] { --zc: #4d94ff; }
+.numBandZone[data-zone="3"], .numBandZoneText[data-zone="3"] { --zc: #35d46a; }
+.numBandZone[data-zone="4"], .numBandZoneText[data-zone="4"] { --zc: #f05a5a; }
+.numBandZone[data-zone="5"], .numBandZoneText[data-zone="5"] { --zc: #f0a028; }
+.numBandZone[data-zone="6"], .numBandZoneText[data-zone="6"] { --zc: #e8c33c; }
+.numBandZone[data-zone="7"], .numBandZoneText[data-zone="7"] { --zc: #6e93c8; }
+.numBandZone[data-zone="8"], .numBandZoneText[data-zone="8"] { --zc: #9a7bff; }
+.numBandZone[data-zone="9"], .numBandZoneText[data-zone="9"] { --zc: #8a939e; }
+
+/* The Moon and the fixed stars have a place in the Ptolemaic cosmos and no
+ * zone in the Planetwork. Said out loud, because a row that lights nothing
+ * in the figure otherwise looks like a broken one. */
+.numBandNoZone {
+	fill: var(--num-ink);
+	font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.14em;
+	text-anchor: middle;
+	opacity: 0.38;
+	pointer-events: none;
+}
+
+.numBandNote {
+	fill: var(--num-ink);
+	font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 14px;
+	font-weight: 600;
+	letter-spacing: 0.16em;
+	text-anchor: middle;
+	opacity: 0.5;
+	pointer-events: none;
+}
+
+.numBandEarth .numBandName { font-weight: 700; }
+.numBandEarth .numBandRule { opacity: 0.4; }
+
+.numBand { cursor: pointer; }
+.numBand:focus { outline: none; }
+.numBand:hover .numBandName { opacity: 1; font-weight: 700; text-shadow: var(--num-glow); }
+.numBand:hover .numBandRule { opacity: 0.5; }
+.numBand:hover .numBandRole { opacity: 0.95; }
+.numBand:hover .numBandZone { stroke-width: 3; }
+.numBand:focus-visible .numBandRule { opacity: 0.7; stroke-dasharray: 5 4; }
+.numBand.numOn .numBandName { font-weight: 700; }
+.numBand.numOn .numBandRule { opacity: 0.6; }
+.numBand.numOn .numBandRole { opacity: 0.9; }
+.numBand.numOn .numBandZone { fill: var(--zc, var(--num-ink)); }
+.numBand.numOn .numBandZoneText { fill: var(--num-field); }
+
+/* the one tie, drawn only for the selected body in cross-map */
+.numBandTie {
+	stroke: var(--num-ink);
+	stroke-width: 1.6;
+	fill: none;
+	vector-effect: non-scaling-stroke;
+}
+.numBandTieText {
+	fill: var(--num-ink);
+	font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 15px;
+	font-weight: 700;
+	letter-spacing: 0.1em;
+	text-anchor: end;
+	pointer-events: none;
+}
+
+/* ---- information containers become real boxes ------------------------- */
+
+.numBox {
+	border: 1px solid currentColor;
+	border-top: 1px solid currentColor;
+	padding: 0.6em 0.75em 0.7em;
+	margin-bottom: 0.8em;
+}
+.numBox:first-child { border-top: 1px solid currentColor; padding-top: 0.6em; }
+.numBox + .numStatus { margin: -0.45em 0 0.8em 0.1em; }
+
+/* The credit, set as one line rather than as a provenance apparatus. */
+.numCredit {
+	font-size: 0.72em;
+	line-height: 1.6;
+	letter-spacing: 0.04em;
+	opacity: 0.8;
+}
+.numCredit i { font-style: italic; opacity: 0.95; }
+
+/* ===================== the Pandemonium deck =============================
+ *
+ * Five cards, one per syzygy. Card-shaped on purpose - a border all round, a
+ * rule under the head, the name set large - because the ask was for something
+ * read like a deck rather than like another list. Scrolls in the panel
+ * column; one card is about a third of its height.
+ */
+.numDeck {
+	display: flex;
+	flex-direction: column;
+	gap: 0.7em;
+	width: 100%;
+	max-height: 100%;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding-right: 0.3em;
+}
+.numDeck::-webkit-scrollbar { width: 4px; }
+.numDeck::-webkit-scrollbar-thumb { background: var(--num-rule); border-radius: 2px; }
+
+/* ---- the deck's head and its segments ----------------------------------- */
+.numDeckHead { margin-bottom: 0.8em; }
+.numDeckCount {
+	font-size: 0.68em;
+	font-weight: 700;
+	letter-spacing: 0.24em;
+	color: var(--num-ink);
+	opacity: 0.8;
+}
+.numDeckNote {
+	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+	font-size: 0.66em;
+	line-height: 1.55;
+	color: #98a3ae;
+	margin: 0.35em 0 0.6em;
+}
+.numDeckTabs { display: flex; flex-wrap: wrap; gap: 0.4em; }
+.numDeckTabs .numCtl { font-size: 0.66em; }
+
+.numDeckSeg { margin-bottom: 0.9em; }
+.numDeckSegHead {
+	display: flex;
+	align-items: center;
+	gap: 0.5em;
+	padding-bottom: 0.3em;
+	margin-bottom: 0.45em;
+	border-bottom: 1px solid var(--num-rule);
+}
+.numDeckSegName {
+	font-size: 0.66em;
+	font-weight: 700;
+	letter-spacing: 0.2em;
+	opacity: 0.75;
+}
+.numDeckSegCount {
+	font-size: 0.6em;
+	opacity: 0.45;
+	margin-left: auto;
+}
+.numDeckSegTag {
+	font-size: 0.58em;
+	font-weight: 700;
+	letter-spacing: 0.16em;
+	color: #e04ff0;
+}
+/* the nine-sum segment is the one that matters most, so it is marked */
+.numDeckSegKey .numDeckSegHead { border-bottom-color: #e04ff0; }
+.numDeckSegKey .numDeckSegName { opacity: 1; color: #e04ff0; }
+
+/* Forty of the forty-five carry arithmetic and nothing else, so they are set
+ * as a compact row: two-up where there is width for it, and without the
+ * padding a named card needs. */
+.numDeckSeg { display: flex; flex-direction: column; gap: 0.4em; }
+.numDeckSeg .numDeckSegHead { margin-bottom: 0; }
+.numCardPlain { padding: 0.45em 0.6em; }
+.numCardPlain .numCardTop { padding-bottom: 0.3em; margin-bottom: 0.3em; }
+.numCardPlain .numCardFacts { margin-bottom: 0; font-size: 0.66em; }
+.numCardSums {
+	font-size: 0.62em;
+	font-weight: 600;
+	letter-spacing: 0.12em;
+	opacity: 0.5;
+}
+
+.numCard {
+	display: block;
+	width: 100%;
+	text-align: left;
+	background: var(--num-panel);
+	border: 1px solid var(--num-rule);
+	border-radius: 3px;
+	padding: 0.7em 0.8em 0.75em;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+	transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.numCard:hover { border-color: var(--reg-c, var(--num-ink)); }
+.numCard:focus-visible { outline: 2px solid var(--num-ink); outline-offset: 2px; }
+.numCard.numCardOn {
+	border-color: var(--reg-c, var(--num-ink));
+	box-shadow: 0 0 12px -2px var(--reg-c, var(--num-ink));
+}
+.numCard[data-sys="torque"] { --reg-c: #e04ff0; }
+.numCard[data-sys="warp"]   { --reg-c: #35d46a; }
+.numCard[data-sys="plex"]   { --reg-c: #a3adb8; }
+/* a pair that is not a syzygy belongs to no region, so it takes no region
+ * colour - the deck should not imply a membership the arithmetic denies */
+.numCard[data-sys="none"]   { --reg-c: #6b7684; }
+
+.numCardTop {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.6em;
+	padding-bottom: 0.45em;
+	margin-bottom: 0.5em;
+	border-bottom: 1px solid var(--num-rule);
+}
+.numCardPair { font-size: 0.86em; font-weight: 700; }
+.numCardPair i { font-style: normal; opacity: 0.4; }
+.numCardRegion {
+	font-size: 0.62em;
+	font-weight: 700;
+	letter-spacing: 0.2em;
+	color: var(--reg-c, var(--num-ink));
+	opacity: 0.9;
+}
+.numCardName {
+	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+	font-size: 1.32em;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	color: #e8ecf0;
+	line-height: 1.1;
+}
+.numCardEpithet {
+	font-size: 0.62em;
+	font-weight: 700;
+	letter-spacing: 0.24em;
+	color: var(--reg-c, var(--num-ink));
+	opacity: 0.75;
+	margin-top: 0.15em;
+	margin-bottom: 0.6em;
+}
+.numCardFacts {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 0.12em 0.7em;
+	margin: 0 0 0.6em;
+	font-size: 0.7em;
+}
+.numCardFacts dt { opacity: 0.5; letter-spacing: 0.1em; }
+.numCardFacts dd { margin: 0; color: #e8ecf0; }
+.numCardReads {
+	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+	font-size: 0.72em;
+	line-height: 1.55;
+	color: #98a3ae;
+}
+.numCardTag {
+	margin-top: 0.5em;
+	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+	font-size: 0.58em;
+	font-weight: 600;
+	letter-spacing: 0.14em;
+	opacity: 0.42;
+}
+.numField[data-invert="1"] .numCardName,
+.numField[data-invert="1"] .numCardFacts dd,
+.numField[data-invert="1"] .numCardReads { color: var(--num-ink); }
+.numField[data-invert="1"] .numCard { --reg-c: var(--num-ink); }
+
+/* ===================== the reading, in more than one colour ==============
+ *
+ * It was a single column of one green at one weight, so a zone, its
+ * arithmetic and its provenance all looked like the same kind of statement.
+ * Each block takes a colour for its label and a rule in the same colour;
+ * values are set near-white so they read as answers rather than as more
+ * chrome; and the prose lines drop to a sans face, which separates what the
+ * app is saying from what the figure is.
+ */
+.numBox[data-box] { --bx: var(--num-ink); }
+.numBox[data-box="zone"]             { --bx: #a3adb8; }
+.numBox[data-box="syzygy"]           { --bx: #e04ff0; }
+.numBox[data-box="arithmetic"]       { --bx: #4d94ff; }
+.numBox[data-box="structures"]       { --bx: #9a7bff; }
+.numBox[data-box="reduction"]        { --bx: #f0a028; }
+.numBox[data-box="aq-values"]        { --bx: #e8c33c; }
+.numBox[data-box="number-trace"],
+.numBox[data-box="word-trace"],
+.numBox[data-box="planet-trace"]     { --bx: #4d94ff; }
+.numBox[data-box="body"]             { --bx: #e8e8ea; }
+.numBox[data-box="geocentric"]       { --bx: #6e93c8; }
+.numBox[data-box="ccru-planetwork"],
+.numBox[data-box="geocentric-zone"]  { --bx: #35d46a; }
+
+.numBox[data-box] { border-top-color: var(--bx); }
+.numBoxLabel { color: var(--bx); opacity: 0.85; }
+
+/* Values read as answers: near-white, and a size up from the label. */
+.numAnnotLine { color: #e8ecf0; }
+.numAnnotRow > span:first-child { color: var(--bx); opacity: 0.7; }
+.numAnnotRow > span:last-child { color: #e8ecf0; }
+
+/* The big numeral takes its zone's own colour, set by .numTag. */
+.numAnnotBig { font-size: 1.9em; font-weight: 700; line-height: 1.1; }
+
+/* A demon's name is a name, not a value - it gets the block's colour and
+ * italics rather than the white the numbers take. */
+.numAnnotName {
+	color: var(--bx);
+	font-style: italic;
+	letter-spacing: 0.06em;
+}
+
+/* Prose, in a sans at a smaller size: this is the app explaining itself, and
+ * it should not look like part of the figure's own notation. */
+.numAnnotFoot,
+.numAnnotIdle,
+.numStatus {
+	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+	letter-spacing: 0.02em;
+}
+.numAnnotFoot { color: #98a3ae; opacity: 1; font-size: 0.92em; }
+.numAnnotIdle { color: #98a3ae; opacity: 1; }
+.numStatus { opacity: 0.6; }
+
+/* invert is ink on paper: one colour, no exceptions */
+.numField[data-invert="1"] .numBox[data-box] { --bx: var(--num-ink); }
+.numField[data-invert="1"] .numAnnotLine,
+.numField[data-invert="1"] .numAnnotRow > span:last-child,
+.numField[data-invert="1"] .numAnnotFoot,
+.numField[data-invert="1"] .numAnnotIdle { color: var(--num-ink); }
+
+/* ---- the trace field's own clear ---------------------------------------
+ * In the field's corner rather than on the row: the row is in the title bar
+ * and had no width to give a fourth control. Shows only when there is
+ * something to clear, and comes up to full strength on hover. */
+.numTraceField { position: relative; display: inline-flex; flex: 1 1 9em; min-width: 7em; }
+.numTraceField .numNumberInput {
+	width: 100%;
+	/* smaller than the rest of the title row, and with the row's wide tracking
+	   dropped: the placeholder is a phrase, and at the row's own size and
+	   letter-spacing it needed 101px in a 98px field */
+	font-size: 0.64em;
+	letter-spacing: 0.02em;
+}
+/* Top left of the field, and invisible until the field is hovered - it should
+ * not sit there as a permanent mark on a control that is usually empty. */
+.numTraceClear {
+	position: absolute;
+	left: -0.15em;
+	top: -0.75em;
+	width: 1.05em;
+	height: 1.05em;
+	padding: 0;
+	line-height: 1;
+	background: var(--num-field);
+	border: none;
+	border-radius: 50%;
+	color: inherit;
+	font: inherit;
+	font-size: 0.78em;
+	opacity: 0;
+	cursor: pointer;
+	transition: opacity 0.15s ease;
+	z-index: 2;
+}
+.numTraceField:hover .numTraceClear,
+.numTraceField:focus-within .numTraceClear,
+.numTraceClear:focus-visible { opacity: 0.8; }
+.numTraceClear:hover { opacity: 1; }
+.numTraceClear:focus-visible { outline: 1px solid currentColor; outline-offset: 1px; }
+
+/* ---- a Lemur card, and a Lemur reading --------------------------------- */
+.numCardMesh {
+	font-size: 0.6em;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	opacity: 0.45;
+}
+.numCardAlias {
+	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+	font-size: 0.66em;
+	font-style: italic;
+	color: #98a3ae;
+	margin-top: 0.1em;
+}
+.numCardClass {
+	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+	font-size: 0.66em;
+	line-height: 1.45;
+	color: #98a3ae;
+	margin-top: 0.4em;
+}
+.numCard .numCardRegion { display: block; margin-top: 0.45em; }
+
+/* routes: the path, then what CCRU reads in it */
+.numRt { display: flex; gap: 0.55em; margin-bottom: 0.3em; align-items: baseline; }
+.numRtPath {
+	flex: 0 0 auto;
+	font-weight: 700;
+	color: var(--bx, var(--num-ink));
+	font-size: 0.9em;
+}
+.numRtText {
+	flex: 1 1 auto;
+	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+	font-size: 0.86em;
+	line-height: 1.45;
+	color: #98a3ae;
+}
+.numBox[data-box="lemur"]       { --bx: #e04ff0; }
+.numBox[data-box="pandemonium"] { --bx: #9a7bff; }
+.numBox[data-box="routes"]      { --bx: #f0a028; }
+
+/* ---- Divination -------------------------------------------------------- */
+.numDivPair { display: flex; gap: 0.6em; margin-bottom: 0.6em; }
+.numDivSide { flex: 1 1 0; min-width: 0; }
+.numDivLabel {
+	display: block;
+	font-size: 0.6em;
+	font-weight: 700;
+	letter-spacing: 0.22em;
+	opacity: 0.55;
+	margin-bottom: 0.25em;
+}
+.numDivInput { width: 100%; }
+.numDivOut { margin-top: 0.3em; font-size: 0.76em; font-weight: 700; }
+.numDivErr {
+	margin-top: 0.3em;
+	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+	font-size: 0.66em;
+	color: #f05a5a;
+}
+.numDivResult {
+	margin-top: 0.9em;
+	padding-top: 0.7em;
+	border-top: 1px solid var(--num-rule);
+}
+.numDivHead {
+	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+	font-size: 1.25em;
+	font-weight: 700;
+	color: #e8ecf0;
+	line-height: 1.15;
+}
+.numDivHead i { font-style: italic; font-size: 0.7em; color: #98a3ae; }
+.numDivEpithet {
+	font-size: 0.62em;
+	font-weight: 700;
+	letter-spacing: 0.2em;
+	color: #e04ff0;
+	margin: 0.2em 0 0.6em;
+}
+.numDivBody {
+	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+	font-size: 0.72em;
+	line-height: 1.55;
+	color: #98a3ae;
+	margin-top: 0.5em;
+}
+.numDivRoutes { margin-top: 0.7em; }
+.numField[data-invert="1"] .numDivHead,
+.numField[data-invert="1"] .numDivBody { color: var(--num-ink); }
+
+/* ---- Divination takes the room -----------------------------------------
+ *
+ * Two name fields, their reductions, the Lemur they land on and its routes
+ * do not fit the narrow column the planet lineup uses. In this cosmology the
+ * panel takes the width of the stage and the READING section stands down -
+ * the divination IS the reading here, and having both was two readings of
+ * the same pair competing for a column each.
+ */
+.numField[data-cosmo="divine"] .numPanelGeo {
+	flex: 1 1 62%;
+	max-width: none;
+}
+.numField[data-cosmo="divine"] .numPanelMain { flex: 0 1 38%; }
+.numField[data-cosmo="divine"] [data-section="reading"] { display: none; }
+.numField[data-cosmo="divine"] .numSideRight { flex: 0 0 auto; min-width: 0; max-width: 7.5em; }
+
+/* with the room, the two fields sit side by side at a readable size */
+.numField[data-cosmo="divine"] .numDivine { font-size: 1.06em; }
+.numField[data-cosmo="divine"] .numDivHead { font-size: 1.5em; }
+.numField[data-cosmo="divine"] .numDivPair { gap: 1em; }
+
+@media (max-width: 620px) {
+	.numField[data-cosmo="divine"] .numPanelGeo,
+	.numField[data-cosmo="divine"] .numPanelMain { flex: 0 0 auto; max-width: none; }
+	.numField[data-cosmo="divine"] .numSideRight { max-width: none; }
+}

@@ -78,7 +78,16 @@ function obNext() {
 // Marks the account as seen and hands over to the calculator. setup_done is
 // written on sight at the start rather than here, so a member who closes the
 // tab is not sent back through this on their next visit.
+//
+// Everything here can be skipped except the username, which is now required:
+// leaving without one goes back to that step rather than out.
 function obFinish() {
+	if (!obGet("username", "")) {
+		obStep = obSteps.indexOf("name")
+		obRender()
+		obNameErr("Choose a username to continue - every account needs one now.")
+		return
+	}
 	$("#obBack, #obBox").remove()
 	window.location.replace("index.html")
 }
@@ -104,35 +113,31 @@ function obWelcomeHtml() {
 
 function obNameHtml() {
 	var o = '<div class="obIcon">&#9997;</div>'
-	o += '<div class="obTitle">What should we call you?</div>'
-	o += '<div class="obLead">This is shown instead of your email, everywhere on the site.</div>'
+	o += '<div class="obTitle">Choose your username</div>'
+	o += '<div class="obLead">This is shown instead of your email, everywhere on the site. It is required.</div>'
 	o += '<div class="authField authNameField obField">'
 	o += '<input class="authInput" type="text" id="obName" maxlength="32" autocomplete="nickname" ' +
-		'placeholder="Your display name" value="' + authEsc(obGet("username", "")) + '">'
+		'placeholder="Your username" value="' + authEsc(obGet("username", "")) + '">'
 	o += '<div id="obNameErr" class="authFieldErr hideValue"></div>'
-	o += '<div class="authHint">2&ndash;32 characters. Letters, numbers, spaces, dots and dashes.</div>'
+	o += '<div class="authHint">2&ndash;32 characters: letters, numbers, spaces, dots, dashes and underscores.</div>'
 	o += '</div>'
-	o += '<div class="obNote">Leave it empty and we will use the first part of your email.</div>'
 	return o
 }
 
 function obSaveName() {
 	var box = document.getElementById("obName")
 	if (box === null) return true
-	var name = box.value.trim()
+	var name = authUsernameNormalize(box.value)
 
-	// the same rules the profile form applies, so the two cannot disagree
-	if (name.length > 0 && (name.length < 2 || name.length > 32)) return obNameErr("Use between 2 and 32 characters.")
-	if (name.length > 0 && !/^[\w .\-]+$/.test(name)) return obNameErr("Letters, numbers, spaces, dots and dashes only.")
+	// the shared rules (auth.js), the same ones the database enforces
+	var problem = authUsernameProblem(name)
+	if (problem) return obNameErr(problem)
 	if (name === (obGet("username", "") || "")) return true
 
-	updateProfile({ username: name === "" ? null : name }).catch(function (err) {
-		var m = (err.message || "").toLowerCase()
-		obNameErr(m.indexOf("duplicate") > -1 || m.indexOf("unique") > -1
-			? "That display name is already taken."
-			: "Could not save that name.")
-		obStep = 1
+	updateProfile({ username: name }).catch(function (err) {
+		obStep = obSteps.indexOf("name")
 		obRender()
+		obNameErr(authUsernameError(err) || "Could not save that username.")
 	})
 	return true
 }

@@ -11,44 +11,14 @@
 // inputs and there is nothing to keep in step.
 
 // ---- zodiac ------------------------------------------------------------
-
-// Lahiri, the standard Indian ayanamsa: 23°51'11" at J2000, drifting about
-// 50.28 arcseconds a year.
-function astroAyanamsa(d) {
-	return 23.8531 + (d / 365.25) * 0.0139659
-}
-
-// Shifts a whole chart into the sidereal zodiac. Longitudes move, the
-// relationships between them do not, so aspects are left exactly as they were.
-function astroToSidereal(chart) {
-	var ayan = astroAyanamsa(chart.d)
-	var out = {
-		d: chart.d, ayanamsa: ayan, phase: chart.phase,
-		plutoOutOfRange: chart.plutoOutOfRange,
-		bodies: [], aspects: chart.aspects, sidereal: true
-	}
-	for (var i = 0; i < chart.bodies.length; i++) {
-		var b = chart.bodies[i]
-		var lon = aRev(b.lon - ayan)
-		var s = astroSignOf(lon)
-		out.bodies.push({
-			key: b.key, name: b.name, glyph: b.glyph, lon: lon,
-			sign: s.sign, signIdx: s.idx, deg: s.deg, min: s.min,
-			retro: b.retro, speed: b.speed, house: b.house
-		})
-	}
-	if (chart.houses) {
-		out.houses = { system: chart.houses.system, cusps: [] }
-		for (var h = 0; h < chart.houses.cusps.length; h++) {
-			out.houses.cusps.push(aRev(chart.houses.cusps[h] - ayan))
-		}
-		out.houses.asc = aRev(chart.houses.asc - ayan)
-		out.houses.mc = aRev(chart.houses.mc - ayan)
-		out.ascSign = astroSignOf(out.houses.asc)
-		out.mcSign = astroSignOf(out.houses.mc)
-	}
-	return out
-}
+//
+// astroAyanamsa() (Lahiri) and astroToSidereal() live in calc/astrology.js,
+// with the rest of the zodiac machinery, rather than in a second copy here.
+// A sidereal chart on this tab is built sidereal from the start - the zodiac
+// is passed into astroChart - so its Ascendant, cusps and house numbers all
+// belong to the same zodiac. Taking the ayanamsa off a finished tropical
+// chart, as this used to, left Whole Sign cusps mid-sign and every planet
+// carrying its tropical house number.
 
 // ---- tab state ---------------------------------------------------------
 
@@ -109,9 +79,11 @@ function pcBuildChart(f, zodiac) {
 	var hh = f.timeKnown ? f.hh : 12
 	var mm = f.timeKnown ? f.mm : 0
 	var ut = hh + mm / 60 - f.tz
-	var loc = f.timeKnown ? { lat: f.lat, lon: f.lon, system: "whole" } : null
-	var chart = astroChart(f.y, f.m, f.d, ut, loc)
-	return (zodiac === "sidereal") ? astroToSidereal(chart) : chart
+	var sid = (zodiac === "sidereal")
+	var loc = f.timeKnown
+		? { lat: f.lat, lon: f.lon, system: "whole", zodiac: zodiac, ayanamsa: sid ? "lahiri" : null }
+		: (sid ? { zodiac: "sidereal", ayanamsa: "lahiri" } : null)
+	return astroChart(f.y, f.m, f.d, ut, loc)
 }
 
 // Today's sky against the birth chart. Only the slower bodies are worth
@@ -122,8 +94,9 @@ var pcTransitBodies = ["jupiter", "saturn", "uranus", "neptune", "pluto", "mars"
 function pcTransits(natal, zodiac) {
 	var now = new Date()
 	var ut = now.getUTCHours() + now.getUTCMinutes() / 60
-	var sky = astroChart(now.getUTCFullYear(), now.getUTCMonth() + 1, now.getUTCDate(), ut, null)
-	if (zodiac === "sidereal") sky = astroToSidereal(sky)
+	// built in the reading's own zodiac, rather than converted afterwards
+	var frame = (zodiac === "sidereal") ? { zodiac: "sidereal", ayanamsa: "lahiri" } : null
+	var sky = astroChart(now.getUTCFullYear(), now.getUTCMonth() + 1, now.getUTCDate(), ut, frame)
 
 	var hits = []
 	for (var i = 0; i < sky.bodies.length; i++) {

@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<html lang="en">
 <head>
 <title>Create account | Cyphers</title>
 <meta charset="utf-8">
@@ -19,11 +20,11 @@
 <script src="lib/jquery.min.js?v=20260821b"></script>
 <script src="lib/supabase.min.js?v=20260821b"></script>
 
-<link rel="stylesheet" type="text/css" href="calc/styles.css?v=20260821b">
-<link rel="stylesheet" type="text/css" href="auth/auth.css?v=20260821b">
+<link rel="stylesheet" type="text/css" href="calc/styles.css?v=20260920c">
+<link rel="stylesheet" type="text/css" href="auth/auth.css?v=20260919a">
 
 <script src="auth/supabase-config.js?v=20260821b"></script>
-<script src="auth/auth.js?v=20260821b"></script>
+<script src="auth/auth.js?v=20260919b"></script>
 <script src="auth/auth-ui.js?v=20260821b"></script>
 </head>
 
@@ -42,6 +43,12 @@
 		<div id="authMsg" class="authMsg hideValue"></div>
 
 		<form id="registerForm" novalidate>
+			<div class="authField">
+				<label class="authLabel" for="username">Username <span class="authRequired">(required)</span></label>
+				<input class="authInput" type="text" id="username" maxlength="32" autocomplete="username" spellcheck="false" required aria-describedby="usernameHint">
+				<div class="authHint" id="usernameHint">How you appear on the site. 2&ndash;32 characters: letters, numbers, spaces, dots, dashes and underscores.</div>
+				<div id="usernameErr" class="authFieldErr hideValue"></div>
+			</div>
 			<div class="authField">
 				<label class="authLabel" for="email">Email</label>
 				<input class="authInput" type="email" id="email" autocomplete="email" spellcheck="false" required>
@@ -110,6 +117,16 @@ $(document).ready(function () {
 		});
 	});
 
+	// says "taken" as soon as the field is left, rather than after the form
+	$("#username").on("blur", function () {
+		if (!this.value.trim()) return;
+		var asked = this.value;
+		authUsernameCheck(asked).then(function (problem) {
+			if (document.getElementById("username").value !== asked) return;
+			authFieldError("username", problem || "");
+		});
+	});
+
 	$("#registerForm").on("submit", function (e) {
 		e.preventDefault();
 		doRegister();
@@ -118,13 +135,16 @@ $(document).ready(function () {
 
 function doRegister() {
 	authClearMessage("authMsg");
-	authClearFieldErrors(["email", "password", "confirm"]);
+	authClearFieldErrors(["username", "email", "password", "confirm"]);
 
+	var username = document.getElementById("username").value;
 	var email = document.getElementById("email").value;
 	var password = document.getElementById("password").value;
 	var confirm = document.getElementById("confirm").value;
 
 	var bad = false;
+	var nameProblem = authUsernameProblem(username);
+	if (nameProblem) { authFieldError("username", nameProblem); bad = true; }
 	if (!authValidEmail(email)) { authFieldError("email", "Enter a valid email address."); bad = true; }
 
 	var problems = authPasswordProblems(password);
@@ -134,7 +154,20 @@ function doRegister() {
 	if (bad) return;
 
 	authSetLoading("registerBtn", true);
-	authSignUp(email, password).then(function (data) {
+	// taken? ask first, so the answer is a clear message rather than a failed
+	// sign-up (the database refuses a missing, invalid or taken name anyway)
+	authUsernameCheck(username).then(function (problem) {
+		if (problem) {
+			authSetLoading("registerBtn", false, "Create account");
+			authFieldError("username", problem);
+			return;
+		}
+		createAccount(email, password, username);
+	});
+}
+
+function createAccount(email, password, username) {
+	authSignUp(email, password, username).then(function (data) {
 		authSetLoading("registerBtn", false, "Create account");
 
 		// Supabase returns a user with an empty identities array when the email
@@ -150,7 +183,9 @@ function doRegister() {
 		authShowMessage("authMsg", "Account created. Check " + email + " for a verification link, then sign in.", "success");
 	}).catch(function (err) {
 		authSetLoading("registerBtn", false, "Create account");
-		authShowMessage("authMsg", authFriendlyError(err), "error");
+		var nameErr = authUsernameError(err);
+		if (nameErr) authFieldError("username", nameErr);
+		else authShowMessage("authMsg", authFriendlyError(err), "error");
 	});
 }
 
@@ -174,3 +209,4 @@ toggleCodeRain();
 $(window).on("resize", function () { if (optMatrixCodeRain) toggleCodeRain(); });
 </script>
 </body>
+</html>

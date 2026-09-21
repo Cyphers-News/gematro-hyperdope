@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<html lang="en">
 <head>
 <title>Your profile | Cyphers</title>
 <meta charset="utf-8">
@@ -19,15 +20,15 @@
 <script src="lib/jquery.min.js?v=20260821b"></script>
 <script src="lib/supabase.min.js?v=20260821b"></script>
 
-<link rel="stylesheet" type="text/css" href="calc/styles.css?v=20260821b">
-<link rel="stylesheet" type="text/css" href="auth/auth.css?v=20260821b">
+<link rel="stylesheet" type="text/css" href="calc/styles.css?v=20260920c">
+<link rel="stylesheet" type="text/css" href="auth/auth.css?v=20260919a">
 
 <script src="auth/supabase-config.js?v=20260821b"></script>
-<script src="auth/auth.js?v=20260821b"></script>
+<script src="auth/auth.js?v=20260919b"></script>
 <script src="auth/auth-ui.js?v=20260821b"></script>
 <script src="auth/history-sync.js?v=20260821b"></script>
 <script src="auth/profile-features.js?v=20260821b"></script>
-<script src="auth/onboarding.js?v=20260821b"></script>
+<script src="auth/onboarding.js?v=20260919a"></script>
 </head>
 
 <body>
@@ -44,7 +45,7 @@
 		<div id="authMsg" class="authMsg hideValue"></div>
 
 		<div class="authField authNameField">
-			<label class="authLabel" for="username">Display name</label>
+			<label class="authLabel" for="username">Username</label>
 			<input class="authInput" type="text" id="username" maxlength="32" autocomplete="nickname">
 			<div id="usernameErr" class="authFieldErr hideValue"></div>
 			<div class="authHint">Shown instead of your email. 2&ndash;32 characters.</div>
@@ -73,7 +74,7 @@
 				picture. It cannot be undone.
 			</div>
 			<div class="profileDangerRow">
-				<input class="authInput" type="text" id="deleteConfirm" placeholder="Type DELETE to confirm"
+				<input class="authInput" type="text" id="deleteConfirm" aria-label="Type DELETE to confirm deleting your account" placeholder="Type DELETE to confirm"
 				       autocomplete="off" spellcheck="false" oninput="deleteGate()">
 				<button class="authBtn" type="button" id="deleteBtn" onclick="doDeleteAccount()" disabled>Delete my account</button>
 			</div>
@@ -162,25 +163,23 @@ function doSave() {
 	authClearMessage("authMsg");
 	authClearFieldErrors(["username"]);
 
-	var name = document.getElementById("username").value.trim();
-	if (name.length > 0 && (name.length < 2 || name.length > 32)) {
-		authFieldError("username", "Use between 2 and 32 characters."); return;
-	}
-	if (name.length > 0 && !/^[\w .\-]+$/.test(name)) {
-		authFieldError("username", "Letters, numbers, spaces, dots and dashes only."); return;
-	}
+	// the shared rules (auth.js), the same ones the database enforces - and a
+	// username is required, so it cannot be saved empty
+	var name = authUsernameNormalize(document.getElementById("username").value);
+	var problem = authUsernameProblem(name);
+	if (problem) { authFieldError("username", problem); return; }
 
 	authSetLoading("saveBtn", true);
-	updateProfile({ username: name === "" ? null : name }).then(function () {
+	updateProfile({ username: name }).then(function () {
 		authSetLoading("saveBtn", false, "Save and start");
 		authShowMessage("authMsg", "Saved. Taking you to the calculator…", "success");
 		renderProfile();
 		setTimeout(function () { window.location.href = "index.html"; }, 900);
 	}).catch(function (err) {
 		authSetLoading("saveBtn", false, "Save and start");
-		var m = (err.message || "").toLowerCase();
-		if (m.indexOf("duplicate") > -1 || m.indexOf("unique") > -1) {
-			authFieldError("username", "That display name is already taken.");
+		var nameErr = authUsernameError(err);
+		if (nameErr) {
+			authFieldError("username", nameErr);
 		} else {
 			authShowMessage("authMsg", authFriendlyError(err), "error");
 		}
@@ -225,3 +224,4 @@ function doLink() {
 }
 </script>
 </body>
+</html>

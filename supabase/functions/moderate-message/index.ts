@@ -160,7 +160,15 @@ Deno.serve(async (req: Request) => {
 	const { data: sent, error: sendErr } = await admin.rpc("chat_send_as", {
 		sender: me.id, target, body,
 	})
-	if (sendErr) return json({ error: sendErr.message }, 400)
+	if (sendErr) {
+		// Only an exception one of this project's own functions raised (P0001,
+		// "raise exception '...'") is written to be read by a member - blocked,
+		// rate limited, and so on. Anything Postgres raised by itself can name
+		// a table or a constraint, so it stays in the function's log.
+		console.error("chat_send_as failed:", sendErr)
+		const own = sendErr.code === "P0001"
+		return json({ error: own ? sendErr.message : "Message not sent — try again" }, 400)
+	}
 
 	return json({ ok: true, message: Array.isArray(sent) ? sent[0] : sent })
 })

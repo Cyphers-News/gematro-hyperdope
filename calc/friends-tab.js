@@ -100,7 +100,7 @@ function frNewsCounts(counts) {
 	return {
 		friends: Math.max(0, counts.friends - friendsSeenGet("friends")),
 		requests: counts.incoming,   // a pending request stays news until answered
-		chats: chatUnreadCache.n,    // unread is "not seen" by definition
+		chats: (typeof chatUnreadCache !== "undefined" ? chatUnreadCache.n : 0), // unread is "not seen" by definition
 		phrases: (typeof phraseNotifCache !== "undefined" ? phraseNotifCache.n : 0),
 		forum: (typeof forumNotifCache !== "undefined" ? forumNotifCache.n : 0)
 	}

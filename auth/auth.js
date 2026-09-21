@@ -63,7 +63,13 @@ function initAuth() {
 		authUser = session ? session.user : null
 		if (!authUser) authProfile = null
 		if (typeof renderAuthNav === "function") renderAuthNav()
-		if (authUser && (event === "SIGNED_IN" || event === "USER_UPDATED")) syncProfile()
+		if (authUser && (event === "SIGNED_IN" || event === "USER_UPDATED")) {
+			// a signed-in account without a username is asked for one
+			// (auth/username-gate.js) once its profile is here
+			syncProfile().then(function () {
+				if (typeof usernameGateRefresh === "function") usernameGateRefresh()
+			}).catch(function () {})
+		}
 	})
 }
 
@@ -96,6 +102,67 @@ function authPasswordStrength(pw) {
 	return Math.min(score, 5)
 }
 
+// ---- usernames --------------------------------------------------------
+//
+// A username is required: it is how a member is shown everywhere - the
+// leaderboards, the forum, chat, reports. These are the same rules the
+// database enforces (username_problem() in
+// supabase/migrations/20260919000000_required_usernames.sql); checking here
+// as well just answers instantly. The database is the one that decides.
+
+var AUTH_USERNAME_RESERVED = ["admin", "administrator", "admins", "mod", "mods", "moderator", "moderators",
+	"support", "system", "staff", "root", "owner", "superuser", "sysadmin", "security", "help", "helpdesk",
+	"official", "cyphers", "cyphersnews", "cyphersofficial", "cyphersteam", "anonymous", "anon", "unknown",
+	"guest", "user", "member", "nobody", "null", "undefined", "deleted", "deleteduser"]
+
+// Tidied the way the database stores it: outer spaces off, inner runs to one.
+function authUsernameNormalize(name) {
+	var s = String(name === null || name === undefined ? "" : name)
+	if (s.normalize) s = s.normalize("NFKC")
+	return s.replace(/^\s+|\s+$/g, "").replace(/\s+/g, " ")
+}
+
+// null when acceptable, otherwise the reason, worded for the member
+function authUsernameProblem(name) {
+	var n = authUsernameNormalize(name)
+	if (n === "") return "Choose a username."
+	if (n.length < 2 || n.length > 32) return "Use between 2 and 32 characters."
+	if (!/^[A-Za-z0-9 ._\-]+$/.test(n)) return "Use letters, numbers, spaces, dots, dashes and underscores only."
+	if (!/^[A-Za-z0-9]/.test(n) || !/[A-Za-z0-9]$/.test(n)) return "Start and end with a letter or a number."
+	if (/[ ._\-]{2}/.test(n)) return "Do not put two spaces, dots, dashes or underscores together."
+	var key = n.toLowerCase().replace(/[\s._\-]/g, "")
+	if (AUTH_USERNAME_RESERVED.indexOf(key) > -1 || key.indexOf("admin") > -1 || key.indexOf("moderator") > -1) {
+		return "That name is reserved. Please choose another."
+	}
+	return null
+}
+
+// Asks the database whether a name is acceptable and free. Resolves to null
+// (fine) or a reason. If the check itself is unavailable - offline, or the
+// database has not had the migration yet - it resolves to null and lets the
+// save or sign-up be the judge, rather than blocking on a check that cannot run.
+function authUsernameCheck(name) {
+	var problem = authUsernameProblem(name)
+	if (problem) return Promise.resolve(problem)
+	var client = getAuthClient()
+	if (client === null) return Promise.resolve(null)
+	return client.rpc("username_check", { p_name: authUsernameNormalize(name) })
+		.then(function (res) { return res.error ? null : (res.data || null) })
+		.catch(function () { return null })
+}
+
+// What a failed username save or sign-up should say.
+function authUsernameError(err) {
+	var m = String((err && err.message) || err || "")
+	var low = m.toLowerCase()
+	if (low.indexOf("duplicate") > -1 || low.indexOf("unique") > -1 || low.indexOf("already taken") > -1) return "That username is already taken."
+	if (low.indexOf("database error saving new user") > -1) return "That username can't be used - it may already be taken. Please try another."
+	if (/^(username: )?(choose a username|use between|use letters|start and end|do not put|that name is reserved|a username is required)/i.test(m)) {
+		return m.replace(/^username: /i, "")
+	}
+	return null
+}
+
 // ---- error messages ---------------------------------------------------
 //
 // Supabase deliberately returns the same message for a wrong password and an
@@ -113,6 +180,8 @@ function authFriendlyError(err) {
 	if (m.indexOf("rate limit") > -1 || m.indexOf("too many requests") > -1) return "Too many attempts. Please wait a minute and try again."
 	if (m.indexOf("failed to fetch") > -1 || m.indexOf("networkerror") > -1) return "Could not reach the server. Check your connection."
 	if (m.indexOf("token has expired") > -1 || m.indexOf("invalid token") > -1) return "That link has expired. Please request a new one."
+	var u = authUsernameError(err)
+	if (u) return u
 	return err.message || "Something went wrong. Please try again."
 }
 
@@ -169,13 +238,19 @@ function authAvatarUrl() {
 
 // ---- actions ----------------------------------------------------------
 
-function authSignUp(email, password) {
+// The username travels in the sign-up's user metadata; the database writes
+// it to the new profile and refuses the sign-up if it is missing, invalid or
+// taken (handle_new_user).
+function authSignUp(email, password, username) {
 	var client = getAuthClient()
 	if (client === null) return Promise.reject(new Error("Authentication is not configured yet."))
 	return client.auth.signUp({
 		email: String(email).trim(),
 		password: password,
-		options: { emailRedirectTo: authSiteUrl("login.html") }
+		options: {
+			emailRedirectTo: authSiteUrl("login.html"),
+			data: { username: authUsernameNormalize(username) }
+		}
 	}).then(function (res) {
 		if (res.error) throw res.error
 		return res.data

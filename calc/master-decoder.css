@@ -1,0 +1,587 @@
+/*               Master Decoder               */
+/* ########################################## */
+/*
+   Features -> Master Decoder (calc/master-decoder.js). The original game's
+   layout - a play card and a Top Decoders card - adapted to this app: every
+   colour and face is one of the theme's own tokens (calc/styles.css), so the
+   panel recolours with the rest of the interface, and .intBtn / .intBtn3 /
+   .hideValue / .closeMenuBtn are the app's classes, used as they are.
+
+   Everything here is scoped to .mdRoot. No theme, no :root, no @font-face,
+   no body rule, nothing that can reach the rest of the site.
+*/
+
+/* ---------------------------------------------------------------- layout */
+
+/* Sits in the same centred menu row as the other panels. Shrinks to its two
+   cards side by side, and wraps to one column when they do not fit. Positioned
+   so the app's own close button sits at its top right, as on every panel. */
+.mdRoot {
+	position: relative;
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 1.6em;
+	width: -webkit-fit-content;
+	width: -moz-fit-content;
+	width: fit-content;
+	max-width: calc(100vw - 1.5em);
+	margin: 0.5em auto;
+	box-sizing: border-box;
+	text-align: left;
+}
+
+.mdRoot .mdHiddenLabel {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- panels */
+
+.mdRoot .mdPanel {
+	width: 100%;
+	background-color: var(--menu-bg-accent);
+	border: 1px solid var(--border-dark-accent);
+	padding: 1.5em 1.6em 1.4em 1.6em;
+	box-sizing: border-box;
+	flex: 0 0 auto;
+}
+.mdRoot .mdPanelPlay {
+	width: 400px;
+	max-width: 100%;
+	/* dark at the top where the logo sits, easing back to the panel's own
+	   colour by the bottom - three steps of the theme's own ladder, so it
+	   recolours with the interface like everything else */
+	background-image: linear-gradient(180deg,
+		var(--breakdown-bg-accent) 0%,
+		var(--menu-bg-accent2) 55%,
+		var(--menu-bg-accent) 100%);
+}
+.mdRoot .mdPanelBoard { width: 380px; max-width: 100%; }
+
+.mdRoot .mdPanelTitle {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.35em;
+	font-size: 82%;
+	font-weight: 600;
+	color: var(--font-white-3);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	text-align: center;
+	padding-bottom: 0.9em;
+	margin-bottom: 0.9em;
+	border-bottom: 1px solid var(--separator-accent2);
+}
+.mdRoot .mdPeriod {
+	font-size: 90%;
+	font-weight: 500;
+	text-transform: none;
+	letter-spacing: 0;
+	color: var(--font-white-3);
+}
+
+/* ------------------------------------------------------------- the logo */
+
+/* MASTER over DECODER, one inline SVG (mdLogoMarkup in master-decoder.js).
+   The box has a fixed aspect ratio from the SVG's viewBox, so nothing the
+   pulse, the glitch or a revealed digit does can move the layout around it.
+   The reds and the maroon shadow are the original GIF's, sampled from it. */
+.mdRoot .mdLogo {
+	display: block;
+	width: 100%;
+	max-width: 320px;
+	box-sizing: border-box;
+	margin: 0 auto 1.1em auto;
+	padding: 0.45em 0.6em 0.35em 0.6em;
+	/* no fill of its own: the logo sits straight on the card behind it */
+	outline: none;
+}
+.mdRoot .mdLogo:focus-visible { outline: 1px solid var(--focus-outline); outline-offset: 4px; }
+.mdRoot .mdLogoSvg {
+	display: block;
+	width: 100%;
+	height: auto;
+	overflow: visible;
+	fill: none;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	animation: mdLogoPulse 4s ease-in-out infinite;
+}
+
+.mdRoot .mdLogoInk    { stroke: hsl(6 78% 45%); }
+.mdRoot .mdLogoShadow { stroke: hsl(330 45% 24%); opacity: 0.85; transform: translate(6px, 9px); }
+.mdRoot .mdLogoShadow,
+.mdRoot .mdLogoGlitch { pointer-events: none; }
+.mdRoot .mdLogoTile   { fill: hsl(345 45% 16% / 0.55); stroke: none; }
+.mdRoot .mdLogoBig    { stroke-width: 20; }
+.mdRoot .mdLogoSmall  { stroke-width: 13; }
+
+/* each letter: the whole cell is the hover target, not just its strokes */
+.mdRoot .mdLogoHit { fill: transparent; stroke: none; pointer-events: all; cursor: pointer; }
+.mdRoot .mdGlyphNum { opacity: 0; }
+.mdRoot .mdLogoLetter.mdOn .mdGlyphChar { opacity: 0; }
+/* the revealed value: the game's own reveal red, flickering in */
+.mdRoot .mdLogoLetter.mdOn .mdGlyphNum { opacity: 1; }
+.mdRoot .mdLogoInk .mdLogoLetter.mdOn .mdGlyphNum {
+	stroke: hsl(5 80% 66%);
+	animation: mdLogoFlip 0.24s steps(1, end);
+}
+
+/* the glitch: two colour-shifted slices, torn sideways for a moment */
+.mdRoot .mdLogoGlitch { opacity: 0; animation: 6.5s steps(1, end) infinite; }
+.mdRoot .mdLogoGlitchA { stroke: hsl(170 80% 45%); animation-name: mdLogoGlitchA; }
+.mdRoot .mdLogoGlitchB { stroke: hsl(95 70% 42%); animation-name: mdLogoGlitchB; }
+.mdRoot .mdLogoInk { animation: mdLogoJolt 6.5s steps(1, end) infinite; }
+
+@keyframes mdLogoPulse {
+	0%, 100% { filter: drop-shadow(0 0 2px hsl(4 90% 45% / 0.35)); opacity: 0.93; }
+	50%      { filter: drop-shadow(0 0 7px hsl(4 90% 50% / 0.65)); opacity: 1; }
+}
+@keyframes mdLogoGlitchA {
+	0%     { opacity: 0; transform: translateX(0); }
+	61%    { opacity: 0.85; transform: translateX(-16px); }
+	61.8%  { opacity: 0.85; transform: translateX(11px); }
+	62.6%  { opacity: 0; transform: translateX(0); }
+	88%    { opacity: 0.7; transform: translateX(9px); }
+	88.7%  { opacity: 0; transform: translateX(0); }
+}
+@keyframes mdLogoGlitchB {
+	0%     { opacity: 0; transform: translateX(0); }
+	27.3%  { opacity: 0.6; transform: translateX(-8px); }
+	27.9%  { opacity: 0; transform: translateX(0); }
+	61.4%  { opacity: 0.8; transform: translateX(13px); }
+	62.4%  { opacity: 0; transform: translateX(0); }
+}
+@keyframes mdLogoJolt {
+	0%    { transform: translate(0, 0); }
+	61%   { transform: translate(3px, 0); }
+	61.8% { transform: translate(-2px, 1px); }
+	62.6% { transform: translate(0, 0); }
+}
+@keyframes mdLogoFlip {
+	0%   { opacity: 0.35; transform: translateX(-5px); stroke: hsl(170 80% 55%); }
+	33%  { opacity: 1;    transform: translateX(4px); }
+	66%  { opacity: 0.7;  transform: translateX(-1px); }
+	100% { opacity: 1;    transform: translateX(0); }
+}
+
+/* The dark boxes - the word, the final score, your best - carry the same
+   tint the Cipher Chart (#ChartSpot) does: the chart's base fill, with the
+   cipher's colour at 20% rising from the bottom and fading out by the top.
+   #ChartSpot gets its gradient from updateCipherChart() in breakdown.js;
+   mdChartTint() in master-decoder.js works out the same colour from the same
+   options (Gradient Charts, Colored Ciphers) for the cipher being played, and
+   sets it on .mdRoot. With Gradient Charts off it is simply absent. */
+.mdRoot { --md-chart-gradient: linear-gradient(0deg, var(--md-chart-tint, hsl(0 0% 0% / 0.1)), rgba(0, 0, 0, 0)); }
+.mdRoot.mdNoChartGradient { --md-chart-gradient: none; }
+
+/* ------------------------------------------------------- the play column */
+
+.mdRoot .mdStack {
+	display: flex;
+	flex-direction: column;
+	gap: 0.9em;
+}
+
+.mdRoot .mdCountdown {
+	font-family: var(--font-family-mono), monospace;
+	font-size: 95%;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	text-align: center;
+	color: hsl(38 100% 62%);
+	padding: 0.4em 0;
+}
+
+/* Time remaining. Monospace so the digits do not jitter as they count down. */
+.mdRoot .mdTimer {
+	display: flex;
+	align-items: baseline;
+	justify-content: center;
+	gap: 0.5em;
+	font-size: 80%;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--font-white-3);
+	min-height: 1.6em;
+}
+.mdRoot #mdTime {
+	font-family: var(--font-family-mono), monospace;
+	font-size: 165%;
+	font-weight: 700;
+	letter-spacing: 0;
+	color: var(--font-white-1);
+}
+.mdRoot .mdTimer.mdTimerLow #mdTime { color: hsl(5 80% 70%); }
+
+/* The word being decoded, one span per letter. */
+.mdRoot .mdWordDisplay {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 0.35em;
+	min-height: 3.4em;
+	padding: 0.7em 0.6em;
+	box-sizing: border-box;
+	text-align: center;
+	font-size: 80%;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--font-white-4);
+	background: var(--breakdown-bg-accent) var(--md-chart-gradient);
+	border: 1px solid var(--border-dark-accent);
+}
+.mdRoot #mdWord {
+	display: block;
+	max-width: 100%;
+	font-family: var(--font-family-mono), monospace;
+	font-size: 210%;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	text-transform: none;
+	line-height: 1.15;
+	color: var(--font-white-1);
+	overflow-wrap: anywhere;
+}
+.mdRoot .mdLetter {
+	cursor: pointer;
+	outline-offset: 2px;
+	transition: color 0.3s;
+}
+.mdRoot .mdLetter:focus-visible { outline: 1px solid var(--focus-outline); }
+/* the reveal colour the game has always used */
+.mdRoot .mdLetter.mdLetterOn { color: hsl(5 80% 66%); }
+
+/* ------------------------------------------------------ inputs & buttons */
+
+/* Matched to the app's own inputs: 1px --border-accent, --input-bg-accent
+   fill, square corners, border turns --focus-outline on focus. */
+.mdRoot .mdInput,
+.mdRoot .mdSelect {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 0.6em 0.7em;
+	font-size: 100%;
+	font-weight: 500;
+	font-family: var(--font-family), "Arial", sans-serif;
+	color: var(--font-white-1);
+	background-color: var(--input-bg-accent);
+	border: 1px solid var(--border-accent);
+	border-radius: 0;
+	outline: none;
+}
+.mdRoot .mdInput:focus,
+.mdRoot .mdSelect:focus { border-color: var(--focus-outline); }
+.mdRoot .mdInput:disabled,
+.mdRoot .mdSelect:disabled {
+	opacity: 0.55;
+	color: var(--font-white-3);
+	cursor: not-allowed;
+}
+/* the answer is a number, so it is set in the mono face, centred */
+.mdRoot #mdAnswer {
+	font-family: var(--font-family-mono), monospace;
+	font-size: 125%;
+	text-align: center;
+	letter-spacing: 0.06em;
+	-moz-appearance: textfield;
+	appearance: textfield;
+}
+.mdRoot #mdAnswer::-webkit-outer-spin-button,
+.mdRoot #mdAnswer::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.mdRoot .mdSelect {
+	font-size: 90%;
+	padding: 0.5em 0.6em;
+	cursor: pointer;
+}
+.mdRoot .mdSelect option { background-color: var(--menu-bg-accent2); color: var(--font-white-1); }
+
+.mdRoot .mdFieldLabel {
+	display: block;
+	font-size: 78%;
+	font-weight: 600;
+	color: var(--font-white-3);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin-bottom: 0.35em;
+}
+
+/* .intBtn is the app's big button; these only adjust it for the game. Start
+   is the one green control, the same green the app uses for a primary
+   action. */
+.mdRoot .intBtn.mdBtn {
+	box-sizing: border-box;
+	cursor: pointer;
+	padding: 0.6em 0.9em;
+	letter-spacing: 0.03em;
+}
+.mdRoot .intBtn.mdBtn:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+	background-color: var(--btn-bg-accent);
+}
+.mdRoot .intBtn.mdBtnPrimary {
+	background-color: hsl(140 45% 32%);
+	border-color: hsl(140 40% 45%);
+	color: hsl(140 30% 95%);
+	font-weight: 600;
+}
+.mdRoot .intBtn.mdBtnPrimary:not(:disabled):hover { background-color: hsl(140 48% 38%); }
+.mdRoot .intBtn.mdBtnPrimary:not(:disabled):active { background-color: hsl(140 52% 44%); }
+.mdRoot .intBtn.mdBtnPrimary:disabled { background-color: hsl(140 20% 24%); border-color: hsl(140 18% 32%); }
+
+/* ------------------------------------------------------------- messaging */
+
+.mdRoot .mdResult {
+	min-height: 1.4em;
+	text-align: center;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+.mdRoot .mdResult.mdOk  { color: hsl(140 55% 65%); }
+.mdRoot .mdResult.mdBad { color: hsl(5 75% 70%); }
+
+.mdRoot .mdFeedback {
+	min-height: 1.3em;
+	text-align: center;
+	font-size: 86%;
+	line-height: 1.4em;
+	color: var(--font-white-3);
+}
+.mdRoot .mdFeedback.mdBad { color: hsl(5 75% 70%); }
+.mdRoot .mdFeedback .mdVal {
+	font-family: var(--font-family-mono), monospace;
+	font-weight: 700;
+	color: var(--font-white-1);
+}
+
+.mdRoot .mdFinal {
+	text-align: center;
+	font-family: var(--font-family-mono), monospace;
+	font-size: 150%;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	padding: 0.5em 0.4em;
+	background: var(--breakdown-bg-accent) var(--md-chart-gradient);
+	border: 1px solid var(--border-dark-accent);
+}
+.mdRoot .mdFinal.mdScoreGreen { color: hsl(135 100% 62%); }
+.mdRoot .mdFinal.mdScoreRed   { color: hsl(5 80% 68%); }
+.mdRoot .mdScoreNote {
+	display: block;
+	padding-top: 0.5em;
+	font-family: var(--font-family), "Arial", sans-serif;
+	font-size: 52%;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--font-white-3);
+}
+
+/* the sign-in prompt, in place of "Playing as" when signed out */
+.mdRoot .mdSignedOut {
+	text-align: center;
+	font-size: 86%;
+	line-height: 1.5em;
+	color: var(--font-white-3);
+	background: hsla(0 0% 50% / 0.10);
+	border: 1px solid var(--border-dark-accent);
+	padding: 0.8em 0.9em;
+}
+.mdRoot .mdSignedOut a { color: var(--focus-outline); border-bottom: 1px solid transparent; text-decoration: none; }
+.mdRoot .mdSignedOut a:hover,
+.mdRoot .mdSignedOut a:focus { border-bottom-color: var(--focus-outline); }
+
+.mdRoot .mdPlayingAs {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.45em;
+	font-size: 82%;
+	color: var(--font-white-3);
+}
+.mdRoot .mdPlayingAs b { color: var(--font-white-1); font-weight: 600; }
+
+.mdRoot .mdAvatar {
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	object-fit: cover;
+	flex: 0 0 auto;
+}
+.mdRoot .mdAvatarFallback {
+	background: var(--btn-active-accent);
+	color: var(--font-white-1);
+	font-size: 72%;
+	font-weight: 600;
+	text-align: center;
+	line-height: 22px;
+}
+
+/* ----------------------------------------------------------- leaderboard */
+
+.mdRoot .mdBoardToggle {
+	display: flex;
+	gap: 0.2em;
+	justify-content: center;
+	padding-bottom: 0.8em;
+	margin-bottom: 0.2em;
+	border-bottom: 1px solid var(--separator-accent2);
+}
+.mdRoot .intBtn3.mdBoardTab {
+	flex: 1;
+	width: auto;
+	margin: 0;
+	padding: 0.25em 0.4em;
+	font-size: 85%;
+	letter-spacing: 0.04em;
+	opacity: 0.6;
+	cursor: pointer;
+}
+.mdRoot .intBtn3.mdBoardTab.mdBoardTabOn {
+	opacity: 1;
+	background-color: var(--btn-active-accent);
+	color: var(--font-white-1);
+}
+
+.mdRoot .mdLbList {
+	list-style: none;
+	margin: 0.8em 0 0 0;
+	padding: 0;
+	max-height: 22em;
+	overflow-y: auto;
+	border: 1px solid var(--border-dark-accent);
+}
+.mdRoot .mdLbRow {
+	display: flex;
+	align-items: center;
+	gap: 0.6em;
+	padding: 0.4em 0.6em;
+	font-size: 90%;
+	border-bottom: 1px solid var(--border-dark-accent);
+}
+.mdRoot .mdLbRow:last-child { border-bottom: none; }
+.mdRoot .mdLbRow:nth-child(odd) { background: var(--table-row-odd); }
+.mdRoot .mdLbRank {
+	flex: 0 0 auto;
+	width: 1.8em;
+	font-family: var(--font-family-mono), monospace;
+	font-size: 85%;
+	color: var(--font-white-3);
+}
+.mdRoot .mdLbName {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--font-white-1);
+}
+.mdRoot .mdLbScore {
+	flex: 0 0 auto;
+	font-family: var(--font-family-mono), monospace;
+	font-weight: 700;
+	color: var(--font-white-2);
+}
+.mdRoot .mdLbRow.mdLbMine { border-left: 2px solid var(--font-white-3); }
+.mdRoot .mdLbName.mdLbNoName { font-style: italic; color: var(--font-white-3); }
+.mdRoot .mdLbRow.mdLbMine .mdLbName { font-weight: 600; }
+
+/* podium: a left edge and a faint wash, the same metals as the Leaders tab */
+.mdRoot .mdLbRow.mdPodium1,
+.mdRoot .mdLbRow.mdPodium2,
+.mdRoot .mdLbRow.mdPodium3 { border-left-width: 3px; border-left-style: solid; }
+.mdRoot .mdLbRow.mdPodium1 {
+	border-left-color: hsl(45 85% 55%);
+	background: linear-gradient(90deg, hsla(45 80% 50% / 0.16), transparent 45%);
+}
+.mdRoot .mdLbRow.mdPodium2 {
+	border-left-color: hsl(210 12% 72%);
+	background: linear-gradient(90deg, hsla(210 10% 70% / 0.14), transparent 45%);
+}
+.mdRoot .mdLbRow.mdPodium3 {
+	border-left-color: hsl(25 55% 50%);
+	background: linear-gradient(90deg, hsla(25 55% 45% / 0.14), transparent 45%);
+}
+.mdRoot .mdLbRow.mdPodium1 .mdLbName { color: hsl(45 75% 78%); font-weight: 600; }
+.mdRoot .mdLbRow.mdPodium2 .mdLbName { color: hsl(210 15% 88%); font-weight: 600; }
+.mdRoot .mdLbRow.mdPodium3 .mdLbName { color: hsl(25 60% 74%); font-weight: 600; }
+
+.mdRoot .mdLbNote {
+	padding: 0.9em 0.6em;
+	text-align: center;
+	font-size: 84%;
+	line-height: 1.45em;
+	color: var(--font-white-3);
+}
+.mdRoot .mdLbNote.mdBad { color: hsl(5 75% 70%); }
+
+.mdRoot .mdLbMineBox {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.6em;
+	margin-top: 0.7em;
+	padding: 0.5em 0.7em;
+	font-size: 84%;
+	color: var(--font-white-3);
+	background: var(--breakdown-bg-accent) var(--md-chart-gradient);
+	border: 1px solid var(--border-dark-accent);
+}
+.mdRoot .mdLbMineBox b {
+	font-family: var(--font-family-mono), monospace;
+	font-size: 118%;
+	color: var(--font-white-1);
+}
+
+.mdRoot .mdLbFoot {
+	padding-top: 0.7em;
+	text-align: center;
+	font-size: 79%;
+	line-height: 1.4em;
+	color: var(--font-white-3);
+}
+
+/* ----------------------------------------------------------- responsive */
+
+/* Too narrow for the two cards side by side: one column, play first, and the
+   root only as wide as that column so the close button sits on its corner. */
+@media (max-width: 911px) {
+	.mdRoot {
+		flex-direction: column;
+		align-items: stretch;
+		flex-wrap: nowrap;
+		gap: 1em;
+		width: 460px;
+	}
+	.mdRoot .mdPanel { padding: 1.1em 0.9em; }
+	.mdRoot .mdPanelPlay,
+	.mdRoot .mdPanelBoard { width: 100%; }
+	.mdRoot .mdLogo { max-width: 240px; }
+	.mdRoot #mdWord { font-size: 175%; }
+	.mdRoot .mdLbList { max-height: 18em; }
+}
+
+/* Reduced motion: a still logo - no pulse, no glitch, and a revealed value
+   simply appears. */
+@media (prefers-reduced-motion: reduce) {
+	.mdRoot .mdLetter { transition: none; }
+	.mdRoot .mdLogoSvg { animation: none; filter: drop-shadow(0 0 4px hsl(4 90% 45% / 0.45)); }
+	.mdRoot .mdLogoInk,
+	.mdRoot .mdLogoLetter.mdOn .mdGlyphNum { animation: none; }
+	.mdRoot .mdLogoGlitch { animation: none; display: none; }
+}

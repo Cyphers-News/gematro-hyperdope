@@ -18,6 +18,10 @@ $(document).ready(function(){
 	});
 	$("body").on("click", ".phraseGemCiphName", function () {
 		updateWordBreakdown($(this).text(), true);
+		// A deliberate click on a cipher is what sets the rain to that cipher's
+		// colour - here, and not in updateWordBreakdown(), which also runs for
+		// automatic re-selections (see the note there in breakdown.js).
+		if (typeof coderainSetFollow === "function") coderainSetFollow(true);
 	});
 });
 
@@ -302,14 +306,15 @@ $(document).ready(function(){
 	$("body").on("click", "#btn-print-cipher-png", function () { // for future elements
 		// English-Ordinal_cipher.png
 		var fileName = breakCipher.replace(/ /g, "-")+"_cipher.png";
-		openImageWindow("#ChartSpot", fileName, 2.0);
+		openImageWindow("#ChartSpot", fileName, exportImageScale());
 	});
 
 	$("body").on("click", "#btn-print-history-png", function () {
+		if (!sHistory.length) { displayCalcNotification("The history table is empty", 2000); return }
 		// phrase-with-spaces_2021-03-26_10-23-52_table.png
 		var fileName = sHistory[0].normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/ /g, "-").replace(/["|']/g, "")+
 			"_"+getTimestamp()+"_table.png";
-		openImageWindow(".HistoryTable", fileName, 2.0);
+		openImageWindow(".HistoryTable", fileName, exportImageScale());
 	});
 	// The chart is a canvas, so it is read straight off rather than put through
 	// html2canvas: the pixels are already there, and re-rasterising a canvas
@@ -323,25 +328,29 @@ $(document).ready(function(){
 	});
 
 	$("body").on("click", "#btn-date-calc-png", function () {
+		if (!dateCalcMenuOpened) { displayCalcNotification("Open the Date Calc first", 2200); return }
 		$('#dateDesc1Area').html('<span class="dateDescription">'+dateDesc1Saved+'</span>') // input to fixed text
 		$('#dateDesc2Area').html('<span class="dateDescription">'+dateDesc2Saved+'</span>')
 		$('.dateCalcTable2').addClass('elemBorderScr') // add outline
 		// phrase-with-spaces_2021-03-26_10-23-52_table.png
 		var fileName = (saved_d1.getMonth()+1)+'-'+saved_d1.getDate()+'-'+saved_d1.getFullYear()+'_'+
 			(saved_d2.getMonth()+1)+'-'+saved_d2.getDate()+'-'+saved_d2.getFullYear()+"_date_durations.png";
-		openImageWindow(".dateCalcTable2", fileName, 2.0);
+		openImageWindow(".dateCalcTable2", fileName, exportImageScale());
 	});
 
 	$("body").on("click", "#btn-print-word-break-png", function () {
+		if (!sVal()) { displayCalcNotification("Enter a phrase first", 2000); return }
 		// phrase-with-spaces_English-Ordinal_190_breakdown.png
 		for (var i = 0; i < cipherList.length; i++) { if (cipherList[i].cipherName == breakCipher) break; } // get current cipher index
+		if (i >= cipherList.length) { displayCalcNotification("Choose a cipher first", 2000); return }
 		var fileName = sVal().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/ /g, "-").replace(/["|']/g, "")+
 			"_"+breakCipher.replace(/ /g, "-")+"_"+cipherList[i].calcGematria(sVal())+"_breakdown.png";
 		prepBreakdownExport() // add phrase/cipher/total header, raise contrast
-		openImageWindow("#BreakdownSpot", fileName, 2.0);
+		openImageWindow("#BreakdownSpot", fileName, exportImageScale());
 	});
 
 	$("body").on("click", "#btn-print-breakdown-details-png", function () {
+		if (!sVal()) { displayCalcNotification("Enter a phrase first", 2000); return }
 		var o = $(".LetterCounts").text();
 		var i, c_h, c_s, c_l = 0;
 		for (i = 0; i < cipherList.length; i++) {
@@ -355,6 +364,7 @@ $(document).ready(function(){
 		// $(".LetterCounts").html('<span style="color: hsl('+c_h+' '+c_s+'% '+c_l+'% / 1); font-weight: 500; font-size: 200%;">Gematria</span><br><hr style="background-color: rgb(105,105,105); height: 2px; border: none;">');
 		//$("#BreakdownDetails").attr("style", "padding-top: 1.25em;"); // more padding
 		// $(".LetterCounts").html('<br><hr style="background-color: rgb(105,105,105); height: 2px; border: none;">');
+		if (i >= cipherList.length) { displayCalcNotification("Choose a cipher first", 2000); return }
 		$(".LetterCounts").html('');
 		updateCipherChartGemCard(); // redraw cipher chart for current cipher (with borders)
 		$('#ChartSpotScroll').addClass('ChartSpotScrollStop'); // full size chart table for mobile devices
@@ -365,12 +375,14 @@ $(document).ready(function(){
 		// phrase-with-spaces_English-Ordinal_190_card.png
 		var fileName = sVal().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/ /g, "-").replace(/["|']/g, "")+
 			"_"+breakCipher.replace(/ /g, "-")+"_"+cipherList[i].calcGematria(sVal())+"_card.png";
-		openImageWindow("#BreakdownDetails", fileName, 2.0);
+		openImageWindow("#BreakdownDetails", fileName, exportImageScale());
 	});
 
 	$("body").on("click", "#btn-num-props-png", function () {
 		// 123_number_properties.png OR 123_alt_number_properties.png
-		var curNum = document.querySelector('.numPropTooltip').dataset.number // current number
+		var tip = document.querySelector('.numPropTooltip')
+		if (tip === null) { displayCalcNotification("Click a number first to open its properties", 2500); return }
+		var curNum = tip.dataset.number // current number
 		var fileName = curNum+"_number_properties.png";
 		openImageWindow(".numPropTooltip", fileName, optImageScale);
 	});
@@ -391,7 +403,7 @@ $(document).ready(function(){
 		exportHighlighterMatches(sHistory);
 	});
 	$("body").on("click", "#btn-export-db-query", function () {
-		exportCurrentDBquery(queryResult);
+		exportCurrentDBquery(typeof queryResult !== "undefined" ? queryResult : []);
 	});
 	$("body").on("change", "#importFileDummyDict", function () {
 		var file = document.querySelector("#importFileDummyDict").files[0];
@@ -602,9 +614,9 @@ $(document).ready(function(){
 					document.getElementById("calcOptionsPanel").innerHTML = "" // clear menu panel
 					initCiphers(false) // don't update default ciphers, recalculate order of categories
 					createCiphersMenu() // recreate menus
-					createOptionsMenu()
 					createFindMatchesMenu()
 					createFeaturesMenu()
+					createNumogramButton()
 					createExportMenu()
 					createAboutMenu()
 					createProfileMenu()

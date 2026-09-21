@@ -1691,7 +1691,7 @@ function renderProfileAccount() {
 	// display name lives here now that the panel is the whole profile, rather
 	// than sending people off to a separate page for one field
 	o += '<div class="profileNameRow">'
-	o += '<label class="contactLabel" for="profileDisplayName">Display name</label>'
+	o += '<label class="contactLabel" for="profileDisplayName">Username</label>'
 	o += '<div class="profileSearchRow">'
 	o += '<input type="text" id="profileDisplayName" class="profileSearchInput" maxlength="32" placeholder="Shown on the leaderboard" value="'+authEsc((authProfile && authProfile.username) ? authProfile.username : "")+'">'
 	o += '<button class="profileMiniBtn" onclick="profileSaveName()">Save</button>'
@@ -1859,17 +1859,18 @@ function profileSaveName() {
 		msg.textContent = t
 		msg.classList.remove("hideValue")
 	}
-	var name = box.value.trim()
-	if (name.length > 0 && (name.length < 2 || name.length > 32)) {
-		show("Use between 2 and 32 characters.", true); return
-	}
-	updateProfile({ username: name === "" ? null : name }).then(function () {
+	// The shared rules (auth.js), the same ones the database enforces. This
+	// used to check the length only, so it would send a name the other two
+	// forms refused - and it would clear the name if the box was emptied. A
+	// username is required now; it can be changed, not removed.
+	var name = authUsernameNormalize(box.value)
+	var problem = authUsernameProblem(name)
+	if (problem) { show(problem, true); return }
+	updateProfile({ username: name }).then(function () {
 		show("Saved.", false)
 		renderAuthNav()
 	}).catch(function (err) {
-		var m = (err && err.message) ? err.message : "Could not save"
-		if (m.toLowerCase().indexOf("duplicate") > -1) m = "That name is taken."
-		show(m, true)
+		show(authUsernameError(err) || ((err && err.message) ? err.message : "Could not save"), true)
 	})
 }
 

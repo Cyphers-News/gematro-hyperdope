@@ -89,7 +89,9 @@ function updateWordBreakdown(impName = breakCipher, impBool = false, chartUpd = 
 		// to "the first enabled cipher" after a toggle, or on initial load), not
 		// just a deliberate click - so turning "follow cipher" on from here made
 		// the rain colour drift on its own before the user had picked anything.
-		// Follow-cipher is now only ever turned on from its own checkbox.
+		// Follow-cipher is only ever turned on from its own checkbox, or by a
+		// deliberate click on a cipher name (the .phraseGemCiphName click
+		// handler in init-variables.js).
 
 		// The Saved tab's live preview reads whichever cipher this just locked
 		// in, so a cipher change made anywhere else keeps that number honest

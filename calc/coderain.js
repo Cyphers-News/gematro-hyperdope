@@ -144,8 +144,8 @@ function buildFilmGlyphs() {
 }
 
 // The film's green, hsl(135 100% 50%) - #00FF41. Used unless the rain colour
-// has actually been picked, in which case the slider and the swatch drive this
-// style too.
+// has actually been picked, or the rain is following the selected cipher, in
+// which case that colour drives this style too.
 //
 // Only the hue and saturation are taken from the pick. The shared lightness is
 // tuned for rain sitting behind a lit page - 19% - and this style is drawn on
@@ -153,7 +153,9 @@ function buildFilmGlyphs() {
 // reason: the default 20% is right for a texture behind text and reads as grey
 // against black.
 function coderainFilmColor() {
-	if (typeof coderainColorPicked !== "undefined" && coderainColorPicked) {
+	var picked = typeof coderainColorPicked !== "undefined" && coderainColorPicked
+	var follow = typeof optCoderainFollowCipher !== "undefined" && optCoderainFollowCipher
+	if (picked || follow) {
 		var c = getCodeRainColor()
 		return { h: c.h, s: Math.max(c.s, 55), l: 50 }
 	}
@@ -613,11 +615,14 @@ function matrixRetro() {
 	ctx.fillRect(0, 0, w, h)
 	ctx.globalCompositeOperation = "source-over"
 
-	ctx.fillStyle = "hsl("+coderainHue+","+(coderainSat*100)+"%,"+(coderainLit*100)+"%)"
+	// getCodeRainColor() is coderainHue/Sat/Lit unchanged unless the rain is
+	// following the selected cipher, so a hand-picked colour reads as before
+	var rc = getCodeRainColor()
+	ctx.fillStyle = "hsl("+rc.h+","+rc.s+"%,"+rc.l+"%)"
 	ctx.font = "bold 18pt matrix-font"
 	ctx.textBaseline = "alphabetic"
 	if(navigator.userAgent.toLowerCase().indexOf('firefox') == -1) { // if not Firefox
-		ctx.shadowColor = "hsla("+coderainHue+",100%,50%,0.4)"
+		ctx.shadowColor = "hsla("+rc.h+",100%,50%,0.4)"
 		ctx.shadowBlur = 4
 	}
 
@@ -831,6 +836,8 @@ function coderainSetFollow(on) {
 	optCoderainFollowCipher = !!on
 	var chk = document.getElementById("chkbox_CFC")
 	if (chk !== null) chk.checked = optCoderainFollowCipher
+	var fc = document.getElementById("rainFollowChk")
+	if (fc !== null) fc.checked = optCoderainFollowCipher
 	// following a cipher means the rain colour is no longer the user's pick, so
 	// the backdrop goes back to the stock page background
 	if (optCoderainFollowCipher) {

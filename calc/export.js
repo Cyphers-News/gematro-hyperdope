@@ -206,11 +206,17 @@ function ensureHtml2Canvas() {
 function openImageWindow(element, imgName = "", sRatio = window.devicePixelRatio, refresh = false) { // sRatio is scaling, refresh - update the image only
 	ensureHtml2Canvas().then(function () {
 		openImageWindowImpl(element, imgName, sRatio, refresh)
+	}, function () {
+		displayCalcNotification("The image exporter could not be loaded", 2500)
 	})
 }
 
 function openImageWindowImpl(element, imgName, sRatio, refresh) {
 	var imageDataURL, wnd, scl
+	if ( !$(element).length ) { // nothing on screen to capture - say so rather than do nothing
+		displayCalcNotification("There is nothing to print here yet", 2200)
+		return
+	}
 	if ( $(element).length ) { // if specified element exists
 		// if browser zoom level is more than passed value, use current zoom level
 		if (isNaN(sRatio)) { sRatio = window.devicePixelRatio }
@@ -255,6 +261,12 @@ function openImageWindowImpl(element, imgName, sRatio, refresh) {
 			// the full-size capture above is done with it
 			if (element == '#ChartSpot' && typeof fitCipherChart === "function") fitCipherChart()
 
+			// an empty capture (a hidden or blank area) has nothing to save
+			if (imageDataURL === null) {
+				displayCalcNotification("There is nothing to print here yet", 2200)
+				return
+			}
+
 			imgName = imgName.replace(/'/g, '')
 			if (imgName == "" || imgName.length >= 200) imgName = getTimestamp()+".png"; // filename for download button (200 char limit)
 
@@ -266,8 +278,11 @@ function openImageWindowImpl(element, imgName, sRatio, refresh) {
 				showPrintImagePreview(imageDataURL, imgName, element, sRatio) // show preview panel
 			} else {
 				$('#imgData').attr("src", imageDataURL) // update image only
-				$('#downImgBtn').attr("onclick", "download('"+imgName+"', '"+imageDataURL+"')")
+				printPreviewSaveTo(imgName, imageDataURL)
 			}
+		}).catch(function (err) {
+			console.warn("image export failed:", err)
+			displayCalcNotification("The image could not be created", 2500)
 		});
 	}
 }
@@ -316,10 +331,14 @@ function trimCanvas(c) { // remove transparent pixels
 		}
 	}
 		
+	if (bound.top === null) return null // nothing was drawn
+
 	var trimHeight = bound.bottom - bound.top,
 			trimWidth = bound.right - bound.left,
 			trimmed = ctx.getImageData(bound.left, bound.top, trimWidth, trimHeight);
 	
+	if (trimWidth < 1 || trimHeight < 1) return null
+
 	copyCtx.canvas.width = trimWidth;
 	copyCtx.canvas.height = trimHeight;
 	copyCtx.putImageData(trimmed, 0, 0);
@@ -332,20 +351,34 @@ function trimCanvas(c) { // remove transparent pixels
 function showPrintImagePreview(imageDataURL, imgName, element, sRatio) {
 	$('<div id="darkOverlay" onclick="closePrintImagePreview()"></div>').appendTo('body'); // overlay
 
+	// The file name is built from the phrase, and a phrase can be anybody's -
+	// a published phrase, an imported file - so it never goes into markup or
+	// an onclick string. It used to: a phrase carrying &#39; was decoded back
+	// into a quote inside the attribute and ran as script on Save Image. The
+	// buttons get plain handlers that hold the values instead.
 	var o = '<div class="printImageContainer">'
 	o += '<center><div class="prevBtnArea">'
-	o += '<input id="downImgBtn" type="button" value="Save Image" onclick="download(&#39;'+imgName+'&#39;, &#39;'+imageDataURL+'&#39;)">' // &#39; - single quote
-	o += '<input class="refreshImgBtn" type="button" value="Refresh" onclick="openImageWindow(&#39;'+element+'&#39;, &#39;'+imgName+'&#39;, +&#39;'+sRatio+'&#39;, true);">'
+	o += '<input id="downImgBtn" type="button" value="Save Image">'
+	o += '<input class="refreshImgBtn" type="button" value="Refresh">'
 	o += '</div></center>'
-	o += '<div class="imgDataArea"><img id="imgData" src="'+imageDataURL+'"></div>'
+	o += '<div class="imgDataArea"><img id="imgData"></div>'
 	o += '</div>'
 
 	$(o).appendTo('body'); // preview image
+	$('#imgData').attr("src", imageDataURL)
+	printPreviewSaveTo(imgName, imageDataURL)
+	$('.refreshImgBtn').on("click", function () { openImageWindow(element, imgName, +sRatio, true) })
 	$('body').addClass('noScroll') // prevent scrolling
 
 	btnH = Math.ceil( $('.prevBtnArea').outerHeight() )
 	o = 'height: calc(100% - '+btnH+'px);'
 	$('.imgDataArea').attr("style", o)
+}
+
+// Save Image downloads this name and this image - set from here, never by
+// writing either into an attribute (see showPrintImagePreview).
+function printPreviewSaveTo(imgName, imageDataURL) {
+	$('#downImgBtn').off("click").on("click", function () { download(imgName, imageDataURL) })
 }
 
 // Shows a canvas in the print preview without going through html2canvas.
@@ -371,7 +404,11 @@ function printCanvasImage(cvs, imgName, again) {
 
 	showPrintImagePreview(out.toDataURL("image/png"), imgName, "", 1)
 	if (again) {
-		$(".refreshImgBtn").attr("onclick", "closePrintImagePreview();document.getElementById('"+again+"').click()")
+		$(".refreshImgBtn").off("click").on("click", function () {
+			closePrintImagePreview()
+			var b = document.getElementById(again)
+			if (b !== null) b.click()
+		})
 	} else {
 		$(".refreshImgBtn").remove() // nothing to refresh from
 	}
@@ -532,11 +569,13 @@ function exportCalcOptions() {
 }
 
 function exportHighlighterMatches(histArr) { // highlighter mode controls export mode
-	if (histArr.length == 0) return
+	if (histArr.length == 0) { displayCalcNotification("The history table is empty", 2000); return }
 	if (optFiltCrossCipherMatch) {
 		exportCrossCipherMatches(histArr)
 	} else if (optFiltSameCipherMatch) {
 		exportSameCipherMatches(histArr)
+	} else {
+		displayCalcNotification("Turn on Cross or Same Cipher Match (Matches tab) first", 2600)
 	}
 }
 
@@ -587,6 +626,7 @@ function exportSameCipherMatches(histArr) {
 		}
 	}
 
+	if (o.indexOf('\n=====') === -1) { displayCalcNotification("No matches to export", 2000); return }
 	o = o.substring(0, o.length-3) // remove last new lines
 
 	o = 'data:text/plain;charset=utf-8,'+encodeURIComponent(o) // format as text file
@@ -643,6 +683,7 @@ function exportCrossCipherMatches(histArr) { // maybe use highlighter mode to co
 		}
 		o += '\n\n\n' // number added, new lines
 	}
+	if (searchArr.length === 0) { displayCalcNotification("No matches to export", 2000); return }
 	o = o.substring(0, o.length-3) // remove last new lines
 
 	o = 'data:text/plain;charset=utf-8,'+encodeURIComponent(o) // format as text file

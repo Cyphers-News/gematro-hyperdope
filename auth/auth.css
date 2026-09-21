@@ -376,6 +376,13 @@
 	border-bottom: 1px solid var(--separator-accent2);
 	margin-bottom: 0.8em;
 }
+/* The close button sits inside this panel's top-right corner (see
+   .profileBG > .closeMenuBtn above), 30px tall - and the tab row runs the
+   full width, so its last tab, Account, landed underneath it wherever the row
+   fills the panel. There is no width to spare to move the row aside (seven
+   tabs, one line, no scroll), so the row starts just below the button
+   instead. Height, not width: it holds at every panel size. */
+.profileBG > .profileTabs { margin-top: 28px; }
 .intBtn3.profileTab {
 	width: auto;
 	flex: 0 1 auto;
@@ -2742,6 +2749,9 @@
 	padding-top: 0.9em;
 }
 .obField { padding-bottom: 0.2em; }
+/* the username prompt shows over the calculator, where --font-white-4 is
+   too dark to read on this box (onboarding only ever showed on profile.html) */
+#usernameGate .authHint, #usernameGate .obNote { color: var(--font-white-3); }
 
 .obList { display: flex; flex-direction: column; gap: 0.7em; }
 .obPoint { display: flex; align-items: flex-start; gap: 0.6em; }

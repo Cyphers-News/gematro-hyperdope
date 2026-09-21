@@ -329,7 +329,7 @@ function buildHistoryCSV(arr, dbMode = false, addCiphers = '') {
 
 	// table contents
 	for (i = 0; i < arr.length; i++) {
-		t += arr[i].replace(";", "") // add phrase, remove semicolons (it is a separator)
+		t += arr[i].replace(/;/g, "") // add phrase, remove semicolons (it is the separator) - every one, not just the first
 		for (n = 0; n < cipherList.length; n++) {
 			if (cipherList[n].enabled) {
 				t += ";"+cipherList[n].calcGematria(arr[i]) // gematria value for each enabled cipher
@@ -341,22 +341,29 @@ function buildHistoryCSV(arr, dbMode = false, addCiphers = '') {
 	return t
 }
 
+// The history and DB-query exports are CSV (semicolon-separated), so they are
+// saved as .csv, with a UTF-8 byte order mark so a spreadsheet reads accented
+// and non-Latin phrases correctly. Import reads them back the same way: it goes
+// by content, not extension, and the file reader drops the mark.
+var CSV_BOM = "\uFEFF"
+
 function exportHistoryCSV(arr, dbMode = false, addCiphers = '') {
-	if (arr.length == 0) return
+	if (arr.length == 0) { if (!dbMode) displayCalcNotification("The history table is empty", 2000); return }
 
 	var t = buildHistoryCSV(arr, dbMode, addCiphers)
 
-	t = 'data:text/plain;charset=utf-8,'+encodeURIComponent(t) // format as text file
 	if (dbMode) {
+		t = 'data:text/plain;charset=utf-8,'+encodeURIComponent(t) // format as text file
 		download(getTimestamp()+"_GEMATRO_DB.txt", t); // download database
 	} else {
-		download(getTimestamp()+"_gematria.txt", t); // download file
+		t = 'data:text/csv;charset=utf-8,'+encodeURIComponent(CSV_BOM + t)
+		download(getTimestamp()+"_gematria.csv", t); // download file
 	}
 }
 
 function exportCurrentDBquery(arr) {
 	var i, n
-	if (arr.length == 0) return
+	if (!arr || arr.length == 0) { displayCalcNotification("Run a database query first", 2000); return }
 
 	var t = ""
 
@@ -370,7 +377,7 @@ function exportCurrentDBquery(arr) {
 	if (encodingMenuOpened) {
 		var tLine = ''
 		for (i = 0; i < arr.length; i++) {
-			tLine = arr[i] + ';'
+			tLine = String(arr[i]).replace(/;/g, "") + ';' // semicolons are the separator
 			for (n = 0; n < gemArrCiph.length; n++) {
 				tLine += cipherList[gemArrCiph[n]].calcGematria(arr[i]) + ';'
 			}
@@ -378,7 +385,7 @@ function exportCurrentDBquery(arr) {
 		}
 	} else { // table contents
 		for (i = 0; i < arr.length; i++) {
-			t += arr[i][1].replace(";", "") // add phrase[1], remove semicolons (it is a separator)
+			t += String(arr[i][1]).replace(/;/g, "") // add phrase[1], remove semicolons (it is the separator) - every one
 			for (n = 2; n < arr[i].length; n++) { // values start at [2]
 				t += ";"+arr[i][n] // retrieve gematria value for each cipher
 			}
@@ -386,8 +393,8 @@ function exportCurrentDBquery(arr) {
 		}
 	}
 	
-	t = 'data:text/plain;charset=utf-8,'+encodeURIComponent(t.slice(0,-1)) // format as text file
-	download(getTimestamp()+"_gematria_DB_query.txt", t); // download file
+	t = 'data:text/csv;charset=utf-8,'+encodeURIComponent(CSV_BOM + t.slice(0,-1))
+	download(getTimestamp()+"_gematria_DB_query.csv", t); // download file
 }
 
 function download(fileName, fileData) {

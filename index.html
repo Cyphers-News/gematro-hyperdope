@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<html lang="en">
 <head>
 <title>Cyphers</title>
 <meta charset="utf-8">
@@ -13,7 +14,7 @@
 
   gtag('config', 'G-29C7RM73G7');
 </script>
-<meta name="viewport" content="width=520, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=520">
 <link rel="shortcut icon" type="image/x-icon" href="res/favicon.png?v=20260821a">
 
 <!-- Android Web App - Add to Home Screen -->
@@ -23,8 +24,10 @@
      immediately instead of queueing behind four blocking script fetches -
      the scripts don't touch layout until later, but a <link> after them
      used to wait its turn anyway. -->
-<link rel="stylesheet" type="text/css" href="calc/styles.css?v=20260821q">
-<link rel="stylesheet" type="text/css" href="auth/auth.css?v=20260821q">
+<link rel="stylesheet" type="text/css" href="calc/styles.css?v=20260921b">
+<link rel="stylesheet" type="text/css" href="auth/auth.css?v=20260919a">
+<link rel="stylesheet" type="text/css" href="calc/master-decoder.css?v=20260919a">
+<link rel="stylesheet" type="text/css" href="calc/numogram.css?v=20260922i">
 
 <!-- defer on every script below (except the inline ones, which can't defer -
      see the DOMContentLoaded wrappers instead): lets the browser fetch all of
@@ -38,9 +41,9 @@
 <script src="lib/jquery.min.js?v=20260821q" defer></script>
 <script src="lib/supabase.min.js?v=20260821q" defer></script>
 
-<script src="calc/gematria.js?v=20260821q" defer></script>
-<script src="calc/calc.js?v=20260821q" defer></script>
-<script src="calc/init-variables.js?v=20260821q" defer></script>
+<script src="calc/gematria.js?v=20260918b" defer></script>
+<script src="calc/calc.js?v=20260921b" defer></script>
+<script src="calc/init-variables.js?v=20260921b" defer></script>
 <script src="calc/ciphers.js?v=20260821q" defer></script>
 
 <script>
@@ -69,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function () {
 <!-- <body onload="initCalc(true)"> --> 
 
 <div id="loader"></div>
-<canvas id="canv"></canvas>
+<canvas id="canv" aria-hidden="true"></canvas>
 
 <!-- Fixed so it survives whichever menu is rebuilding #calcOptionsPanel, and
      stays reachable even once focus mode has hidden that whole row. -->
@@ -115,15 +118,17 @@ document.addEventListener('DOMContentLoaded', function () {
 		<div id="dateCalcMenuArea"></div>
 		<div id="astroMenuArea"></div>
 		<div id="profileMenuArea"></div>
+		<div id="masterDecoderMenuArea"></div>
+		<div id="numogramMenuArea"></div>
 
 		<div id="inputArea">
 		  <input id="queryDBbtn" class="hideValue" type="button" onclick="queryDatabase()" value="Query">
-		  <input id="phraseBox" autofocus type="text" spellcheck="false" autocomplete="off" oninput="updateEnabledCipherTable(); updateWordBreakdown(breakCipher,false,false);" onkeydown="phraseBoxKeypress(event.keyCode)" ondrop="dropHandler(event)" ondragover="dragOverHandler(event)">
+		  <input id="phraseBox" aria-label="Phrase or number to decode" autofocus type="text" spellcheck="false" autocomplete="off" oninput="updateEnabledCipherTable(); updateWordBreakdown(breakCipher,false,false);" onkeydown="phraseBoxKeypress(event.keyCode)" ondrop="dropHandler(event)" ondragover="dragOverHandler(event)">
 		  <!-- a <button> rather than an <input>, so the return arrow can be drawn:
 		       Montserrat has no glyph for U+23CE or U+21B5, so a text one fell back
 		       to whatever the system had and came out thin and undersized -->
 		  <button id="enterPhraseBtn" type="button" title="Add this phrase to the table (Enter)" aria-label="Add phrase" onclick="phraseBoxKeypress(13);document.getElementById('phraseBox').focus()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 10 5 14 9 18"></polyline><path d="M20 6v4a4 4 0 0 1-4 4H5"></path></svg></button>
-		  <input id="highlightBox" type="text" spellcheck="false" autocomplete="off"><span id="clearFilterButton"></span>
+		  <input id="highlightBox" aria-label="Filter and highlight the history table" type="text" spellcheck="false" autocomplete="off"><span id="clearFilterButton"></span>
 		</div>
 
 		<div id="enabledCiphTable"></div>
@@ -142,42 +147,47 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <span id="loadPanel"></span>
 
-<script src="calc/breakdown.js?v=20260821q" defer></script>
+<script src="calc/breakdown.js?v=20260918b" defer></script>
 
 <script src="calc/highlighter.js?v=20260821q" defer></script>
-<script src="calc/export.js?v=20260821q" defer></script>
-<script src="calc/export-csv.js?v=20260821q" defer></script>
+<script src="calc/export.js?v=20260918b" defer></script>
+<script src="calc/export-csv.js?v=20260918b" defer></script>
 <script src="calc/num-prop.js?v=20260821q" defer></script>
 <script src="calc/edit-ciphers.js?v=20260821q" defer></script>
 <script src="calc/date-calc.js?v=20260821q" defer></script>
-<script src="calc/astrology.js?v=20260821q" defer></script>
-<script src="calc/profile-tab.js?v=20260821q" defer></script>
-<script src="calc/profile-chart.js?v=20260821q" defer></script>
+<script src="calc/astrology.js?v=20260920f" defer></script>
+<script src="calc/flat-earth.js?v=20260920c" defer></script>
+<script src="calc/master-decoder.js?v=20260919a" defer></script>
+<script src="calc/numogram.js?v=20260922i" defer></script>
+<script src="calc/profile-tab.js?v=20260919a" defer></script>
+<script src="calc/profile-chart.js?v=20260920a" defer></script>
 <script src="calc/social-reply.js?v=20260821q" defer></script>
-<script src="calc/friends-tab.js?v=20260821q" defer></script>
+<script src="calc/friends-tab.js?v=20260919a" defer></script>
 <script src="calc/forum-tab.js?v=20260821q" defer></script>
 <script src="calc/tour.js?v=20260821q" defer></script>
-<script src="calc/database.js?v=20260821q" defer></script>
-<script src="calc/quick-guide.js?v=20260821q" defer></script>
+<script src="calc/database.js?v=20260920e" defer></script>
+<script src="calc/quick-guide.js?v=20260921b" defer></script>
 
 <script src="calc/localstorage.js?v=20260821q" defer></script>
-<script src="calc/encoding.js?v=20260821q" defer></script>
+<script src="calc/encoding.js?v=20260918b" defer></script>
 <script src="calc/encoding-ciphers.js?v=20260821q" defer></script>
 
-<script src="calc/coderain.js?v=20260821q" defer></script>
+<script src="calc/coderain.js?v=20260918b" defer></script>
 
 <!-- after every script that declares an option, before anything that restores one -->
 <script src="calc/reset-defaults.js?v=20260821q" defer></script>
 
 <script src="auth/supabase-config.js?v=20260821q" defer></script>
-<script src="auth/auth.js?v=20260821q" defer></script>
+<script src="auth/auth.js?v=20260919b" defer></script>
 <script src="auth/auth-ui.js?v=20260821q" defer></script>
+<script src="auth/username-gate.js?v=20260919b" defer></script>
 <script src="auth/history-sync.js?v=20260821q" defer></script>
 <script src="auth/workspace-sync.js?v=20260821q" defer></script>
 <script src="auth/profile-features.js?v=20260821q" defer></script>
 <script src="auth/friends.js?v=20260821q" defer></script>
 <script src="auth/chat.js?v=20260821q" defer></script>
 <script src="auth/forum.js?v=20260821q" defer></script>
+<script src="auth/master-decoder-data.js?v=20260918a" defer></script>
 <script src="auth/tour-sync.js?v=20260821q" defer></script>
 <script src="auth/admin.js?v=20260821q" defer></script>
 
@@ -229,3 +239,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script> -->
 
 </body>
+</html>

@@ -49,6 +49,103 @@ var astroAspects = [
 	{ ang: 180, name: "Opposition",  glyph: "☍", orb: 8 }
 ]
 
+// ---- astrology systems ------------------------------------------------
+//
+// One configuration decides everything downstream: which zodiac the
+// longitudes are measured in, which ayanamsa shifts them, which house system
+// divides the sky, and which extra readings a tradition asks for. Nothing
+// else in this file decides any of that for itself, so a system cannot end up
+// half applied - sidereal planets in tropical houses, or a Whole Sign label
+// over Placidus cusps.
+//
+// "current" is what this tab did before these systems existed - tropical
+// longitudes, Whole Sign houses (or Equal, by the buttons that were already
+// here). It is still here, unchanged, and still what the Whole Sign / Equal
+// buttons apply to; it is no longer what a new session opens on.
+//
+// A session with nothing saved opens on Vedic / Jyotish: sidereal longitudes
+// on the Lahiri ayanamsa, rashi (Whole Sign) houses, with nakshatras and the
+// Vimshottari dasha. That is a real configuration, read by astroBuildChart
+// like any other - the default names a system, it does not describe one.
+//
+// Anyone who has already chosen a system keeps it: the saved value arrives
+// through calcOptionsArr (calc/calc.js) and importCalcOptions() assigns over
+// this initial value, so it is only ever the starting point for somebody who
+// has never chosen.
+
+var ASTRO_DEFAULT_SYSTEM = "vedic"
+var astroSystem = ASTRO_DEFAULT_SYSTEM // persisted through calcOptionsArr (calc/calc.js)
+
+var astroSystems = [
+	{
+		// the key stays "current" - it is what saved preferences hold - while
+		// the label just says what the configuration is
+		key: "current", label: "Tropical · Whole Sign",
+		zodiac: "tropical", ayanamsa: null,
+		houses: "whole", housesLocked: false, // the Whole Sign / Equal buttons still apply
+		extras: []
+	},
+	{
+		key: "vedic", label: "Vedic / Jyotish",
+		zodiac: "sidereal", ayanamsa: "lahiri",
+		houses: "whole", housesLocked: true,   // rashi = whole sign
+		housesLabel: "Whole Sign (rashi)",
+		extras: ["nakshatra", "dasha"]
+	},
+	{
+		key: "kp", label: "KP Astrology",
+		zodiac: "sidereal", ayanamsa: "kp",
+		houses: "placidus", housesLocked: true,
+		extras: ["nakshatra", "sublord", "cuspal"]
+	},
+	{
+		key: "hellenistic", label: "Hellenistic",
+		zodiac: "tropical", ayanamsa: null,
+		houses: "whole", housesLocked: true,
+		extras: ["sect", "traditional", "fortune"]
+	},
+	{
+		key: "western", label: "Western / Placidus",
+		zodiac: "tropical", ayanamsa: null,
+		houses: "placidus", housesLocked: true,
+		extras: ["modern"]
+	}
+]
+
+// An unknown key - a hand-edited or imported settings file, an older name -
+// resolves to the default system rather than to whatever happens to be first
+// in the list, and never to something half-configured.
+function astroSystemConfig(key) {
+	var want = key || astroSystem
+	var i
+	for (i = 0; i < astroSystems.length; i++) {
+		if (astroSystems[i].key === want) return astroSystems[i]
+	}
+	for (i = 0; i < astroSystems.length; i++) {
+		if (astroSystems[i].key === ASTRO_DEFAULT_SYSTEM) return astroSystems[i]
+	}
+	return astroSystems[0]
+}
+
+// The house system actually in force: the system's own, unless it leaves the
+// choice open (only "current" does), where the Whole Sign / Equal buttons win.
+function astroActiveHouseSystem(cfg) {
+	var c = cfg || astroSystemConfig()
+	return c.housesLocked ? c.houses : astroHouseSystem
+}
+
+function astroHouseLabel(sys) {
+	if (sys === "placidus") return "Placidus"
+	if (sys === "equal") return "Equal"
+	if (sys === "porphyry") return "Porphyry"
+	return "Whole Sign"
+}
+
+function astroHasExtra(name, cfg) {
+	var c = cfg || astroSystemConfig()
+	return c.extras.indexOf(name) > -1
+}
+
 // ---- maths helpers ----------------------------------------------------
 
 var DEG = Math.PI / 180
@@ -251,23 +348,207 @@ function astroLST(d, ut, lonEast) {
 	return aRev(GMST0 + ut * 15 + lonEast)
 }
 
-// Ascendant, Midheaven and the twelve house cusps.
-// RAMC is the right ascension of the MC, which equals local sidereal time.
-function astroHouses(ramc, lat, ecl, system) {
+// ---- the sidereal zodiac ----------------------------------------------
+//
+// An ayanamsa is the gap between the tropical zodiac (measured from the
+// equinox, which precesses) and a sidereal one (measured from a fixed
+// star-based origin). Both models below are linear: an anchor value at J2000
+// and the rate of precession. That is worth a few arcminutes over a century
+// either side of 2000 and drifts further out beyond that - see the note the
+// panel prints. It is not a substitute for a full precession model.
+
+// Lahiri, the Indian standard: 23 deg 51' 11" at J2000, about 50.28" a year.
+function astroAyanamsa(d) {
+	return 23.8531 + (d / 365.25) * 0.0139659
+}
+
+// Krishnamurti, used by KP. Taken here as Lahiri less 5 arcminutes, the
+// difference usually quoted between the two. The exact Krishnamurti constant
+// is not reproduced, so a sub-lord boundary within about 5' of a planet may
+// differ from KP software - the panel says so rather than implying otherwise.
+var ASTRO_KP_OFFSET = 5 / 60
+function astroAyanamsaKP(d) { return astroAyanamsa(d) - ASTRO_KP_OFFSET }
+
+function astroAyanamsaFor(name, d) {
+	if (name === "kp") return astroAyanamsaKP(d)
+	if (name === "lahiri") return astroAyanamsa(d)
+	return 0
+}
+
+function astroAyanamsaLabel(name) {
+	if (name === "kp") return "Krishnamurti"
+	if (name === "lahiri") return "Lahiri"
+	return ""
+}
+
+// Moves a finished tropical chart into the sidereal zodiac, angles, cusps,
+// house numbers and all. It used to take the ayanamsa off the longitudes and
+// off the cusps and stop there, which left Whole Sign cusps sitting in the
+// middle of signs and every planet still carrying its tropical house number.
+// The cusps are now rebuilt from the sidereal Ascendant and the houses
+// re-read from those, so the chart is sidereal all the way through.
+function astroToSidereal(chart, ayanamsaName) {
+	var name = ayanamsaName || "lahiri"
+	var ayan = astroAyanamsaFor(name, chart.d)
+	var out = {
+		d: chart.d, ayanamsa: ayan, ayanamsaName: name, phase: chart.phase,
+		plutoOutOfRange: chart.plutoOutOfRange, systemKey: chart.systemKey,
+		bodies: [], aspects: chart.aspects, sidereal: true, zodiac: "sidereal",
+		extra: chart.extra || {}
+	}
+	var i, b, lon, s
+	for (i = 0; i < chart.bodies.length; i++) {
+		b = chart.bodies[i]
+		lon = aRev(b.lon - ayan)
+		s = astroSignOf(lon)
+		out.bodies.push({
+			key: b.key, name: b.name, glyph: b.glyph, lon: lon, lonTropical: b.lon,
+			sign: s.sign, signIdx: s.idx, deg: s.deg, min: s.min,
+			retro: b.retro, speed: b.speed
+		})
+	}
+	if (chart.houses) {
+		var asc = aRev(chart.houses.asc - ayan)
+		var mc = aRev(chart.houses.mc - ayan)
+		var h = astroCusps(chart.houses.system, asc, mc, chart.houses.ramc,
+			chart.houses.latitude, chart.houses.obliquity, ayan)
+		out.houses = {
+			asc: asc, mc: mc, cusps: h.cusps, system: h.system,
+			asked: h.asked, undefinedHere: h.undefinedHere,
+			ramc: chart.houses.ramc, obliquity: chart.houses.obliquity, latitude: chart.houses.latitude
+		}
+		out.ascSign = astroSignOf(asc)
+		out.mcSign = astroSignOf(mc)
+		for (i = 0; i < out.bodies.length; i++) {
+			out.bodies[i].house = astroHouseOf(out.bodies[i].lon, out.houses.cusps)
+		}
+	}
+	return out
+}
+
+// ---- angles and house cusps -------------------------------------------
+
+// Ascendant and Midheaven in the tropical zodiac. RAMC is the right ascension
+// of the MC, which equals local sidereal time.
+function astroAngles(ramc, lat, ecl) {
 	if (lat > 89.5) lat = 89.5      // tan(lat) diverges at the poles
 	if (lat < -89.5) lat = -89.5
-
-	var mc = aAtan2(aSin(ramc), aCos(ramc) * aCos(ecl))
-	var asc = aAtan2(aCos(ramc), -(aSin(ramc) * aCos(ecl) + Math.tan(lat * DEG) * aSin(ecl)))
-
-	var cusps = [], i
-	if (system === "whole") {
-		var start = Math.floor(asc / 30) * 30 // house 1 is the whole sign holding the Ascendant
-		for (i = 0; i < 12; i++) cusps.push(aRev(start + i * 30))
-	} else { // equal
-		for (i = 0; i < 12; i++) cusps.push(aRev(asc + i * 30))
+	return {
+		mc: aAtan2(aSin(ramc), aCos(ramc) * aCos(ecl)),
+		asc: aAtan2(aCos(ramc), -(aSin(ramc) * aCos(ecl) + Math.tan(lat * DEG) * aSin(ecl)))
 	}
-	return { asc: asc, mc: mc, cusps: cusps, system: system }
+}
+
+// the ecliptic longitude of the point on the ecliptic with this right ascension
+function astroLonFromRA(ra, ecl) {
+	return aAtan2(aSin(ra) / aCos(ecl), aCos(ra))
+}
+
+// One Placidus cusp. Placidus divides each degree's own day arc (or night
+// arc) into three, so a cusp is the ecliptic point whose hour angle from the
+// meridian is the given fraction of its own semi-arc. That is implicit - the
+// semi-arc depends on the declination, which depends on the point - so it is
+// solved by iteration from the equal-house guess.
+//
+// Returns null when the point never rises or sets at this latitude (the
+// circumpolar case), where Placidus has no answer at all.
+function astroPlacidusCusp(ramc, lat, ecl, offsetDeg, frac, nocturnal) {
+	var ra = aRev(ramc + offsetDeg)
+	var lon = astroLonFromRA(ra, ecl)
+	for (var i = 0; i < 60; i++) {
+		var dec = Math.asin(aSin(ecl) * aSin(lon)) / DEG
+		var t = Math.tan(dec * DEG) * Math.tan(lat * DEG)
+		if (!isFinite(t) || Math.abs(t) > 1) return null   // no rising: undefined here
+		var ad = Math.asin(t) / DEG                        // ascensional difference
+		var arc = nocturnal ? (90 - ad) : (90 + ad)        // semi-nocturnal / semi-diurnal
+		var raNext = nocturnal ? aRev(ramc + 180 - frac * arc) : aRev(ramc + frac * arc)
+		var move = Math.abs(aRev(raNext - ra + 180) - 180)
+		ra = raNext
+		lon = astroLonFromRA(ra, ecl)
+		if (move < 1e-9) break
+	}
+	return lon
+}
+
+// Porphyry: the quadrants trisected in longitude. Defined at every latitude,
+// which is why it is the fallback when Placidus is not - and it is named as
+// itself in the UI rather than passed off as Placidus.
+function astroPorphyryCusps(asc, mc) {
+	var c = []
+	var dayArc = aRev(asc - mc)                     // MC round to the Ascendant
+	var nightArc = aRev(aRev(mc + 180) - asc)       // Ascendant round to the IC
+	c[0] = aRev(asc)                                // 1st
+	c[1] = aRev(asc + nightArc / 3)                 // 2nd
+	c[2] = aRev(asc + 2 * nightArc / 3)             // 3rd
+	c[3] = aRev(mc + 180)                           // 4th
+	c[9] = aRev(mc)                                 // 10th
+	c[10] = aRev(mc + dayArc / 3)                   // 11th
+	c[11] = aRev(mc + 2 * dayArc / 3)               // 12th
+	c[4] = aRev(c[10] + 180)                        // 5th opposes the 11th
+	c[5] = aRev(c[11] + 180)
+	c[6] = aRev(c[0] + 180)
+	c[7] = aRev(c[1] + 180)
+	c[8] = aRev(c[2] + 180)
+	return c
+}
+
+// The twelve cusps for one house system, in whichever zodiac asc/mc are
+// already expressed in. Sidereal callers pass sidereal angles and the
+// ayanamsa, so quadrant cusps (which are derived from the equator, not the
+// zodiac) are computed tropically and then shifted by the same amount as
+// everything else. Nothing here mixes the two frames.
+function astroCusps(system, asc, mc, ramc, lat, ecl, ayan) {
+	var cusps = [], i
+	var shift = ayan || 0
+
+	if (system === "placidus") {
+		var c11 = astroPlacidusCusp(ramc, lat, ecl, 30, 1 / 3, false)
+		var c12 = astroPlacidusCusp(ramc, lat, ecl, 60, 2 / 3, false)
+		var c2 = astroPlacidusCusp(ramc, lat, ecl, 120, 2 / 3, true)
+		var c3 = astroPlacidusCusp(ramc, lat, ecl, 150, 1 / 3, true)
+		if (c11 === null || c12 === null || c2 === null || c3 === null) {
+			// circumpolar: say so, fall back to Porphyry, and keep the label
+			return { cusps: astroPorphyryCusps(asc, mc), system: "porphyry", asked: "placidus", undefinedHere: true }
+		}
+		cusps[0] = asc
+		cusps[1] = aRev(c2 - shift)
+		cusps[2] = aRev(c3 - shift)
+		cusps[3] = aRev(mc + 180)
+		cusps[9] = mc
+		cusps[10] = aRev(c11 - shift)
+		cusps[11] = aRev(c12 - shift)
+		cusps[4] = aRev(cusps[10] + 180)
+		cusps[5] = aRev(cusps[11] + 180)
+		cusps[6] = aRev(cusps[0] + 180)
+		cusps[7] = aRev(cusps[1] + 180)
+		cusps[8] = aRev(cusps[2] + 180)
+		return { cusps: cusps, system: "placidus" }
+	}
+
+	if (system === "porphyry") {
+		return { cusps: astroPorphyryCusps(asc, mc), system: "porphyry" }
+	}
+
+	if (system === "equal") {
+		for (i = 0; i < 12; i++) cusps.push(aRev(asc + i * 30))
+		return { cusps: cusps, system: "equal" }
+	}
+
+	// whole sign: house 1 is the whole sign holding the Ascendant
+	var start = Math.floor(aRev(asc) / 30) * 30
+	for (i = 0; i < 12; i++) cusps.push(aRev(start + i * 30))
+	return { cusps: cusps, system: "whole" }
+}
+
+// Tropical angles and cusps in one call. Kept for callers that only ever
+// wanted the old behaviour.
+function astroHouses(ramc, lat, ecl, system) {
+	var ang = astroAngles(ramc, lat, ecl)
+	var h = astroCusps(system === "equal" ? "equal" : system, ang.asc, ang.mc, ramc, lat, ecl, 0)
+	return {
+		asc: ang.asc, mc: ang.mc, cusps: h.cusps, system: h.system,
+		asked: h.asked, undefinedHere: h.undefinedHere
+	}
 }
 
 function astroHouseOf(lon, cusps) {
@@ -304,23 +585,152 @@ function astroMoonPhase(sunLon, moonLon) {
 	return { name: name, elong: elong, illum: illum }
 }
 
+// ---- what each tradition adds -----------------------------------------
+//
+// Nakshatras, sub-lords and dashas are exact arithmetic on a sidereal
+// longitude: no extra astronomy, so they are as accurate as the longitude
+// and the ayanamsa they are built on. Sect, rulerships and the Lot of
+// Fortune are likewise definitions rather than measurements.
+
+// the 27 lunar mansions, 13 deg 20' each, from 0 deg sidereal Aries
+var astroNakshatras = [
+	"Ashwini", "Bharani", "Krittika", "Rohini", "Mrigashira", "Ardra",
+	"Punarvasu", "Pushya", "Ashlesha", "Magha", "Purva Phalguni", "Uttara Phalguni",
+	"Hasta", "Chitra", "Swati", "Vishakha", "Anuradha", "Jyeshtha",
+	"Mula", "Purva Ashadha", "Uttara Ashadha", "Shravana", "Dhanishta", "Shatabhisha",
+	"Purva Bhadrapada", "Uttara Bhadrapada", "Revati"
+]
+
+// Vimshottari order and lengths, 120 years in all. The same order and
+// proportions divide a nakshatra into KP's sub-lords.
+var astroDashaLords = [
+	{ name: "Ketu", years: 7 }, { name: "Venus", years: 20 }, { name: "Sun", years: 6 },
+	{ name: "Moon", years: 10 }, { name: "Mars", years: 7 }, { name: "Rahu", years: 18 },
+	{ name: "Jupiter", years: 16 }, { name: "Saturn", years: 19 }, { name: "Mercury", years: 17 }
+]
+
+var ASTRO_NAK_SPAN = 360 / 27        // 13 deg 20'
+var ASTRO_DASHA_TOTAL = 120
+
+function astroNakshatraOf(lon) {
+	var l = aRev(lon)
+	var idx = Math.floor(l / ASTRO_NAK_SPAN)
+	var within = l - idx * ASTRO_NAK_SPAN
+	return {
+		idx: idx,
+		name: astroNakshatras[idx],
+		lord: astroDashaLords[idx % 9].name,
+		pada: Math.floor(within / (ASTRO_NAK_SPAN / 4)) + 1,
+		within: within,
+		fraction: within / ASTRO_NAK_SPAN          // how far through it
+	}
+}
+
+// KP's sub-lord: the nakshatra is divided in the Vimshottari proportions,
+// starting from its own lord. The sub-lord of a degree is the finest
+// distinction KP works with.
+function astroSubLordOf(lon) {
+	var nak = astroNakshatraOf(lon)
+	var start = nak.idx % 9
+	var walked = 0
+	for (var i = 0; i < 9; i++) {
+		var lord = astroDashaLords[(start + i) % 9]
+		var span = ASTRO_NAK_SPAN * lord.years / ASTRO_DASHA_TOTAL
+		if (nak.within < walked + span || i === 8) {
+			return { nakshatra: nak, star: nak.lord, sub: lord.name }
+		}
+		walked += span
+	}
+	return { nakshatra: nak, star: nak.lord, sub: nak.lord }
+}
+
+// day number back to a calendar date: day 1 is 2000 Jan 1, 00:00 UT
+function astroDateFromDay(d) {
+	return new Date(Date.UTC(1999, 11, 31) + d * 86400000)
+}
+
+function astroDashaDate(d) {
+	var dt = astroDateFromDay(d)
+	return dt.getUTCFullYear() + "-" + astroPad(dt.getUTCMonth() + 1) + "-" + astroPad(dt.getUTCDate())
+}
+
+// Vimshottari mahadashas from the Moon's nakshatra. The first period is
+// however much of its lord's span the Moon had left at birth.
+function astroVimshottari(moonLon, birthD, count) {
+	var nak = astroNakshatraOf(moonLon)
+	var startIdx = nak.idx % 9
+	var first = astroDashaLords[startIdx]
+	var remaining = first.years * (1 - nak.fraction)
+	var out = []
+	var at = birthD
+	for (var i = 0; i < (count || 9); i++) {
+		var lord = astroDashaLords[(startIdx + i) % 9]
+		var years = (i === 0) ? remaining : lord.years
+		var end = at + years * 365.25            // the conventional 365.25-day year
+		out.push({ lord: lord.name, years: years, startD: at, endD: end, first: (i === 0) })
+		at = end
+	}
+	return out
+}
+
+// Rulerships. The traditional set is the seven visible planets only - the
+// outer three were not known and are not traditional rulers of anything.
+var astroTraditionalRulers = ["Mars", "Venus", "Mercury", "Moon", "Sun", "Mercury",
+	"Venus", "Mars", "Jupiter", "Saturn", "Saturn", "Jupiter"]
+var astroModernRulers = ["Mars", "Venus", "Mercury", "Moon", "Sun", "Mercury",
+	"Venus", "Pluto", "Jupiter", "Saturn", "Uranus", "Neptune"]
+
+// A chart is diurnal when the Sun is above the horizon, which is the half of
+// the wheel from the Descendant round to the Ascendant.
+function astroSect(sunLon, asc) {
+	var above = aRev(sunLon - asc) >= 180
+	return {
+		day: above,
+		name: above ? "Day chart (diurnal)" : "Night chart (nocturnal)",
+		light: above ? "Sun" : "Moon",
+		benefic: above ? "Jupiter" : "Venus",
+		malefic: above ? "Saturn" : "Mars"
+	}
+}
+
+// Lot of Fortune, reckoned by sect as the Hellenistic authors do.
+function astroLotOfFortune(asc, sunLon, moonLon, isDay) {
+	return isDay ? aRev(asc + moonLon - sunLon) : aRev(asc + sunLon - moonLon)
+}
+
 // Full chart for a UTC moment. Pass loc to cast a birth chart:
-//   { lat: degrees north, lon: degrees east, system: "whole" | "equal" }
+//   { lat: degrees north, lon: degrees east,
+//     system: "whole" | "equal" | "placidus" | "porphyry",
+//     zodiac: "tropical" | "sidereal", ayanamsa: "lahiri" | "kp" }
+//
+// Everything downstream of the zodiac choice happens in that zodiac: the
+// longitudes, the Ascendant, the cusps and the house each body falls in. A
+// sidereal chart is not a tropical chart with the numbers moved afterwards.
 function astroChart(y, m, D, ut, loc) {
 	var d = astroDayNumber(y, m, D, ut)
 	var step = 0.5 // half a day, enough to see direction of motion
-	var out = { d: d, bodies: [], aspects: [], plutoOutOfRange: (y < 1800 || y > 2100) }
+	var sidereal = !!(loc && loc.zodiac === "sidereal")
+	var ayan = sidereal ? astroAyanamsaFor(loc.ayanamsa || "lahiri", d) : 0
+	var out = {
+		d: d, bodies: [], aspects: [], plutoOutOfRange: (y < 1800 || y > 2100),
+		zodiac: sidereal ? "sidereal" : "tropical",
+		ayanamsa: sidereal ? ayan : 0,
+		ayanamsaName: sidereal ? (loc.ayanamsa || "lahiri") : null,
+		sidereal: sidereal
+	}
 
 	for (var i = 0; i < astroBodies.length; i++) {
 		var b = astroBodies[i]
-		var lon = astroLongitude(b.key, d)
+		var lonTrop = astroLongitude(b.key, d)
+		var lon = aRev(lonTrop - ayan)          // the frame everything else uses
 		var lonNext = astroLongitude(b.key, d + step)
-		var motion = aRev(lonNext - lon)
+		var motion = aRev(lonNext - lonTrop)
 		if (motion > 180) motion -= 360 // signed daily motion
 		var s = astroSignOf(lon)
 		out.bodies.push({
 			key: b.key, name: b.name, glyph: b.glyph,
-			lon: lon, sign: s.sign, signIdx: s.idx, deg: s.deg, min: s.min,
+			lon: lon, lonTropical: lonTrop,
+			sign: s.sign, signIdx: s.idx, deg: s.deg, min: s.min,
 			retro: (motion < 0), speed: motion / step
 		})
 	}
@@ -331,13 +741,21 @@ function astroChart(y, m, D, ut, loc) {
 	if (loc && isFinite(loc.lat) && isFinite(loc.lon)) {
 		var ecl = astroObliquity(d)
 		var ramc = astroLST(d, ut, loc.lon)
-		out.houses = astroHouses(ramc, loc.lat, ecl, loc.system || "whole")
-		out.houses.ramc = ramc
-		out.houses.obliquity = ecl
-		out.ascSign = astroSignOf(out.houses.asc)
-		out.mcSign = astroSignOf(out.houses.mc)
-		for (var h = 0; h < out.bodies.length; h++) {
-			out.bodies[h].house = astroHouseOf(out.bodies[h].lon, out.houses.cusps)
+		var ang = astroAngles(ramc, loc.lat, ecl)
+		// the angles in this chart's own zodiac, before the cusps are built
+		// from them - which is what keeps Whole Sign whole in either frame
+		var asc = aRev(ang.asc - ayan)
+		var mc = aRev(ang.mc - ayan)
+		var h = astroCusps(loc.system || "whole", asc, mc, ramc, loc.lat, ecl, ayan)
+		out.houses = {
+			asc: asc, mc: mc, cusps: h.cusps, system: h.system,
+			asked: h.asked, undefinedHere: h.undefinedHere,
+			ramc: ramc, obliquity: ecl, latitude: loc.lat
+		}
+		out.ascSign = astroSignOf(asc)
+		out.mcSign = astroSignOf(mc)
+		for (var hb = 0; hb < out.bodies.length; hb++) {
+			out.bodies[hb].house = astroHouseOf(out.bodies[hb].lon, out.houses.cusps)
 		}
 	}
 
@@ -361,6 +779,101 @@ function astroChart(y, m, D, ut, loc) {
 	}
 	out.aspects.sort(function (x, y2) { return x.orb - y2.orb })
 	return out
+}
+
+// The chart for a selected system: the configuration decides the zodiac, the
+// ayanamsa and the house system, and then adds whatever that tradition
+// reads on top. This is the only place a system is turned into numbers.
+function astroBuildChart(y, m, D, ut, loc, cfg) {
+	var c = cfg || astroSystemConfig()
+	var place = null
+	if (loc && isFinite(loc.lat) && isFinite(loc.lon)) {
+		place = {
+			lat: loc.lat, lon: loc.lon,
+			system: astroActiveHouseSystem(c),
+			zodiac: c.zodiac, ayanamsa: c.ayanamsa
+		}
+	} else if (c.zodiac === "sidereal") {
+		place = { zodiac: c.zodiac, ayanamsa: c.ayanamsa } // no angles, still sidereal
+	}
+
+	var chart = astroChart(y, m, D, ut, place)
+	chart.systemKey = c.key
+	chart.systemLabel = c.label
+	chart.extra = {}
+
+	var i, b
+	if (astroHasExtra("nakshatra", c) || astroHasExtra("sublord", c)) {
+		for (i = 0; i < chart.bodies.length; i++) {
+			b = chart.bodies[i]
+			b.nakshatra = astroNakshatraOf(b.lon)
+			if (astroHasExtra("sublord", c)) b.sublord = astroSubLordOf(b.lon).sub
+		}
+	}
+
+	if (astroHasExtra("dasha", c)) {
+		var moon = chart.bodies[1]
+		chart.extra.dasha = astroVimshottari(moon.lon, chart.d, 9)
+		chart.extra.dashaFrom = moon.nakshatra
+	}
+
+	if (astroHasExtra("cuspal", c) && chart.houses) {
+		chart.extra.cuspal = []
+		for (i = 0; i < 12; i++) {
+			var sl = astroSubLordOf(chart.houses.cusps[i])
+			chart.extra.cuspal.push({
+				house: i + 1, lon: chart.houses.cusps[i], sign: astroSignOf(chart.houses.cusps[i]),
+				nakshatra: sl.nakshatra.name, star: sl.star, sub: sl.sub
+			})
+		}
+	}
+
+	if (astroHasExtra("sect", c) && chart.houses) {
+		chart.extra.sect = astroSect(chart.bodies[0].lon, chart.houses.asc)
+		if (astroHasExtra("fortune", c)) {
+			var lot = astroLotOfFortune(chart.houses.asc, chart.bodies[0].lon, chart.bodies[1].lon, chart.extra.sect.day)
+			chart.extra.fortune = {
+				lon: lot, sign: astroSignOf(lot),
+				house: astroHouseOf(lot, chart.houses.cusps)
+			}
+		}
+	}
+
+	if (astroHasExtra("traditional", c) || astroHasExtra("modern", c)) {
+		var table = astroHasExtra("modern", c) ? astroModernRulers : astroTraditionalRulers
+		chart.extra.rulerSet = astroHasExtra("modern", c) ? "modern" : "traditional"
+		for (i = 0; i < chart.bodies.length; i++) {
+			chart.bodies[i].ruler = table[chart.bodies[i].signIdx]
+		}
+		if (chart.houses) chart.extra.ascRuler = table[astroSignOf(chart.houses.asc).idx]
+	}
+
+	return chart
+}
+
+// The line printed under the dropdown. Built from the configuration and the
+// chart it produced, so it cannot drift out of step with either.
+function astroSystemInfoText(cfg, chart) {
+	var c = cfg || astroSystemConfig()
+	var parts = []
+	if (c.zodiac === "sidereal") {
+		var txt = "Sidereal · " + astroAyanamsaLabel(c.ayanamsa) + " ayanamsa"
+		if (chart && chart.ayanamsa) {
+			var a = astroSignOf(chart.ayanamsa)
+			txt += " " + a.deg + "°" + astroPad(a.min) + "′"
+		}
+		parts.push(txt)
+	} else {
+		parts.push("Tropical")
+	}
+	var sys = astroActiveHouseSystem(c)
+	var shown = (chart && chart.houses) ? chart.houses.system : sys
+	var label = (c.housesLabel && shown === c.houses) ? c.housesLabel : astroHouseLabel(shown)
+	if (chart && chart.houses && chart.houses.undefinedHere) {
+		label = astroHouseLabel(shown) + " (Placidus undefined at this latitude)"
+	}
+	parts.push(label + " houses")
+	return parts.join(" · ")
 }
 
 // ---- heliocentric positions (for the 3D view) -------------------------
@@ -447,30 +960,79 @@ function astroOrbitPath(body, d, steps) {
 var astroViewMode = "2d"      // "2d" wheel or "3d" solar system
 var astroAzimuth = -35        // 3D camera, degrees
 var astroElevation = 62
-var astroDragging = false
-var astroDragX = 0, astroDragY = 0
 var astroZoom = 1        // 3D camera distance, 1 fits Pluto's orbit
 var astroZoomMin = 0.45
-var astroZoomMax = 14
+var astroZoomMax = 2400  // close enough for a moon system to separate on screen
+
+// The camera looks at one body: the Sun to begin with, a planet or a moon
+// once one is picked. Everything is drawn relative to this point, so zooming
+// and orbiting happen around whatever is selected rather than around the Sun.
+var astroTarget = "sun"        // what the camera is centred on
+var astroSelected = null       // what is highlighted and described, if anything
+var astroCamFrom = null        // the target being eased away from, while a move runs
+var astroCamT0 = 0
+var astroCamDur = 0
+var astroRaf = null
+var astroHitItems = []         // what is on screen now, for clicks and taps
+var astroResizeObs = null
+
+function astroReducedMotion() {
+	return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+}
+
+// "2d" the wheel, "3d" the solar map, "flat" the zetetic map. Each keeps its
+// own view state - the solar map its camera, the flat map its pan and zoom -
+// so switching between them leaves both as they were, and leaves the chart,
+// the birth data and the astrology system alone entirely.
+// Both of this panel's settings ride in the shared settings blob, which can
+// be exported to a file, sent to somebody and imported by them. The importer
+// only checks that a name is one it knows, not what the value is, so a value
+// arriving here can be anything at all. The system falls back safely on its
+// own (astroSystemConfig returns a known configuration), and this does the
+// same for the view: an unknown mode would otherwise be pasted into a jQuery
+// selector and throw, taking the panel down with it.
+function astroViewSafe(mode) {
+	return (mode === "3d" || mode === "flat") ? mode : "2d"
+}
 
 function astroSetView(mode) {
+	mode = astroViewSafe(mode)
 	astroViewMode = mode
-	$(".astroViewBtn").removeClass("astroViewOn")
-	$("#astroView" + mode.toUpperCase()).addClass("astroViewOn")
+	$(".astroViewBtn").removeClass("astroViewOn").attr("aria-pressed", "false")
+	$("#astroView" + (mode === "flat" ? "Flat" : mode.toUpperCase())).addClass("astroViewOn").attr("aria-pressed", "true")
 	$("#astroDragHint").toggleClass("hideValue", mode !== "3d")
+	$("#feHint").toggleClass("hideValue", mode !== "flat")
+	$("#feControls").toggleClass("hideValue", mode !== "flat")
+	if (mode !== "flat") { feAboutOpen = false; $("#feAbout").addClass("hideValue") }
+	$("#astroSelInfo").toggleClass("hideValue", mode === "2d")
+	var cvs = document.getElementById("astroCanvas")
+	// the two interactive maps take the drag; over the wheel the page
+	// scrolls as it does anywhere else
+	if (cvs !== null) cvs.style.touchAction = (mode === "2d") ? "auto" : "none"
+	if (cvs !== null) {
+		cvs.setAttribute("aria-label", mode === "flat"
+			? "Flat Earth / Zetetic map, a historical geocentric model. Drag to pan, pinch or scroll to zoom, tap an object to select it."
+			: (mode === "3d" ? "Solar system map. Tap a planet to follow it." : "Birth chart wheel."))
+	}
+	if (typeof feSyncControls === "function") feSyncControls()
+	astroRenderSelection()
 	drawAstroVisual()
 }
 
 function astroSetZoom(z) {
 	astroZoom = Math.max(astroZoomMin, Math.min(astroZoomMax, z))
 	var lbl = document.getElementById("astroZoomLabel")
-	if (lbl !== null) lbl.textContent = astroZoom.toFixed(2) + "x"
+	if (lbl !== null) lbl.textContent = (astroZoom < 10 ? astroZoom.toFixed(2) : Math.round(astroZoom)) + "x"
 	drawAstroVisual()
 }
 
 function astroZoomBy(factor) { astroSetZoom(astroZoom * factor) }
-function astroResetView() { astroZoom = 1; astroAzimuth = -35; astroElevation = 62; astroSetZoom(1) }
 
+function astroResetView() {
+	astroZoom = 1; astroAzimuth = -35; astroElevation = 62
+	astroSelect(null)          // back to the system, centred on the Sun
+	astroSetZoom(1)
+}
 
 // Wheel zoom needs a native, explicitly non-passive listener. Browsers treat
 // wheel handlers registered through jQuery's delegation as passive, so
@@ -479,12 +1041,123 @@ function astroBindCanvasWheel() {
 	var cvs = document.getElementById("astroCanvas")
 	if (cvs === null || cvs.dataset.wheelBound === "1") return
 	cvs.addEventListener("wheel", function (e) {
-		if (astroViewMode !== "3d") return
+		if (astroViewMode === "2d") return
 		e.preventDefault()
 		e.stopPropagation()
-		astroSetZoom(astroZoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12))
+		var f = (e.deltaY < 0) ? 1.12 : 1 / 1.12
+		if (astroViewMode === "flat") feZoomBy(f)
+		else astroSetZoom(astroZoom * f)
 	}, { passive: false })
 	cvs.dataset.wheelBound = "1"
+
+	astroBindCanvasPointer(cvs)
+	astroBindCanvasResize(cvs)
+}
+
+// ---- pointer input: mouse, pen and touch through one path --------------
+//
+// The canvas used to listen for mousedown only, while its CSS told the
+// browser not to scroll over it - so on a phone the solar view could not be
+// rotated, zoomed or scrolled past. Pointer events cover all three devices;
+// two fingers pinch; a short press without movement is a tap, which selects.
+function astroBindCanvasPointer(cvs) {
+	if (cvs === null || cvs.dataset.pointerBound === "1") return
+	var pts = {}           // live pointers by id
+	var lastX = 0, lastY = 0, startX = 0, startY = 0, startT = 0, moved = 0
+	var pinchFrom = 0
+
+	function count() { return Object.keys(pts).length }
+	function spread() {
+		var ids = Object.keys(pts)
+		if (ids.length < 2) return 0
+		var a = pts[ids[0]], b = pts[ids[1]]
+		return Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y))
+	}
+
+	// what a drag means depends on the view: the solar map orbits, the flat
+	// map pans. Neither is offered on the wheel, which is not interactive.
+	function interactive() { return astroViewMode === "3d" || astroViewMode === "flat" }
+
+	cvs.addEventListener("pointerdown", function (e) {
+		if (!interactive()) return
+		pts[e.pointerId] = { x: e.clientX, y: e.clientY }
+		if (cvs.setPointerCapture) { try { cvs.setPointerCapture(e.pointerId) } catch (err) { /* older browser */ } }
+		lastX = e.clientX; lastY = e.clientY
+		startX = e.clientX; startY = e.clientY; startT = Date.now(); moved = 0
+		if (count() === 2) pinchFrom = spread()
+		e.preventDefault()
+	})
+
+	cvs.addEventListener("pointermove", function (e) {
+		if (!interactive() || !pts[e.pointerId]) return
+		pts[e.pointerId] = { x: e.clientX, y: e.clientY }
+		if (count() >= 2) {
+			var now = spread()
+			if (pinchFrom > 0 && now > 0) {
+				var f = now / pinchFrom
+				if (astroViewMode === "flat") feZoomBy(f)
+				else astroSetZoom(astroZoom * f)
+				pinchFrom = now
+			}
+			moved += 10
+			e.preventDefault()
+			return
+		}
+		var dx = e.clientX - lastX, dy = e.clientY - lastY
+		moved += Math.abs(dx) + Math.abs(dy)
+		if (astroViewMode === "flat") {
+			// a flat map pans; there is nothing to orbit
+			fePanBy(dx, dy, feZoom * (Math.min(cvs.clientWidth, cvs.clientHeight) / 2 - 14))
+		} else {
+			astroAzimuth += dx * 0.5
+			astroElevation = Math.max(2, Math.min(90, astroElevation + dy * 0.4))
+			drawAstroVisual()
+		}
+		lastX = e.clientX; lastY = e.clientY
+		e.preventDefault()
+	})
+
+	function release(e) {
+		if (!pts[e.pointerId]) return
+		delete pts[e.pointerId]
+		if (count() < 2) pinchFrom = 0
+		if (!interactive()) return
+		// a tap, not a drag: pick whatever is under it
+		if (moved < 8 && (Date.now() - startT) < 500 && count() === 0) {
+			var r = cvs.getBoundingClientRect()
+			if (astroViewMode === "flat") feTap(startX - r.left, startY - r.top)
+			else astroCanvasTap(startX - r.left, startY - r.top)
+		}
+	}
+	cvs.addEventListener("pointerup", release)
+	cvs.addEventListener("pointercancel", release)
+	cvs.dataset.pointerBound = "1"
+}
+
+// The canvas is sized in CSS (a percentage width), so its backing store has
+// to follow its real size or the drawing is stretched and blurred. Watching
+// the element covers a window resize, a phone turning and the panel changing
+// width, and a redraw keeps the zoom, camera target, selection and system
+// exactly as they were - it is the same state, drawn at the new size.
+function astroBindCanvasResize(cvs) {
+	if (cvs === null || typeof ResizeObserver === "undefined") return
+	if (astroResizeObs !== null) astroResizeObs.disconnect()
+	var pending = false
+	astroResizeObs = new ResizeObserver(function () {
+		if (pending) return
+		pending = true
+		window.requestAnimationFrame(function () { pending = false; drawAstroVisual() })
+	})
+	astroResizeObs.observe(cvs)
+}
+
+function astroStopVisual() {
+	if (astroRaf !== null) { window.cancelAnimationFrame(astroRaf); astroRaf = null }
+	if (astroResizeObs !== null) { astroResizeObs.disconnect(); astroResizeObs = null }
+	astroHitItems = []
+	astroCamFrom = null
+	// the flat map's own leavings go too, if that file is loaded
+	if (typeof feHit !== "undefined") { feHit = []; feAnimFrom = null }
 }
 
 function astroCanvasSetup() {
@@ -493,8 +1166,10 @@ function astroCanvasSetup() {
 	var dpr = window.devicePixelRatio || 1
 	var cw = cvs.clientWidth || 520
 	var ch = cvs.clientHeight || 460
-	cvs.width = Math.floor(cw * dpr)
-	cvs.height = Math.floor(ch * dpr)
+	var bw = Math.max(1, Math.round(cw * dpr))
+	var bh = Math.max(1, Math.round(ch * dpr))
+	if (cvs.width !== bw) cvs.width = bw      // assigning always clears, so only when it changed
+	if (cvs.height !== bh) cvs.height = bh
 	var c = cvs.getContext("2d")
 	c.setTransform(dpr, 0, 0, dpr, 0, 0)
 	c.clearRect(0, 0, cw, ch)
@@ -505,6 +1180,10 @@ function drawAstroVisual() {
 	var s = astroCanvasSetup()
 	if (s === null || astroLastChart === null) return
 	if (astroViewMode === "3d") drawAstroChart3D(s.ctx, s.w, s.h, astroLastChart)
+	else if (astroViewMode === "flat" && typeof drawAstroChartFlat === "function") {
+		drawAstroChartFlat(s.ctx, s.w, s.h, astroLastChart)
+		feSyncControls()
+	}
 	else drawAstroChart2D(s.ctx, s.w, s.h, astroLastChart)
 }
 
@@ -644,20 +1323,283 @@ function astroAspectColor(ang) {
 	return "hsl(280 50% 62%)"
 }
 
+// ---- the moons ---------------------------------------------------------
+//
+// The supported set: the Moon, both of Mars', Jupiter's four Galilean moons
+// and Amalthea, Saturn's eight largest, Uranus' five major moons, Neptune's
+// Triton and Proteus, and Pluto's Charon. That is 23 of the several hundred
+// known satellites - the ones large enough to matter at this scale - and not
+// a claim to be the full catalogue.
+//
+// Names, parents, orbital radii (semi-major axis, km) and sidereal periods
+// (days) are the published values. POSITIONS ARE NOT: a moon is placed by
+// mean circular motion at its real period, which gives the right ordering,
+// spacing and speed but not an ephemeris position. The panel says so, and
+// nothing here pretends otherwise.
+var ASTRO_AU_KM = 149597870.7
+
+var astroMoons = [
+	{ name: "Moon", parent: "earth", a: 384400, period: 27.3217 },
+	{ name: "Phobos", parent: "mars", a: 9376, period: 0.31891 },
+	{ name: "Deimos", parent: "mars", a: 23463, period: 1.26244 },
+	{ name: "Amalthea", parent: "jupiter", a: 181400, period: 0.49818 },
+	{ name: "Io", parent: "jupiter", a: 421700, period: 1.76914 },
+	{ name: "Europa", parent: "jupiter", a: 671034, period: 3.55118 },
+	{ name: "Ganymede", parent: "jupiter", a: 1070412, period: 7.15455 },
+	{ name: "Callisto", parent: "jupiter", a: 1882709, period: 16.6890 },
+	{ name: "Mimas", parent: "saturn", a: 185540, period: 0.94242 },
+	{ name: "Enceladus", parent: "saturn", a: 238040, period: 1.37022 },
+	{ name: "Tethys", parent: "saturn", a: 294670, period: 1.88780 },
+	{ name: "Dione", parent: "saturn", a: 377420, period: 2.73692 },
+	{ name: "Rhea", parent: "saturn", a: 527070, period: 4.51821 },
+	{ name: "Titan", parent: "saturn", a: 1221870, period: 15.9454 },
+	{ name: "Hyperion", parent: "saturn", a: 1481010, period: 21.2766 },
+	{ name: "Iapetus", parent: "saturn", a: 3560820, period: 79.3215 },
+	{ name: "Miranda", parent: "uranus", a: 129390, period: 1.41348 },
+	{ name: "Ariel", parent: "uranus", a: 191020, period: 2.52038 },
+	{ name: "Umbriel", parent: "uranus", a: 266000, period: 4.14418 },
+	{ name: "Titania", parent: "uranus", a: 435910, period: 8.70587 },
+	{ name: "Oberon", parent: "uranus", a: 583520, period: 13.4632 },
+	{ name: "Proteus", parent: "neptune", a: 117647, period: 1.12231 },
+	{ name: "Triton", parent: "neptune", a: 354759, period: 5.87685, retrograde: true },
+	{ name: "Charon", parent: "pluto", a: 19591, period: 6.3872 }
+]
+
+function astroMoonsOf(planetKey) {
+	var out = []
+	for (var i = 0; i < astroMoons.length; i++) {
+		if (astroMoons[i].parent === planetKey) out.push(astroMoons[i])
+	}
+	return out
+}
+
+// Schematic offset from the parent, in AU. Circular, in the ecliptic plane,
+// advanced at the moon's real period - enough to show which moon is which
+// and how the system is arranged, and no more than that.
+function astroMoonOffset(moon, d) {
+	var turns = d / moon.period * (moon.retrograde ? -1 : 1)
+	var ang = aRev(turns * 360)
+	var r = moon.a / ASTRO_AU_KM
+	return { x: r * aCos(ang), y: r * aSin(ang), z: 0, r: r }
+}
+
 // Orthographic solar system. Distances are compressed with a power curve or
 // Mercury would be a single pixel next to Pluto.
-function astroCompress(r) { return Math.pow(r, 0.42) }
+var ASTRO_COMPRESS_P = 0.42
+function astroCompress(r) { return Math.pow(r, ASTRO_COMPRESS_P) }
 
-function astroProject(p, cx, cy, scale) {
+// Rotation only: the camera's azimuth and elevation, no compression. Used
+// for the short distances inside a moon system, where compressing from the
+// Sun would squash the orbits sideways.
+function astroRotate(p) {
 	var az = astroAzimuth * DEG, el = astroElevation * DEG
+	var x1 = p.x * Math.cos(az) - p.y * Math.sin(az)
+	var y1 = p.x * Math.sin(az) + p.y * Math.cos(az)
+	return {
+		x: x1,
+		y: y1 * Math.cos(el) - p.z * Math.sin(el),
+		depth: y1 * Math.sin(el) + p.z * Math.cos(el)
+	}
+}
+
+function astroProjectRaw(p) {
 	var r = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z)
 	var k = (r === 0) ? 0 : astroCompress(r) / r
-	var x = p.x * k, y = p.y * k, z = p.z * k
-	var x1 = x * Math.cos(az) - y * Math.sin(az)
-	var y1 = x * Math.sin(az) + y * Math.cos(az)
-	var y2 = y1 * Math.cos(el) - z * Math.sin(el)
-	var depth = y1 * Math.sin(el) + z * Math.cos(el)
-	return { x: cx + x1 * scale, y: cy - y2 * scale, depth: depth }
+	return astroRotate({ x: p.x * k, y: p.y * k, z: p.z * k })
+}
+
+// Near a planet, the compression behaves like a plain scale factor; this is
+// it, so a moon orbit keeps its shape instead of being flattened towards
+// the Sun.
+function astroLocalFactor(parentDist) {
+	if (!(parentDist > 0)) return 1
+	return Math.pow(parentDist, ASTRO_COMPRESS_P - 1)
+}
+
+// Everything is drawn relative to the camera's target, so the target stays
+// in the middle of the canvas while the rest of the system turns and scales
+// around it.
+function astroProject(p, cx, cy, scale) {
+	var c = astroCamCentreRaw()
+	var q = astroProjectRaw(p)
+	return { x: cx + (q.x - c.x) * scale, y: cy - (q.y - c.y) * scale, depth: q.depth }
+}
+
+// ---- one description of the sky, for any renderer ----------------------
+//
+// The wheel, the solar map and the flat map all draw the same bodies. This
+// is that list, built once from the chart the selected astrology system
+// produced, so none of them works out a position for itself. A renderer adds
+// whatever it needs on top (the solar map wants heliocentric coordinates,
+// the flat map wants the point on the ground each body stands over) but the
+// identities, zodiac longitudes and signs all come from here.
+function astroCelestialObjects(chart) {
+	var out = []
+	if (!chart) return out
+	for (var i = 0; i < chart.bodies.length; i++) {
+		var b = chart.bodies[i]
+		out.push({
+			id: b.key,
+			name: b.name,
+			type: (b.key === "sun") ? "star" : (b.key === "moon" ? "moon" : "planet"),
+			glyph: b.glyph,
+			lon: b.lon,                 // in the chart's own zodiac
+			lonTropical: b.lonTropical, // what the sky measures, before any ayanamsa
+			sign: b.sign,
+			signIdx: b.signIdx,
+			deg: b.deg,
+			min: b.min,
+			retro: b.retro,
+			speed: b.speed,
+			house: b.house,
+			nakshatra: b.nakshatra,
+			label: b.name + " " + b.deg + "° " + b.sign.name + (b.retro ? " Rx" : "")
+		})
+	}
+	return out
+}
+
+// ---- the camera target -------------------------------------------------
+
+// Where a target sits, in heliocentric AU. A moon is its parent plus its
+// schematic offset, so focusing a moon really does move the camera to it.
+function astroBodyPos(key, d) {
+	if (key === "sun" || !key) return { x: 0, y: 0, z: 0 }
+	if (astroOrbitBodies.indexOf(key) > -1) return astroHelioPos(key, d)
+	for (var i = 0; i < astroMoons.length; i++) {
+		if (astroMoons[i].name.toLowerCase() === String(key).toLowerCase()) {
+			var p = astroHelioPos(astroMoons[i].parent, d)
+			var off = astroMoonOffset(astroMoons[i], d)
+			return { x: p.x + off.x, y: p.y + off.y, z: p.z + off.z }
+		}
+	}
+	return { x: 0, y: 0, z: 0 }
+}
+
+// Where a target lands on the projected map, before the zoom scale is
+// applied. A moon has to be placed the same way the drawing places it -
+// against its parent, on the local scale - or the camera would centre on a
+// point a little away from the moon the eye can see.
+function astroRawOf(key, d) {
+	if (!key || key === "sun") return astroProjectRaw({ x: 0, y: 0, z: 0 })
+	for (var i = 0; i < astroMoons.length; i++) {
+		var m = astroMoons[i]
+		if (m.name.toLowerCase() !== String(key).toLowerCase()) continue
+		var pp = astroHelioPos(m.parent, d)
+		var raw = astroProjectRaw(pp)
+		var dist = Math.sqrt(pp.x * pp.x + pp.y * pp.y + pp.z * pp.z)
+		var rot = astroRotate(astroMoonOffset(m, d))
+		var f = astroLocalFactor(dist)
+		return { x: raw.x + rot.x * f, y: raw.y + rot.y * f, depth: raw.depth }
+	}
+	return astroProjectRaw(astroBodyPos(key, d))
+}
+
+// The point the camera is looking at right now, easing between the old
+// target and the new one while a move is running. Both ends are recomputed
+// every frame, so a move still works while the map is being turned.
+function astroCamCentreRaw() {
+	var d = astroLastChart ? astroLastChart.d : 0
+	var to = astroRawOf(astroTarget, d)
+	if (astroCamFrom === null || astroCamDur <= 0) return to
+	var t = (Date.now() - astroCamT0) / astroCamDur
+	if (t >= 1) { astroCamFrom = null; return to }
+	var e = 1 - Math.pow(1 - t, 3)          // ease out, no overshoot
+	var from = astroRawOf(astroCamFrom, d)
+	return { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e, depth: to.depth }
+}
+
+// Moves the camera without jumping. Reduced motion gets the same move with
+// no animation at all rather than losing the feature.
+function astroFocus(key) {
+	var was = astroTarget
+	astroTarget = key || "sun"
+	if (astroReducedMotion() || was === astroTarget) {
+		astroCamFrom = null; astroCamDur = 0; drawAstroVisual(); return
+	}
+	astroCamFrom = was          // the target we are leaving, eased from
+	astroCamT0 = Date.now()
+	astroCamDur = 420
+	astroAnimate()
+}
+
+function astroAnimate() {
+	if (astroRaf !== null) return
+	var step = function () {
+		astroRaf = null
+		drawAstroVisual()
+		if (astroCamFrom !== null) astroRaf = window.requestAnimationFrame(step)
+	}
+	astroRaf = window.requestAnimationFrame(step)
+}
+
+// Selecting is what a click does: highlight it, describe it, and look at it.
+function astroSelect(key) {
+	astroSelected = key || null
+	astroFocus(key || "sun")
+	astroRenderSelection()
+}
+
+function astroSelectionDetail(key) {
+	if (!key) return ""
+	var d = astroLastChart ? astroLastChart.d : 0
+	var i
+	for (i = 0; i < astroMoons.length; i++) {
+		var m = astroMoons[i]
+		if (m.name.toLowerCase() !== String(key).toLowerCase()) continue
+		var parent = m.parent.charAt(0).toUpperCase() + m.parent.slice(1)
+		return m.name + " — moon of " + parent + " · " +
+			m.a.toLocaleString() + " km from it · orbit " + m.period.toFixed(2) + " days" +
+			(m.retrograde ? " (retrograde)" : "") + " · position schematic"
+	}
+	if (key === "sun") return ""
+	var name = key.charAt(0).toUpperCase() + key.slice(1)
+	var pos = astroBodyPos(key, d)
+	var dist = Math.sqrt(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z)
+	var moons = astroMoonsOf(key)
+	var txt = name + " · " + dist.toFixed(2) + " AU from the Sun"
+	if (key !== "earth" && astroLastChart) {
+		for (i = 0; i < astroLastChart.bodies.length; i++) {
+			var b = astroLastChart.bodies[i]
+			if (b.key === key) { txt += " · " + b.deg + "° " + b.sign.name + (b.retro ? " Rx" : ""); break }
+		}
+	}
+	if (moons.length > 0) txt += " · " + moons.length + " moon" + (moons.length > 1 ? "s" : "") + " here, zoom in to see them"
+	return txt
+}
+
+function astroRenderSelection() {
+	var el = document.getElementById("astroSelInfo")
+	if (el === null) return
+	var flat = (astroViewMode === "flat")
+	if (!astroSelected) {
+		el.textContent = flat
+			? "Nothing selected — tap the Sun, the Moon, a planet or a star."
+			: "Nothing selected — tap a planet to follow it."
+	} else {
+		// each view describes what it can: the flat map knows where a body
+		// stands overhead, the solar map knows how far out it is
+		el.textContent = flat
+			? (typeof feSelectionDetail === "function" ? feSelectionDetail(astroSelected) : "")
+			: astroSelectionDetail(astroSelected)
+	}
+	el.classList.toggle("hideValue", astroViewMode === "2d")
+}
+
+// A click or tap on the canvas: the nearest thing actually drawn, within a
+// forgiving radius (bigger for touch, where a fingertip is not a pixel).
+// Only what is on screen at this zoom can be hit - a moon too small to be
+// drawn is not secretly selectable.
+function astroCanvasTap(x, y) {
+	var best = null, bestD = 1e9
+	for (var i = 0; i < astroHitItems.length; i++) {
+		var it = astroHitItems[i]
+		var dx = it.x - x, dy = it.y - y
+		var dist = Math.sqrt(dx * dx + dy * dy)
+		if (dist <= it.hit && dist < bestD) { best = it; bestD = dist }
+	}
+	if (best === null) { astroSelect(null); return }   // empty space: back to the system
+	astroSelect(best.key)
 }
 
 function drawAstroChart3D(c, w, h, chart) {
@@ -705,36 +1647,98 @@ function drawAstroChart3D(c, w, h, chart) {
 
 	// planets, painted back to front so nearer bodies sit on top
 	var items = []
-	for (var b = 0; b < astroOrbitBodies.length; b++) {
-		var key = astroOrbitBodies[b]
+	astroHitItems = []
+	var touch = (window.matchMedia && window.matchMedia("(pointer: coarse)").matches)
+	var b, key
+
+	for (b = 0; b < astroOrbitBodies.length; b++) {
+		key = astroOrbitBodies[b]
 		var pos = astroHelioPos(key, d)
 		var pr = astroProject(pos, cx, cy, scale)
-		var label = (key === "earth") ? "Earth" : key.charAt(0).toUpperCase() + key.slice(1)
+		var label = key.charAt(0).toUpperCase() + key.slice(1)
 		var glyph = (key === "earth") ? "⊕" : (astroBodies.filter(function (x) { return x.key === key })[0] || { glyph: "•" }).glyph
-		items.push({ p: pr, label: label, glyph: glyph, key: key, pos: pos })
+		items.push({ p: pr, label: label, glyph: glyph, key: key, pos: pos, kind: "planet", r: 3.4 })
+
+		// This planet's moons, shown once its system is wide enough on
+		// screen to read: a pixel test, so it follows the zoom rather than
+		// switching at some number somebody picked.
+		var dist = Math.sqrt(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z)
+		var localScale = scale * astroLocalFactor(dist)
+		var moons = astroMoonsOf(key)
+		for (var mi = 0; mi < moons.length; mi++) {
+			var moon = moons[mi]
+			var off = astroMoonOffset(moon, d)
+			var px = off.r * localScale               // its orbit's radius on screen
+			if (px < 7) continue                      // too tight to tell apart: leave it out
+			var rot = astroRotate(off)
+			var mp = {
+				x: pr.x + rot.x * localScale,
+				y: pr.y - rot.y * localScale,
+				depth: pr.depth + rot.depth * localScale
+			}
+			if (mp.x < -40 || mp.x > w + 40 || mp.y < -40 || mp.y > h + 40) continue  // off screen
+			items.push({
+				p: mp, label: moon.name, glyph: "○", key: moon.name, kind: "moon",
+				r: 2.2, orbitPx: px, parentP: pr, showLabel: px >= 26
+			})
+		}
 	}
-	// Moon, offset from Earth and exaggerated so it is visible at all
-	var earthPos = astroHelioPos("earth", d)
-	var moonGeo = astroLongitude("moon", d)
-	var moonPos = { x: earthPos.x + 0.16 * aCos(moonGeo), y: earthPos.y + 0.16 * aSin(moonGeo), z: 0 }
-	items.push({ p: astroProject(moonPos, cx, cy, scale), label: "Moon", glyph: "☽", key: "moon", pos: moonPos })
 
 	items.sort(function (a, b2) { return a.p.depth - b2.p.depth })
 
+	var sel = astroSelected ? String(astroSelected).toLowerCase() : null
 	for (var n = 0; n < items.length; n++) {
 		var it = items[n]
-		c.fillStyle = astroPlanetColor(it.key)
-		c.beginPath(); c.arc(it.p.x, it.p.y, it.key === "moon" ? 2.2 : 3.4, 0, Math.PI * 2); c.fill()
-		c.fillStyle = dim
-		c.font = "11px sans-serif"
-		c.textAlign = "left"; c.textBaseline = "middle"
-		c.fillText(it.glyph + " " + it.label, it.p.x + 7, it.p.y)
+		var isSel = (sel !== null && String(it.key).toLowerCase() === sel)
+
+		// the moon's orbit, drawn once it is worth seeing
+		if (it.kind === "moon" && it.orbitPx >= 12) {
+			c.strokeStyle = faint
+			c.globalAlpha = 0.5
+			c.beginPath()
+			for (var s2 = 0; s2 <= 48; s2++) {
+				var ang = (s2 / 48) * 360
+				// rotation is linear, so this works directly in pixels
+				var q = astroRotate({ x: it.orbitPx * aCos(ang), y: it.orbitPx * aSin(ang), z: 0 })
+				var qx = it.parentP.x + q.x, qy = it.parentP.y - q.y
+				if (s2 === 0) c.moveTo(qx, qy); else c.lineTo(qx, qy)
+			}
+			c.stroke()
+			c.globalAlpha = 1
+		}
+
+		c.fillStyle = it.kind === "moon" ? "hsl(0 0% 78%)" : astroPlanetColor(it.key)
+		c.beginPath(); c.arc(it.p.x, it.p.y, it.r, 0, Math.PI * 2); c.fill()
+
+		if (isSel) { // a ring, not a redesign
+			c.strokeStyle = astroCssVar("--focus-outline", "#ddd")
+			c.lineWidth = 1.5
+			c.beginPath(); c.arc(it.p.x, it.p.y, it.r + 5, 0, Math.PI * 2); c.stroke()
+			c.lineWidth = 1
+		}
+
+		// planets keep their labels; a moon earns one as it gets closer
+		if (it.kind === "planet" || it.showLabel || isSel) {
+			c.fillStyle = isSel ? astroCssVar("--font-white-1", "#eee") : dim
+			c.font = (it.kind === "moon" ? "10px " : "11px ") + "sans-serif"
+			c.textAlign = "left"; c.textBaseline = "middle"
+			c.fillText((it.kind === "moon" ? "" : it.glyph + " ") + it.label, it.p.x + 7, it.p.y)
+		}
+
+		astroHitItems.push({
+			key: it.key, kind: it.kind, x: it.p.x, y: it.p.y,
+			hit: (it.kind === "moon" ? (touch ? 16 : 11) : (touch ? 22 : 14))
+		})
 	}
 
-	// ecliptic north indicator
+	// the Sun is selectable too, so there is always a way back to the middle
+	astroHitItems.push({ key: "sun", kind: "star", x: sunP.x, y: sunP.y, hit: touch ? 20 : 13 })
+
 	c.fillStyle = dim
 	c.font = "10px sans-serif"; c.textAlign = "left"
-	c.fillText("Heliocentric · distances compressed", 8, h - 8)
+	var foot = "Heliocentric · distances compressed"
+	if (astroTarget !== "sun") foot += " · centred on " + String(astroTarget).charAt(0).toUpperCase() + String(astroTarget).slice(1)
+	c.fillText(foot, 8, h - 8)
 	c.restore()
 }
 
@@ -754,22 +1758,11 @@ function astroPlanetColor(key) {
 	return "#ccc"
 }
 
-// drag to orbit the 3D camera
-$(document).ready(function () {
-	$("body").on("mousedown", "#astroCanvas", function (e) {
-		if (astroViewMode !== "3d") return
-		astroDragging = true; astroDragX = e.pageX; astroDragY = e.pageY
-		e.preventDefault()
-	})
-	$(document).on("mousemove", function (e) {
-		if (!astroDragging) return
-		astroAzimuth += (e.pageX - astroDragX) * 0.5
-		astroElevation = Math.max(2, Math.min(90, astroElevation + (e.pageY - astroDragY) * 0.4))
-		astroDragX = e.pageX; astroDragY = e.pageY
-		drawAstroVisual()
-	})
-	$(document).on("mouseup", function () { astroDragging = false })
-})
+// Dragging to orbit, pinching to zoom and tapping to select are all bound on
+// the canvas itself in astroBindCanvasPointer(), through pointer events. The
+// old pair of document-wide mousemove/mouseup handlers has gone with them:
+// they ran on every mouse move anywhere on the page, and never once looked at
+// a touch.
 
 // send a planet or sign name into the phrase box so it runs through the ciphers
 function astroSendToPhraseBox(txt) {
@@ -899,17 +1892,29 @@ function astroPickPlace(lat, lon, label) {
 	document.getElementById("astroLat").value = lat.toFixed(4)
 	document.getElementById("astroLon").value = lon.toFixed(4)
 
-	// Longitude gives the solar time offset; it is only a starting guess because
-	// the real offset depends on the country's zone and whether daylight saving
-	// was in force on that date. The user is told to confirm it.
+	// This is the place's mean solar time offset, worked out from its
+	// longitude alone. It is NOT the zone the place kept: it knows nothing
+	// about the country's time zone, and nothing about daylight saving on
+	// that date. It is a starting point to correct, and says so.
 	var guess = Math.round(lon / 15)
 	document.getElementById("astroTZ").value = guess
 
 	var out = document.getElementById("astroGeoResults")
 	if (out !== null) {
-		out.innerHTML = '<div class="astroGeoNote">Using <b>' + label + '</b>. ' +
-			'UTC offset guessed as <b>' + (guess >= 0 ? "+" : "") + guess + '</b> from longitude &mdash; ' +
-			'check it against the time zone and daylight saving in force on that date.</div>'
+		// The label comes from a geocoding service - somebody else's data.
+		// It is written as text, never parsed as markup.
+		var note = document.createElement("div")
+		note.className = "astroGeoNote"
+		note.appendChild(document.createTextNode("Using "))
+		var strong = document.createElement("b")
+		strong.textContent = label
+		note.appendChild(strong)
+		note.appendChild(document.createTextNode(
+			". UTC offset set to " + (guess >= 0 ? "+" : "") + guess +
+			", which is this longitude's mean solar time, not the time zone that was in use. " +
+			"Set the offset the place actually kept on that date, including daylight saving."))
+		out.innerHTML = ""
+		out.appendChild(note)
 	}
 	updateAstroChart()
 }
@@ -921,10 +1926,40 @@ function astroToggleLocation() {
 }
 
 function astroSetHouseSystem(sys) {
+	// Every system except "current" fixes its own houses; the buttons are
+	// disabled there rather than left able to build a mixture the system
+	// does not recognise (sidereal rashis cut into Placidus quadrants).
+	if (astroSystemConfig().housesLocked) return
 	astroHouseSystem = sys
 	$(".astroHouseBtn").removeClass("astroViewOn")
 	$(sys === "whole" ? "#astroHouseWhole" : "#astroHouseEqual").addClass("astroViewOn")
 	updateAstroChart()
+}
+
+// The whole point of the dropdown: one value, and every calculation below it
+// follows. Nothing here edits a label on its own.
+function astroSetSystem(key) {
+	astroSystem = astroSystemConfig(key).key
+	astroSyncHouseButtons()
+	updateAstroChart()
+}
+
+function astroSyncHouseButtons() {
+	var cfg = astroSystemConfig()
+	var locked = cfg.housesLocked
+	var active = astroActiveHouseSystem(cfg)
+	$(".astroHouseBtn").prop("disabled", locked).toggleClass("astroBtnLocked", locked).removeClass("astroViewOn")
+	if (!locked) {
+		$(active === "whole" ? "#astroHouseWhole" : "#astroHouseEqual").addClass("astroViewOn")
+	}
+	var note = document.getElementById("astroHouseNote")
+	if (note !== null) {
+		note.textContent = locked
+			? (cfg.label + " always uses " +
+				(cfg.housesLabel || astroHouseLabel(cfg.houses)) + " houses.")
+			: ""
+		note.classList.toggle("hideValue", !locked)
+	}
 }
 
 function astroSetNow() {
@@ -967,11 +2002,22 @@ function updateAstroChart() {
 	var v = astroCaptureInputs()
 	// with a location the entered time is local, so shift it back to UT
 	var ut = v.hh + v.mm / 60 - (astroUseLocation ? v.tz : 0)
-	var loc = astroUseLocation ? { lat: v.lat, lon: v.lon, system: astroHouseSystem } : null
-	var chart = astroChart(v.y, v.m, v.d, ut, loc)
+	var cfg = astroSystemConfig()
+	var loc = astroUseLocation ? { lat: v.lat, lon: v.lon } : null
+	var chart = astroBuildChart(v.y, v.m, v.d, ut, loc, cfg)
 	astroLastChart = chart // the visualiser draws from this
 
+	// what is actually being calculated, written from the configuration
+	var info = document.getElementById("astroSystemInfo")
+	if (info !== null) info.textContent = astroSystemInfoText(cfg, chart)
+
 	var o = ""
+
+	if (chart.houses && chart.houses.undefinedHere) {
+		o += '<div class="astroNote astroWarn">Placidus houses are undefined at latitude ' +
+			Math.abs(chart.houses.latitude).toFixed(1) + '&deg; for this chart &mdash; the degrees involved never rise or set. ' +
+			'Showing <b>Porphyry</b> cusps instead, which are defined everywhere. These are not Placidus cusps.</div>'
+	}
 
 	// angles
 	if (chart.houses) {
@@ -987,9 +2033,16 @@ function updateAstroChart() {
 	}
 
 	// positions
+	var showNak = astroHasExtra("nakshatra", cfg)
+	var showSub = astroHasExtra("sublord", cfg)
+	var showRuler = astroHasExtra("traditional", cfg) || astroHasExtra("modern", cfg)
 	o += '<table class="astroTable"><tbody>'
 	o += '<tr class="astroHeadRow"><td>Body</td><td>Position</td><td>Sign</td>'
-	o += (chart.houses ? '<td>House</td>' : '<td>Element</td>')+'<td>Motion</td></tr>'
+	o += (chart.houses ? '<td>House</td>' : '<td>Element</td>')
+	if (showNak) o += '<td>Nakshatra</td><td>Pada</td>'
+	if (showSub) o += '<td>Sub</td>'
+	if (showRuler) o += '<td>Ruler</td>'
+	o += '<td>Motion</td></tr>'
 	for (var i = 0; i < chart.bodies.length; i++) {
 		var b = chart.bodies[i]
 		var col = astroSignColor(b.signIdx)
@@ -1000,10 +2053,71 @@ function updateAstroChart() {
 		o += '<td class="astroSign" style="color: '+col+';" onclick="astroSendToPhraseBox(&quot;'+b.sign.name+'&quot;)"'+astroSignTip(b.sign.name)+'>'
 		o += '<span class="astroGlyph">'+b.sign.glyph+'</span>'+b.sign.name+'</td>'
 		o += '<td class="astroEl">'+(chart.houses ? b.house : b.sign.el)+'</td>'
+		if (showNak) {
+			o += '<td class="astroNak" onclick="astroSendToPhraseBox(&quot;'+authEsc(b.nakshatra.name)+'&quot;)">'+authEsc(b.nakshatra.name)+'<span class="astroLord">'+authEsc(b.nakshatra.lord)+'</span></td>'
+			o += '<td class="astroEl">'+b.nakshatra.pada+'</td>'
+		}
+		if (showSub) o += '<td class="astroEl">'+authEsc(b.sublord)+'</td>'
+		if (showRuler) o += '<td class="astroEl">'+authEsc(b.ruler)+'</td>'
 		o += '<td class="astroMotion">'+(b.retro ? '<span class="astroRetro">Rx</span>' : '&mdash;')+'</td>'
 		o += '</tr>'
 	}
 	o += '</tbody></table>'
+
+	// house cusps, where the system divides the sky unequally and the cusp
+	// degrees are the reading rather than an implied 30 deg per house
+	if (chart.houses && (chart.houses.system === "placidus" || chart.houses.system === "porphyry")) {
+		o += '<div class="astroStep">House cusps<span class="astroStepNote">'+authEsc(astroHouseLabel(chart.houses.system))+'</span></div>'
+		o += '<table class="astroTable"><tbody><tr class="astroHeadRow"><td>House</td><td>Cusp</td><td>Sign</td>'
+		if (astroHasExtra("cuspal", cfg)) o += '<td>Star lord</td><td>Sub lord</td>'
+		o += '</tr>'
+		for (var hc = 0; hc < 12; hc++) {
+			var cs = astroSignOf(chart.houses.cusps[hc])
+			o += '<tr><td class="astroBody">'+(hc + 1)+'</td>'
+			o += '<td class="astroDeg">'+astroPad(cs.deg)+'&deg; '+astroPad(cs.min)+"'"+'</td>'
+			o += '<td class="astroSign" style="color: '+astroSignColor(cs.idx)+';"><span class="astroGlyph">'+cs.sign.glyph+'</span>'+cs.sign.name+'</td>'
+			if (astroHasExtra("cuspal", cfg) && chart.extra.cuspal) {
+				o += '<td class="astroEl">'+authEsc(chart.extra.cuspal[hc].star)+'</td>'
+				o += '<td class="astroEl">'+authEsc(chart.extra.cuspal[hc].sub)+'</td>'
+			}
+			o += '</tr>'
+		}
+		o += '</tbody></table>'
+	}
+
+	// Hellenistic: sect decides which planets are working with the chart and
+	// which against it, and the Lot of Fortune is reckoned from it
+	if (chart.extra.sect) {
+		o += '<div class="astroStep">Sect<span class="astroStepNote">traditional rulerships, seven visible planets</span></div>'
+		o += '<table class="astroTable"><tbody>'
+		o += '<tr><td class="astroBody">Chart</td><td class="astroEl">'+authEsc(chart.extra.sect.name)+'</td></tr>'
+		o += '<tr><td class="astroBody">Sect light</td><td class="astroEl">'+authEsc(chart.extra.sect.light)+'</td></tr>'
+		o += '<tr><td class="astroBody">Benefic of sect</td><td class="astroEl">'+authEsc(chart.extra.sect.benefic)+'</td></tr>'
+		o += '<tr><td class="astroBody">Malefic of sect</td><td class="astroEl">'+authEsc(chart.extra.sect.malefic)+'</td></tr>'
+		if (chart.extra.ascRuler) o += '<tr><td class="astroBody">Ruler of the Ascendant</td><td class="astroEl">'+authEsc(chart.extra.ascRuler)+'</td></tr>'
+		if (chart.extra.fortune) {
+			o += '<tr><td class="astroBody" onclick="astroSendToPhraseBox(&quot;Lot of Fortune&quot;)">Lot of Fortune</td>'
+			o += '<td class="astroEl">'+astroPad(chart.extra.fortune.sign.deg)+'&deg; '+astroPad(chart.extra.fortune.sign.min)+"' "
+			o += '<span style="color: '+astroSignColor(chart.extra.fortune.sign.idx)+';">'+chart.extra.fortune.sign.sign.name+'</span>'
+			o += ' &middot; house '+chart.extra.fortune.house+'</td></tr>'
+		}
+		o += '</tbody></table>'
+	}
+
+	// Vedic: the Moon's nakshatra sets the dasha sequence running
+	if (chart.extra.dasha) {
+		o += '<div class="astroStep">Vimshottari dasha<span class="astroStepNote">from the Moon in '+authEsc(chart.extra.dashaFrom.name)+'</span></div>'
+		o += '<table class="astroTable"><tbody><tr class="astroHeadRow"><td>Maha dasha</td><td>From</td><td>To</td><td>Years</td></tr>'
+		for (var dz = 0; dz < chart.extra.dasha.length; dz++) {
+			var dd = chart.extra.dasha[dz]
+			o += '<tr'+(dd.first ? ' class="astroExact"' : '')+'><td class="astroBody" onclick="astroSendToPhraseBox(&quot;'+authEsc(dd.lord)+'&quot;)">'+authEsc(dd.lord)+'</td>'
+			o += '<td class="astroDeg">'+astroDashaDate(dd.startD)+'</td>'
+			o += '<td class="astroDeg">'+astroDashaDate(dd.endD)+'</td>'
+			o += '<td class="astroEl">'+dd.years.toFixed(1)+'</td></tr>'
+		}
+		o += '</tbody></table>'
+		o += '<div class="astroSubNote">Balance at birth is the part of the Moon’s nakshatra still to run; periods use the conventional 365.25-day year.</div>'
+	}
 
 	// moon phase
 	o += '<div class="astroPhase">'
@@ -1035,6 +2149,16 @@ function updateAstroChart() {
 
 	if (chart.plutoOutOfRange) {
 		o += '<div class="astroNote astroWarn">Pluto’s series is only accurate between 1800 and 2100; its position above is unreliable for this date.</div>'
+	}
+
+	// What these numbers can and cannot carry. Stated where the numbers are,
+	// rather than left for the reader to assume.
+	if (chart.sidereal) {
+		o += '<div class="astroSubNote">Ayanamsa from a linear drift model (anchored at J2000), worth a few arcminutes near our own century and less further out.'
+		if (chart.ayanamsaName === "kp") {
+			o += ' The Krishnamurti value here is Lahiri less 5′, the usual quoted difference rather than the exact KP constant, so a sub-lord within about 5′ of a boundary may differ from KP software.'
+		}
+		o += '</div>'
 	}
 
 	spot.innerHTML = o
@@ -1103,21 +2227,47 @@ function toggleAstroMenu() {
 		o += '<td><span class="colLabelSmall">Longitude</span><input type="number" step="0.0001" id="astroLon" class="astroInput" value='+n.lon+' oninput="updateAstroChart()" title="Degrees east, negative for west"></td>'
 		o += '<td><span class="colLabelSmall">UTC offset</span><input type="number" step="0.25" id="astroTZ" class="astroInput" value='+n.tz+' oninput="updateAstroChart()" title="Hours ahead of UTC at the birth time, e.g. -5 for New York in winter"></td>'
 		o += '</tr></tbody></table>'
-		o += '<div class="astroSubNote">With a location set, the time above is read as <b>local</b> time at that place.</div>'
+		o += '<div class="astroSubNote">With a location set, the time above is read as <b>local</b> time at that place. ' +
+			'The UTC offset is <b>yours to set</b>: there is no time zone database here, so nothing knows which zone that place kept, ' +
+			'or whether daylight saving was in force on that date. An offset out by an hour moves the Ascendant by roughly 15&deg;, ' +
+			'which changes the houses and can change the rising sign.</div>'
 		o += '<table class="astroInputTable"><tbody><tr>'
 		o += '<td><span class="colLabelSmall">Houses</span></td>'
 		o += '<td><input id="astroHouseWhole" class="intBtn3 astroHouseBtn'+(astroHouseSystem === "whole" ? " astroViewOn" : "")+'" type="button" value="Whole Sign" onclick="astroSetHouseSystem(&quot;whole&quot;)"></td>'
 		o += '<td><input id="astroHouseEqual" class="intBtn3 astroHouseBtn'+(astroHouseSystem === "equal" ? " astroViewOn" : "")+'" type="button" value="Equal" onclick="astroSetHouseSystem(&quot;equal&quot;)"></td>'
 		o += '</tr></tbody></table>'
+		o += '<div id="astroHouseNote" class="astroSubNote hideValue"></div>'
 		o += '</div>'
 
+		// The system this whole panel is calculating in. One value, read by
+		// astroBuildChart; the line under it is written from the same
+		// configuration, so the label cannot disagree with the maths.
+		o += '<div class="astroStep">Astrology system</div>'
+		o += '<div class="astroSystemRow">'
+		o += '<label class="colLabelSmall" for="astroSystem">System</label>'
+		o += '<select id="astroSystem" class="astroInput astroSystemSelect" onchange="astroSetSystem(this.value)">'
+		for (var sy = 0; sy < astroSystems.length; sy++) {
+			o += '<option value="'+astroSystems[sy].key+'"'+(astroSystems[sy].key === astroSystem ? ' selected' : '')+'>'+authEsc(astroSystems[sy].label)+'</option>'
+		}
+		o += '</select>'
+		o += '</div>'
+		o += '<div id="astroSystemInfo" class="astroSystemInfo"></div>'
+
 		o += '<div class="astroStep">Chart'
-		o += '<span class="astroViewToggle">'
-		o += '<input id="astroView2D" class="intBtn3 astroViewBtn'+(astroViewMode === "2d" ? " astroViewOn" : "")+'" type="button" value="2D" onclick="astroSetView(&quot;2d&quot;)">'
-		o += '<input id="astroView3D" class="intBtn3 astroViewBtn'+(astroViewMode === "3d" ? " astroViewOn" : "")+'" type="button" value="3D" onclick="astroSetView(&quot;3d&quot;)">'
+		o += '<span class="astroViewToggle" role="group" aria-label="Visualisation">'
+		o += '<input id="astroView2D" class="intBtn3 astroViewBtn'+(astroViewMode === "2d" ? " astroViewOn" : "")+'" type="button" value="2D" title="Birth chart wheel" aria-pressed="'+(astroViewMode === "2d")+'" onclick="astroSetView(&quot;2d&quot;)">'
+		o += '<input id="astroView3D" class="intBtn3 astroViewBtn'+(astroViewMode === "3d" ? " astroViewOn" : "")+'" type="button" value="3D" title="Solar system map" aria-pressed="'+(astroViewMode === "3d")+'" onclick="astroSetView(&quot;3d&quot;)">'
+		o += '<input id="astroViewFlat" class="intBtn3 astroViewBtn'+(astroViewMode === "flat" ? " astroViewOn" : "")+'" type="button" value="FE" title="FE — Flat Earth / Zetetic Historical Geocentric Model" aria-label="FE: Flat Earth / Zetetic historical geocentric map" aria-pressed="'+(astroViewMode === "flat")+'" onclick="astroSetView(&quot;flat&quot;)">'
 		o += '</span></div>'
-		o += '<div class="astroCanvasWrap"><canvas id="astroCanvas"></canvas></div>'
-		o += '<div id="astroDragHint" class="astroSubNote hideValue">Drag to orbit, scroll to zoom.'
+		o += '<div class="astroCanvasWrap"><canvas id="astroCanvas" tabindex="0" role="img" aria-label="Solar system map. Tap a planet to follow it."></canvas></div>'
+		o += '<div id="astroSelInfo" class="astroSelInfo hideValue"></div>'
+		// the flat map's own controls and its standing note
+		if (typeof feControlsHtml === "function") o += feControlsHtml()
+		o += '<div id="feHint" class="astroSubNote hideValue"><b>Flat Earth / Zetetic &mdash; Historical Geocentric Model.</b> '
+		o += 'A 19th-century cosmological model, drawn as a model: the North Pole at the centre, the Antarctic perimeter around the rim. '
+		o += 'The Sun, Moon and planets are placed by the same modern geocentric calculations as the other two views, at the point each one stands overhead. '
+		o += 'Drag to pan, scroll or pinch to zoom, tap an object to select it.</div>'
+		o += '<div id="astroDragHint" class="astroSubNote hideValue">Drag to orbit, scroll or pinch to zoom, tap a planet to follow it. Moons appear as you zoom in; their positions are schematic, at the right spacing and speed but not ephemeris positions.'
 		o += '<span class="astroZoomCtl">'
 		o += '<input class="intBtn3 astroZoomBtn" type="button" value="&minus;" onclick="astroZoomBy(1/1.35)">'
 		o += '<span id="astroZoomLabel">1.00x</span>'
@@ -1131,10 +2281,15 @@ function toggleAstroMenu() {
 		o += '</div>'
 
 		document.getElementById("astroMenuArea").innerHTML = o
+		astroSyncHouseButtons()
 		updateAstroChart()
-		astroBindCanvasWheel()
+		astroBindCanvasWheel()   // also binds pointer input and the size watcher
+		astroRenderSelection()
 		astroSetView(astroViewMode) // keep buttons, hint and canvas consistent
 	} else {
+		// nothing left running behind a closed panel: no animation frame, no
+		// size observer, no stale hit targets
+		astroStopVisual()
 		document.getElementById("astroMenuArea").innerHTML = ""
 		astroMenuOpened = false
 	}

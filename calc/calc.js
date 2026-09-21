@@ -125,6 +125,8 @@ var calcOptionsArr = [ // used to export/import settings
 	"'optCoderainFollowCipher'+' = '+optCoderainFollowCipher",
 	"'optHistTableCaption'+' = '+JSON.stringify(optHistTableCaption)",
 	"'optNumerologyMode'+' = '+optNumerologyMode",
+	"'astroSystem'+' = '+JSON.stringify(astroSystem)",
+	"'astroViewMode'+' = '+JSON.stringify(astroViewMode)",
 	"'coderainStyle'+' = '+JSON.stringify(coderainStyle)",
 	"'coderainDensity'+' = '+coderainDensity",
 	"'coderainSpeedMul'+' = '+coderainSpeedMul",
@@ -174,6 +176,7 @@ function initCalc(defSet = false, keepSelection = false) { // run after page has
 		runOnceRestoreCalcSet = false; restoreCalcSettingsLocalStorage(true); return; }
 	saveInitialCiphers()
 	initCiphers() // update default ciphers
+	document.getElementById("calcOptionsPanel").innerHTML = "" // clear menu panel - a signed-in workspace restore can build it before this first run, and the menus were drawn twice
 	createCalcMenus()
 	if (!keepSelection) enableDefaultCiphers()
 	saveCalcSettingsLocalStorage(true) // save default settings
@@ -246,9 +249,9 @@ function displayCalcNotification(msg, timeMs = 1000) {
 
 function createCalcMenus() {
 	createCiphersMenu()
-	createOptionsMenu()
 	createFindMatchesMenu()
 	createFeaturesMenu()
+	createNumogramButton()
 	createExportMenu()
 	createAboutMenu()
 	createProfileMenu()
@@ -263,6 +266,8 @@ function closeAllOpenedMenus() {
 	if (encodingMenuOpened) toggleEncodingMenu() // Encoding
 	if (typeof astroMenuOpened !== "undefined" && astroMenuOpened) toggleAstroMenu() // Astrology
 	if (typeof profileMenuOpened !== "undefined" && profileMenuOpened) toggleProfileMenu() // Profile
+	if (typeof masterDecoderMenuOpened !== "undefined" && masterDecoderMenuOpened) toggleMasterDecoderMenu() // Master Decoder
+	if (typeof numogramMenuOpened !== "undefined" && numogramMenuOpened) toggleNumogramMenu() // Numogram
 }
 
 // ========================= Random Colors ==========================
@@ -548,6 +553,8 @@ function createAboutMenu() { // create menu with all cipher catergories
 	o += '<div style="margin: 0.5em;"></div>'
 	o += '<input class="intBtn" type="button" value="&#128218; Gematria Research" onclick="gotoAlektryonBlog()">'
 	o += '<div style="margin: 0.5em;"></div>'
+	o += '<input class="intBtn" type="button" value="&#127932; PHYTHAGRAM" onclick="gotoPhythagram()">'
+	o += '<div style="margin: 0.5em;"></div>'
 
 	// The credit sits down here as plain text rather than up top, because
 	// Gematro took their site down and a button that leads nowhere is worse
@@ -599,37 +606,39 @@ function createAboutMenu() { // create menu with all cipher catergories
 	document.getElementById("calcOptionsPanel").innerHTML = o
 }
 
-function gotoCyphersRepo() { window.open("https://github.com/CyphersNews/gematro-hyperdope", "_blank") }
+function gotoCyphersRepo() { window.open("https://github.com/CyphersNews/gematro-hyperdope", "_blank", "noopener") }
 
-function gotoGitHubRepo() { window.open("https://github.com/malonehunter/hyperdope-gematria", "_blank") }
+function gotoGitHubRepo() { window.open("https://github.com/malonehunter/hyperdope-gematria", "_blank", "noopener") }
 
-function gotoAlektryonBlog () {window.open("https://gematriaresearch.blogspot.com/", "_blank") }
+function gotoAlektryonBlog () {window.open("https://gematriaresearch.blogspot.com/", "_blank", "noopener") }
 
-function gotoAlektryonCalculator() { window.open("https://alektryon.github.io/gematria/", "_blank") }
+function gotoAlektryonCalculator() { window.open("https://alektryon.github.io/gematria/", "_blank", "noopener") }
 
-function gotoAlektryonRepo() { window.open("https://github.com/Alektryon/gematria", "_blank") }
+function gotoAlektryonRepo() { window.open("https://github.com/Alektryon/gematria", "_blank", "noopener") }
 
-function gotoBasedAtlantis() { window.open("https://basedatlantis.neocities.org/", "_blank") }
+function gotoBasedAtlantis() { window.open("https://basedatlantis.neocities.org/", "_blank", "noopener") }
 
-function gotoGeomatria() { window.open("https://resonatingloop.github.io/geomatria/", "_blank") }
+function gotoGeomatria() { window.open("https://resonatingloop.github.io/geomatria/", "_blank", "noopener") }
 
-function gotoQliphoth() { window.open("https://qliphoth.systems/", "_blank") }
+function gotoQliphoth() { window.open("https://qliphoth.systems/", "_blank", "noopener") }
 
-function gotoCiphersNews () {window.open("https://ciphers.news", "_blank") }
+function gotoCiphersNews () {window.open("https://ciphers.news", "_blank", "noopener") }
 
-function gotoCyphersYoutube() { window.open("https://www.youtube.com/channel/UCg2_MXc1Q8AajN_n9kqIltQ", "_blank") }
+function gotoPhythagram() { window.open("https://phythagram.com/", "_blank", "noopener") }
 
-function gotoDiscordServer() { window.open("https://discord.gg/SJjN64x3h7", "_blank") }
+function gotoCyphersYoutube() { window.open("https://www.youtube.com/channel/UCg2_MXc1Q8AajN_n9kqIltQ", "_blank", "noopener") }
 
-function gotoX() { window.open("https://twitter.com/CyphersNews", "_blank") }
+function gotoDiscordServer() { window.open("https://discord.gg/SJjN64x3h7", "_blank", "noopener") }
 
-function gotoGematroCalculator() { window.open("https://gematro.github.io/", "_blank") }
+function gotoX() { window.open("https://twitter.com/CyphersNews", "_blank", "noopener") }
 
-function gotoHyperdopeBlog () {window.open("https://calc.hyperdope.com/", "_blank") }
+function gotoGematroCalculator() { window.open("https://gematro.github.io/", "_blank", "noopener") }
 
-function gotoGEMATRINATOR () {window.open("https://gematrinator.com/", "_blank") }
+function gotoHyperdopeBlog () {window.open("https://calc.hyperdope.com/", "_blank", "noopener") }
 
-function gotoDoomcryptSubdecadence() { window.open("https://doomcrypt.github.io/subdecadence/", "_blank") }
+function gotoGEMATRINATOR () {window.open("https://gematrinator.com/", "_blank", "noopener") }
+
+function gotoDoomcryptSubdecadence() { window.open("https://doomcrypt.github.io/subdecadence/", "_blank", "noopener") }
 
 
 
@@ -654,12 +663,8 @@ function toggleFocusMode() {
 	document.body.classList.toggle("focusMode")
 	var on = document.body.classList.contains("focusMode")
 	applyFocusModeVisibility()
-	// #focusOptionsBtn only shows while focus mode is on (styles.css), so its
-	// panel would otherwise be left stranded, open, with no way to close it.
-	if (!on) {
-		var panel = document.getElementById("focusOptionsPanel")
-		if (panel !== null) panel.remove()
-	}
+	// #focusOptionsBtn is on permanently now, so the panel is never stranded
+	// and is left exactly as the user had it when focus mode flips either way.
 	var btn = document.getElementById("focusModeBtn")
 	if (btn === null) return
 	btn.title = on ? "Exit focus mode" : "Focus mode: hide the menu and phrase box for a clean screenshot (tap again to restore)"
@@ -701,11 +706,41 @@ function focusOptionRow(label, varName, checked) {
 	return '<label class="chkLabel focusOptionRow">'+label+'<input type="checkbox" onchange="focusOptionSet(&quot;'+varName+'&quot;, this.checked)"'+(checked ? ' checked' : '')+'><span class="custChkBox"></span></label>'
 }
 
+// Same row, but for the display options that moved here out of the Options
+// menu: those already have their own conf_* handler and a chkbox_* id other
+// code looks up, so both are kept rather than routed through focusOptionSet().
+function displayOptionRow(label, id, handler, checked) {
+	return '<label class="chkLabel focusOptionRow">'+label+'<input type="checkbox" id="'+id+'" onclick="'+handler+'()"'+(checked ? ' checked' : '')+'><span class="custChkBox"></span></label>'
+}
+
+// The panel behind the sliders icon in the top left. It started as just the
+// Focus Mode picks, and now carries the everyday display toggles too - they
+// change what the calculator shows on screen, which is the same question this
+// panel already answered, and they are reachable in one click here instead of
+// two through a menu.
 function toggleFocusOptionsPanel() {
 	var existing = document.getElementById("focusOptionsPanel")
 	if (existing !== null) { existing.remove(); return }
 
 	var o = '<div id="focusOptionsPanel" class="focusOptionsPanel">'
+
+	// --- what the breakdown shows
+	o += '<div class="focusOptionsTitle">Display</div>'
+	o += displayOptionRow("Word Breakdown", "chkbox_WB", "conf_WB", optWordBreakdown)
+	o += displayOptionRow("Compact Breakdown", "chkbox_CB", "conf_CB", optCompactBreakdown)
+	o += displayOptionRow("Cipher Chart", "chkbox_CC", "conf_CC", optShowCipherChart)
+	o += displayOptionRow("Letter/Word Count", "chkbox_LWC", "conf_LWC", optLetterWordCount)
+	o += displayOptionRow("Gradient Charts", "chkbox_GC", "conf_GC", optGradientCharts)
+
+	// --- ordering phrases
+	o += '<div class="focusOptionsTitle">Phrases</div>'
+	o += displayOptionRow("New Phrases Go First", "chkbox_NPGF", "conf_NPGF", optNewPhrasesGoFirst)
+	o += displayOptionRow("Ignore Comments [...]", "chkbox_APC", "conf_APC", optAllowPhraseComments)
+
+	// --- database
+	o += '<div class="focusOptionsTitle">Database</div>'
+	o += displayOptionRow("Live Database Mode", "chkbox_LDM", "conf_LDM", liveDatabaseMode)
+
 	o += '<div class="focusOptionsTitle">Show in Focus Mode</div>'
 	o += focusOptionRow("Word sums", "optFocusShowWordSums", optFocusShowWordSums)
 	o += focusOptionRow("Breakdown", "optFocusShowBreakdown", optFocusShowBreakdown)
@@ -718,85 +753,11 @@ function toggleFocusOptionsPanel() {
 
 // ========================= Options Menu ===========================
 
-function createOptionsMenu() { // Options and Features merged into one menu
-
-	var o = document.getElementById("calcOptionsPanel").innerHTML
-
-	o += '<div class="dropdown">'
-	o += '<button class="dropbtn">Options</button>'
-	o += '<div class="dropdown-content-opt">'
-
-	// checkbox states
-	var SECstate = ""; var APCstate = ""; var LDMstate = ""; var NPGFstate = "";
-	var LWCstate = ""; var WBstate = ""; var CBstate = ""; var CCstate = "";
-	var GCstate = ""; var SWCstate = ""; var NMDstate = "";
-
-	if (optShowExtraCiphers) SECstate = "checked"
-	if (optAllowPhraseComments) APCstate = "checked"
-	if (liveDatabaseMode) LDMstate = "checked"
-	if (optNewPhrasesGoFirst) NPGFstate = "checked"
-	if (optLetterWordCount) LWCstate = "checked"
-	if (optWordBreakdown) WBstate = "checked"
-	if (optCompactBreakdown) CBstate = "checked"
-	if (optShowCipherChart) CCstate = "checked"
-	if (optGradientCharts) GCstate = "checked"
-	if (optNumerologyMode) NMDstate = "checked"
-	if (optLoadUserHistCiphers) SWCstate = "checked"
-
-	var sep = '<hr style="background-color: var(--separator-accent2); height: 1px; border: none; margin: 0.75em 0.5em;">'
-	var gap = '<div style="margin: 0.5em;"></div>'
-
-	// --- how values are calculated: the two that change every number on screen
-	o += create_NumCalc() // Number Calculation
-	o += create_GemCalc() // Gematria Calculation
-
-	o += sep
-
-	// --- what the breakdown shows
-	o += '<div class="optionElement"><label class="chkLabel ciphCheckboxLabel2">Word Breakdown<input type="checkbox" id="chkbox_WB" onclick="conf_WB()" '+WBstate+'><span class="custChkBox"></span></label></div>'
-	o += '<div class="optionElement"><label class="chkLabel ciphCheckboxLabel2">Compact Breakdown<input type="checkbox" id="chkbox_CB" onclick="conf_CB()" '+CBstate+'><span class="custChkBox"></span></label></div>'
-	o += '<div class="optionElement"><label class="chkLabel ciphCheckboxLabel2">Cipher Chart<input type="checkbox" id="chkbox_CC" onclick="conf_CC()" '+CCstate+'><span class="custChkBox"></span></label></div>'
-	o += '<div class="optionElement"><label class="chkLabel ciphCheckboxLabel2">Letter/Word Count<input type="checkbox" id="chkbox_LWC" onclick="conf_LWC()" '+LWCstate+'><span class="custChkBox"></span></label></div>'
-	o += '<div class="optionElement"><label class="chkLabel ciphCheckboxLabel2">Gradient Charts<input type="checkbox" id="chkbox_GC" onclick="conf_GC()" '+GCstate+'><span class="custChkBox"></span></label></div>'
-
-	o += sep
-
-	// Color Controls / Edit Ciphers / Encoding moved to the Cyphers tab,
-	// Enter As Words moved to the Find Matches tab
-
-	// --- ordering phrases
-	o += '<div class="optionElement"><label class="chkLabel ciphCheckboxLabel2">New Phrases Go First<input type="checkbox" id="chkbox_NPGF" onclick="conf_NPGF()" '+NPGFstate+'><span class="custChkBox"></span></label></div>'
-	o += '<div class="optionElement"><label class="chkLabel ciphCheckboxLabel2">Ignore Comments [...]<input type="checkbox" id="chkbox_APC" onclick="conf_APC()" '+APCstate+'><span class="custChkBox"></span></label></div>'
-
-	o += sep
-
-	// --- database
-	o += '<div class="optionElement"><label class="chkLabel ciphCheckboxLabel2">Live Database Mode<input type="checkbox" id="chkbox_LDM" onclick="conf_LDM()" '+LDMstate+'><span class="custChkBox"></span></label></div>'
-	o += '<div class="dbOptionsBox" style="border: 1px solid var(--border-accent) !important;">'
-	o += '<span class="optionTableLabel">Phrases on DB page</span><input id="dbPageItemsBox" onchange="conf_DPI()" type="text" value="'+dbPageItems+'">'
-	o += '</div>'
-	o += '<div class="dbOptionsBox">'
-	o += '<span class="optionTableLabel">Scroll DB by lines</span><input id="dbScrollItemsBox" onchange="conf_DSI()" type="text" value="'+dbScrollItems+'">'
-	o += '</div>'
-	o += gap
-	o += '<input id="clearDBqueryBtn" class="intBtn hideValue" type="button" value="Clear DB Query" onclick="clearDatabaseQueryTable()">'
-	o += gap
-	o += '<input id="unloadDBBtn" class="intBtn hideValue" type="button" value="Unload Database" onclick="unloadDatabase()">'
-
-	o += sep
-
-	// --- occasional
-	o += '<div class="optionElement"><label class="chkLabel ciphCheckboxLabel2">Switch Ciphers (CSV)<input type="checkbox" id="chkbox_SWC" onclick="conf_SWC()" '+SWCstate+'><span class="custChkBox"></span></label></div>'
-
-	o += sep
-
-	o += '<input class="intBtn" type="button" value="Clear History" onclick="phraseBoxKeypress(36)">' // "Home" keystroke
-	o += '<div style="margin: 0.5em;"></div>'
-
-	o += '</div></div>'
-
-	document.getElementById("calcOptionsPanel").innerHTML = o
-}
+// The Options tab is gone. Its display toggles moved to the focus options
+// panel behind the sliders icon in the top left (toggleFocusOptionsPanel),
+// and everything else - Number/Gematria Calculation, the database controls,
+// Switch Ciphers, Clear History - moved into the Matches tab, next to the
+// results those settings actually change. Nothing was dropped along the way.
 
 function conf_SEC() { // Show Extra Ciphers
 	optShowExtraCiphers = !optShowExtraCiphers
@@ -1157,7 +1118,17 @@ function createExportMenu() {
 }
 function conf_iScale() { // image scale
 	var element = document.getElementById("iScaleBox")
-	optImageScale = Number(Number(element.value).toFixed(1)) // 1.0
+	var v = Number(Number(element.value).toFixed(1)) // 1.0
+	// not a number, zero or negative would hand html2canvas a scale it cannot
+	// draw at - keep the last good value and show it again
+	if (!(v > 0) || v > 5) { element.value = optImageScale.toFixed(1); return }
+	optImageScale = v
+}
+// The HTML exports (charts, tables, breakdowns, card, dates) have always been
+// drawn at 2x. The Image scale box multiplies that, so its default of 1.0
+// leaves them exactly as they were - before, it only reached Number Properties.
+function exportImageScale() {
+	return 2.0 * ((optImageScale > 0) ? optImageScale : 1)
 }
 
 // ========================= Color Functions ========================
@@ -1168,15 +1139,22 @@ function conf_iScale() { // image scale
 function createFindMatchesMenu() {
 	var o = document.getElementById("calcOptionsPanel").innerHTML
 
-	var CCMstate = ""; var SCMstate = ""; var SOMstate = ""; var NMDstate = "";
+	var CCMstate = ""; var SCMstate = ""; var SOMstate = ""; var NMDstate = ""; var SWCstate = "";
 	if (optNumerologyMode) NMDstate = "checked"
 	if (optFiltCrossCipherMatch) CCMstate = "checked"
 	if (optFiltSameCipherMatch) SCMstate = "checked"
 	if (optShowOnlyMatching) SOMstate = "checked"
+	if (optLoadUserHistCiphers) SWCstate = "checked"
+
+	var sep = '<hr style="background-color: var(--separator-accent2); height: 1px; border: none; margin: 0.75em 0.5em;">'
+	var gap = '<div style="margin: 0.5em;"></div>'
 
 	o += '<div class="dropdown">'
 	o += '<button class="dropbtn findMatchesTab" onclick="findMatchesFlash(this);updateHistoryTableAutoHlt()"><span class="labFull">Matches</span><span class="labShort">Matches</span></button>'
-	o += '<div class="dropdown-content" style="width: 210px; left: -55px;">'
+	// Wider and taller than it was: the old Options tab folded into here, and
+	// the Gematria Calculation table alone is 210px, so the panel is sized to
+	// fit it and scrolls once the list outgrows the window.
+	o += '<div class="dropdown-content findMatchesContent" style="width: 250px; left: -75px;">'
 
 	// Hovering the tab is what opens this panel, which then sits right over
 	// where a CSS-only hover tooltip on the button itself would have appeared -
@@ -1197,6 +1175,38 @@ function createFindMatchesMenu() {
 	o += '<input class="intBtn" type="button" value="Enter As Words" onclick="phraseBoxKeypress(35)">' // "End" keystroke
 	o += create_PL() // Word limit
 	o += '<div style="margin: 0.5em;"></div>'
+
+	// --- everything below came from the old Options tab, which no longer
+	// exists. The display toggles went to the focus options panel (the sliders
+	// icon, top left); what is left is how the numbers are worked out and what
+	// the database does, both of which act on the matches this tab finds.
+
+	o += sep
+
+	o += create_NumCalc() // Number Calculation
+	o += create_GemCalc() // Gematria Calculation
+
+	o += sep
+
+	o += '<div class="dbOptionsBox" style="border: 1px solid var(--border-accent) !important;">'
+	o += '<span class="optionTableLabel">Phrases on DB page</span><input id="dbPageItemsBox" onchange="conf_DPI()" type="text" value="'+dbPageItems+'">'
+	o += '</div>'
+	o += '<div class="dbOptionsBox">'
+	o += '<span class="optionTableLabel">Scroll DB by lines</span><input id="dbScrollItemsBox" onchange="conf_DSI()" type="text" value="'+dbScrollItems+'">'
+	o += '</div>'
+	o += gap
+	o += '<input id="clearDBqueryBtn" class="intBtn hideValue" type="button" value="Clear DB Query" onclick="clearDatabaseQueryTable()">'
+	o += gap
+	o += '<input id="unloadDBBtn" class="intBtn hideValue" type="button" value="Unload Database" onclick="unloadDatabase()">'
+
+	o += sep
+
+	o += '<div class="optionElement"><label class="chkLabel ciphCheckboxLabel2">Switch Ciphers (CSV)<input type="checkbox" id="chkbox_SWC" onclick="conf_SWC()" '+SWCstate+'><span class="custChkBox"></span></label></div>'
+
+	o += sep
+
+	o += '<input class="intBtn" type="button" value="Clear History" onclick="phraseBoxKeypress(36)">' // "Home" keystroke
+	o += gap
 
 	o += '</div></div>'
 	document.getElementById("calcOptionsPanel").innerHTML = o
@@ -1228,8 +1238,22 @@ function createFeaturesMenu() {
 	o += '<div class="dropdown-content">'
 	o += '<input class="intBtn" type="button" value="&#128197; Date Calc" onclick="toggleDateCalcMenu()">'
 	o += '<div style="margin: 0.5em;"></div>'
-	o += '<input class="intBtn" type="button" value="Astrology" onclick="toggleAstroMenu()">'
+	o += '<input class="intBtn" type="button" value="&#127756; Astrology" onclick="toggleAstroMenu()">'
+	o += '<div style="margin: 0.5em;"></div>'
+	o += '<input class="intBtn" type="button" value="&#128377;&#65039; Master Decoder" onclick="toggleMasterDecoderMenu()">'
 	o += '</div>'
+	o += '</div>'
+	document.getElementById("calcOptionsPanel").innerHTML = o
+}
+
+// Numogram, promoted out of the Features dropdown to a tab of its own right
+// after it. Unlike the other three it is a whole workspace rather than a
+// one-off lookup, so it is reached in a single click. No dropdown-content
+// here: the tab itself is the control.
+function createNumogramButton() {
+	var o = document.getElementById("calcOptionsPanel").innerHTML
+	o += '<div class="dropdown">'
+	o += '<button class="dropbtn" onclick="toggleNumogramMenu()">Numogram</button>'
 	o += '</div>'
 	document.getElementById("calcOptionsPanel").innerHTML = o
 }
