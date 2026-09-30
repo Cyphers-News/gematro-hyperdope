@@ -49,6 +49,7 @@ function histSyncLoad() {
 	var client = getAuthClient()
 	if (client === null || authUser === null) return Promise.resolve()
 
+	histSyncLoaded = false // also gate saves while a retry is pending
 	histSyncSetStatus("Loading saved history…", "busy")
 
 	return client.from("history_entries")
@@ -57,7 +58,10 @@ function histSyncLoad() {
 		.then(function (res) {
 			if (res.error) throw res.error
 
-			var saved = (res.data || []).map(function (r) { return r.phrase })
+			if (!Array.isArray(res.data) || res.data.some(function (r) {
+				return !r || typeof r.phrase !== "string" || r.phrase.length === 0
+			})) throw new Error("Invalid saved history")
+			var saved = res.data.map(function (r) { return r.phrase })
 			var local = (typeof sHistory !== "undefined") ? sHistory.slice() : []
 
 			// union, saved order first, then anything typed before signing in
@@ -92,7 +96,7 @@ function histSyncLoad() {
 			if (merged.length !== saved.length) histSyncSave()
 		})
 		.catch(function (err) {
-			histSyncLoaded = true // let saving proceed; a later write may succeed
+			histSyncLoaded = false // unknown remote history must never be overwritten
 			histSyncSetStatus("Sync unavailable", "warn")
 			console.warn("history sync load failed:", err.message || err)
 		})
