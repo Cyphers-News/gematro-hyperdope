@@ -26,6 +26,26 @@ function restoreCalcSettingsLocalStorage(silentMode = false) {
 	return applyCalcSettingsString(window.localStorage.getItem(sItem), silentMode)
 }
 
+// Find the options array boundary without treating brackets inside JSON strings
+// as delimiters. JSON.parse remains responsible for validating the contents.
+function calcOptionsJson(file) {
+	var match = /calcOptions =\s*\[/.exec(file)
+	if (match === null) return null
+	var start = match.index + match[0].length - 1
+	var depth = 0, inString = false, escaped = false
+	for (var i = start; i < file.length; i++) {
+		var ch = file[i]
+		if (inString) {
+			if (escaped) escaped = false
+			else if (ch === "\\") escaped = true
+			else if (ch === '"') inString = false
+		} else if (ch === '"') inString = true
+		else if (ch === "[") depth++
+		else if (ch === "]" && --depth === 0) return file.slice(start, i + 1)
+	}
+	return null
+}
+
 // Applies a settings blob in the format produced by exportCiphersDB(true).
 // Split out of restoreCalcSettingsLocalStorage so the saved-workspace feature
 // can reuse exactly the same import path rather than duplicating it.
@@ -35,16 +55,34 @@ function restoreCalcSettingsLocalStorage(silentMode = false) {
 // importCalcOptions(), which checks each name against calcOptionsArr. Neither
 // runs code from the file, so an imported settings file is inert even when it
 // came from somebody else.
-function applyCalcSettingsString(file, silentMode = false) {
+function applyCalcSettingsString(file, silentMode = false, strictRestore = false) {
 	if (typeof file !== "string" || file.length === 0) return false
 
-	var calcOpt = file.match(/(?<=calcOptions = )[\s\S]*?\]/m) // array values
+	var calcOpt = calcOptionsJson(file) // same boundary for preflight and import
+	var restoredCiphers = null
+	if (strictRestore) {
+		// Cloud sync must not bless a partial import as a successful restore:
+		// its next save would replace the unreadable parts with local defaults.
+		// Preflight both blocks before mutating the calculator. Local imports
+		// retain their existing best-effort behavior.
+		if (calcOpt === null || !isJsonString(calcOpt) || !Array.isArray(JSON.parse(calcOpt))) return false
+		if (JSON.parse(calcOpt).some(function (line) {
+			if (typeof line !== "string") return true
+			var eq = line.indexOf(" = ")
+			return eq < 1 || calcOptionNames().indexOf(line.slice(0, eq)) === -1 || !isJsonString(line.slice(eq + 3))
+		})) return false
+		var body = file.match(/(?<=cipherList = \[)[\s\S]+/m)
+		if (body === null) return false
+		body = body[0].replace(/(\t|  +|\r|\n)/g, "").slice(10,-1)
+		restoredCiphers = ciphersFromListBody(body)
+		if (restoredCiphers.length === 0 || restoredCiphers.length !== body.split(",new cipher").length) return false
+	}
 	if (calcOpt !== null) {
 		// Parsed as-is rather than having its whitespace stripped first. JSON.parse
 		// already ignores the formatting between tokens, and the strip reached
 		// inside the values too - a caption written "two  spaces" came back as
 		// "two spaces". Harmless while options never restored; not once they do.
-		calcOptMatch = calcOpt[0]
+		calcOptMatch = calcOpt
 		if (isJsonString(calcOptMatch)) {
 			importCalcOptions(JSON.parse(calcOptMatch)) // load user options
 		} else {
@@ -64,7 +102,7 @@ function applyCalcSettingsString(file, silentMode = false) {
 	cipherList = []; cCat = []; defaultCipherArray = [] // clear arrays with previously defined ciphers, categories, default ciphers
 	// Parsed as JSON and type-checked, never executed. See the security note
 	// above ciphersFromListBody() in gematria.js.
-	cipherList = ciphersFromListBody(file)
+	cipherList = restoredCiphers || ciphersFromListBody(file)
 	// a stored blob only knows the ciphers that existed when it was saved, so
 	// anything shipped since is added back before ordering runs
 	if (typeof mergeBuiltinCiphers === "function") mergeBuiltinCiphers()

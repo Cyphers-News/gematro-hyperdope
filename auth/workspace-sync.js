@@ -38,11 +38,12 @@ function wsSyncLoad() {
 	var client = getAuthClient()
 	if (client === null || authUser === null) return Promise.resolve()
 
+	wsSyncLoaded = false // also gate saves while a retry is pending
 	return client.from("workspaces").select("settings").eq("user_id", authUser.id).maybeSingle()
 		.then(function (res) {
 			if (res.error) throw res.error
 
-			if (!res.data || !res.data.settings) {
+			if (res.data === null) {
 				// nothing saved yet: adopt whatever they are using now as the
 				// starting workspace, so the first save is not an empty one
 				wsSyncLoaded = true
@@ -51,14 +52,17 @@ function wsSyncLoad() {
 				return
 			}
 
+			if (!res.data || typeof res.data.settings !== "string" || !res.data.settings.length) {
+				throw new Error("Invalid saved workspace")
+			}
 			wsRestoreInProgress = true
 			var applied = false
 			try {
-				applied = applyCalcSettingsString(res.data.settings, true)
-			} catch (e) {
-				console.warn("workspace restore failed:", e.message || e)
+				applied = applyCalcSettingsString(res.data.settings, true, true)
+			} finally {
+				wsRestoreInProgress = false
 			}
-			wsRestoreInProgress = false
+			if (!applied) throw new Error("Saved workspace could not be restored")
 
 			wsSyncLoaded = true
 			wsSyncLastHash = wsHash(res.data.settings)
@@ -72,7 +76,7 @@ function wsSyncLoad() {
 			}
 		})
 		.catch(function (err) {
-			wsSyncLoaded = true
+			wsSyncLoaded = false
 			console.warn("workspace load failed:", err.message || err)
 		})
 }
@@ -82,7 +86,8 @@ function wsSyncLoad() {
 function wsSyncSave(force) {
 	var client = getAuthClient()
 	if (client === null || authUser === null) return Promise.resolve(false)
-	if (!wsSyncLoaded && !force) return Promise.resolve(false)
+	// Force skips change detection, not the prerequisite successful restore.
+	if (!wsSyncLoaded || wsRestoreInProgress) return Promise.resolve(false)
 	if (wsSyncSaving) return Promise.resolve(false)
 
 	var settings = wsCurrentSettings()
@@ -169,29 +174,11 @@ function wsSyncStop() {
 $(document).ready(function () {
 	if (typeof exportCiphersDB !== "function") return // not the calculator page
 
-	// Reloading twice resets the settings. It has to happen here, at the end of
-	// the load, because it is a reset of whatever was just restored - running it
-	// earlier would only be undone by the restore that followed.
-	//
-	// The workspace is loaded first even on a double refresh, rather than
-	// skipped: the code rain settings are meant to survive, and for someone who
-	// has never pressed Save Settings the account row is the only place they
-	// exist. So it restores, then resets everything except the rain.
-	function wsDoubleRefreshReset() {
-		if (typeof calcDoubleRefresh === "undefined" || !calcDoubleRefresh) return false
-		if (typeof resetCalcToDefaults !== "function") return false
-		resetCalcToDefaults(false)
-		return true
-	}
-
+	// Restoring a page never implies consent to reset or overwrite its workspace.
 	onAuthReady(function (user) {
-		if (user === null) { wsDoubleRefreshReset(); return }
+		if (user === null) return
 		wsSyncEnabled = true
-		wsSyncLoad().then(function () {
-			// forced, so a single reload afterwards keeps the defaults rather
-			// than restoring the workspace the reset just replaced
-			if (wsDoubleRefreshReset()) return wsSyncSave(true)
-		}).then(wsSyncStart)
+		wsSyncLoad().then(wsSyncStart)
 	})
 
 	var client = getAuthClient()
