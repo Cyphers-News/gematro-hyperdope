@@ -398,13 +398,11 @@ function profileAddFromSearch() {
 	renderProfileEntries()
 }
 
-// Loads a phrase into the input and stops there.
-//
-// It used to recompute the enabled-cipher summary and the word breakdown as
-// well, which rewrote the workspace to describe a phrase the user had only
-// clicked on, not entered. Nothing is committed until they press Enter, so
-// nothing else should move: the history table, its Find Matches ordering and
-// the current breakdown all stay exactly as they were.
+// Loads a phrase into the calculator without committing it to history.
+// Typing normally redraws the enabled-cipher summary and word breakdown through
+// phraseBox's input handler. Assigning .value does not fire that handler, so a
+// phrase chosen here must mirror the same two redraws. Enter remains the only
+// action that adds the phrase to history.
 // Turns on the cipher a leaderboard entry was published in, so the value on the
 // chip is one you can actually see. Returns false when the cipher no longer
 // exists, which is possible for an old submission.
@@ -427,15 +425,15 @@ function profileUsePhrase(p, keepPanel, cipher) {
 	var box = document.getElementById("phraseBox")
 	if (box === null) return
 	box.value = p
+	if (typeof updateEnabledCipherTable === "function") updateEnabledCipherTable()
+	if (typeof updateWordBreakdown === "function") updateWordBreakdown(breakCipher, false, false)
 
 	// Enabling the cipher is the one thing that does move the workspace, and
-	// deliberately: without it the entry says 74 and the calculator shows a
-	// column that cannot produce it. Recomputing the summary is what makes the
-	// number appear against the phrase now sitting in the box.
+	// deliberately: without it the entry says 74 and the calculator shows no
+	// column that can produce it. A newly enabled cipher redraws all tables.
 	var shown = false
 	if (cipher) {
 		shown = profileEnableCipher(cipher)
-		if (shown && typeof updateEnabledCipherTable === "function") updateEnabledCipherTable()
 	}
 	// Browsing someone's contributions is a list you work through, so picking
 	// one leaves the leaderboard up rather than closing the panel out from
