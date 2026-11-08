@@ -456,16 +456,30 @@ function profileUsePhrase(p, keepPanel, cipher) {
 // saved entries could not be deleted at all. Clearing histSyncLastHash made it
 // worse by forcing that pass to run immediately.
 //
-// So the phrase goes from the local history first, and the row follows.
+// Find Matches keeps the complete pre-filter list in userHistory while
+// sHistory holds only the visible subset. An explicit delete is not filtering:
+// it must reach both representations or the next sync restores the phrase from
+// the pre-filter copy. So the phrase goes from local history first, and the row
+// follows.
+function profileHistoryWithoutPhrase(history, phrase) {
+	var keep = []
+	for (var i = 0; i < history.length; i++) {
+		if (history[i] !== phrase) keep.push(history[i])
+	}
+	return keep
+}
+
 function profileDeleteEntry(id, phrase) {
-	if (typeof sHistory !== "undefined" && phrase !== undefined) {
-		var keep = []
-		for (var i = 0; i < sHistory.length; i++) {
-			if (sHistory[i] !== phrase) keep.push(sHistory[i])
+	if (phrase !== undefined) {
+		if (typeof userHistory !== "undefined" && Array.isArray(userHistory)) {
+			userHistory = profileHistoryWithoutPhrase(userHistory, phrase)
 		}
-		if (keep.length !== sHistory.length) {
-			sHistory = keep
-			if (typeof updateHistoryTable === "function") updateHistoryTable()
+		if (typeof sHistory !== "undefined" && Array.isArray(sHistory)) {
+			var keep = profileHistoryWithoutPhrase(sHistory, phrase)
+			if (keep.length !== sHistory.length) {
+				sHistory = keep
+				if (typeof updateHistoryTable === "function") updateHistoryTable()
+			}
 		}
 	}
 	entriesDelete(id).then(function () {

@@ -9,6 +9,7 @@ const vm = require('node:vm');
 const root = path.join(__dirname, '..');
 const sourcePath = path.join(root, 'auth', 'history-sync.js');
 const source = fs.readFileSync(sourcePath, 'utf8');
+const profileSource = fs.readFileSync(path.join(root, 'calc', 'profile-tab.js'), 'utf8');
 const settle = () => new Promise(resolve => setImmediate(resolve));
 
 function historyFixture({ history = [], fullHistory, reply = () => ({ data: null, error: null }) } = {}) {
@@ -68,6 +69,39 @@ test('a filtered view reconciles the canonical full history, not the subset', as
   const f = historyFixture({ history: ['beta'], fullHistory: ['alpha', 'beta'] });
   assert.equal(await f.save(), true);
   assert.deepEqual(Array.from(f.rpcCalls()[0].args.phrases), ['alpha', 'beta']);
+});
+
+test('an explicit saved-entry delete reaches filtered full history before reconciliation', async () => {
+  const f = historyFixture({
+    history: ['delete me'],
+    fullHistory: ['hidden by filter', 'delete me']
+  });
+  let deletedId = null;
+  let renderPromise = null;
+  let redraws = 0;
+  f.context.entriesDelete = id => { deletedId = id; return Promise.resolve(true); };
+  f.context.updateHistoryTable = () => { redraws += 1; };
+  vm.runInContext(profileSource, f.context, { filename: 'calc/profile-tab.js' });
+  f.context.renderProfileEntries = () => {
+    renderPromise = f.context.histSyncFlush();
+    return renderPromise;
+  };
+
+  f.context.profileDeleteEntry('synthetic-row', 'delete me');
+  await settle();
+  await renderPromise;
+
+  assert.equal(deletedId, 'synthetic-row');
+  assert.equal(redraws, 1);
+  assert.deepEqual(Array.from(f.context.sHistory), []);
+  assert.deepEqual(Array.from(f.context.userHistory), ['hidden by filter']);
+  assert.deepEqual(Array.from(f.rpcCalls()[0].args.phrases), ['hidden by filter']);
+});
+
+test('the calculator serves the current profile-tab content key', () => {
+  const key = crypto.createHash('sha256').update(profileSource).digest('hex').slice(0, 16);
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert.match(html, new RegExp('calc/profile-tab\\.js\\?v=' + key + '(?:"|&)'));
 });
 
 test('over-limit canonical history stays complete locally and sends no request', async () => {
