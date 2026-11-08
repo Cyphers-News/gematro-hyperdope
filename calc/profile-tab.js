@@ -178,7 +178,15 @@ function profileErr(err) {
 
 // ---- saved entries ----------------------------------------------------
 
-function renderProfileEntries() {
+// profileRenderSeq only changes when the whole profile panel changes tabs.
+// Saved can launch several searches while staying on this tab, so it needs a
+// second token: any keystroke invalidates the response already in flight
+// before the debounce timer launches the replacement request.
+var profileEntriesRequestSeq = 0
+
+function renderProfileEntries(requestSeq) {
+	var entryTok = (typeof requestSeq === "number") ? requestSeq : ++profileEntriesRequestSeq
+	if (entryTok !== profileEntriesRequestSeq) return
 	var tok = profileRenderSeq
 	var term = ""
 	var box = document.getElementById("profileSearch")
@@ -198,6 +206,7 @@ function renderProfileEntries() {
 		ready.then(function () { return entriesSearch(term, 200) }),
 		submissionsList(200)
 	]).then(function (both) {
+		if (tok !== profileRenderSeq || entryTok !== profileEntriesRequestSeq) return
 		var rows = both[0], subs = both[1]
 
 		var byPhrase = {}
@@ -319,13 +328,21 @@ function renderProfileEntries() {
 		o += '<div class="profileRule">&#128683; A phrase already in the database, or already published by someone else, cannot be submitted again.</div>'
 		o += '</div>'
 		profileBody(o, tok)
-	}).catch(function (err) { profileBody(profileErr(err), tok) })
+	}).catch(function (err) {
+		if (tok !== profileRenderSeq || entryTok !== profileEntriesRequestSeq) return
+		profileBody(profileErr(err), tok)
+	})
 }
 
 var profileSearchTimer = null
 function profileSearchDebounced() {
 	clearTimeout(profileSearchTimer)
-	profileSearchTimer = setTimeout(renderProfileEntries, 250)
+	var entryTok = ++profileEntriesRequestSeq
+	var tabTok = profileRenderSeq
+	profileSearchTimer = setTimeout(function () {
+		if (tabTok !== profileRenderSeq) return
+		renderProfileEntries(entryTok)
+	}, 250)
 }
 
 // ---- live value preview -------------------------------------------------
