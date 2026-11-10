@@ -276,10 +276,9 @@
 	overflow: hidden;
 }
 
-/* Two panels inside the stage: the canonical figure, and - only when a
- * cosmological model is chosen - the geocentric one beside it. Keeping them
- * apart is the whole correction: the Ptolemaic structure used to be drawn
- * through the Numogram, and that is what made both unreadable. */
+/* Two panels inside the stage: the canonical figure and the selected
+ * cosmology beside it. Keeping the attribution panel outside the Numogram
+ * prevents a secondary model from rewriting the canonical geometry. */
 .numPanel {
 	display: flex;
 	align-items: flex-start;
@@ -1294,11 +1293,10 @@
 .numGate { cursor: pointer; }
 .numGate:focus-visible .numGateRing { stroke-dasharray: 3 3; }
 
-/* ---- the geocentric panel: radial bands -------------------------------
+/* ---- the cosmology panel: attributed bands ----------------------------
  *
- * One band per body. Concentric rings put two labels on the same circle and
- * they collided; a band per body cannot. Earth is on the floor and the
- * spheres rise from it in the Ptolemaic order.
+ * One band per body. The Planetwork rises by solar zone; the selectable
+ * Gnostic arrangement rises from the Void through its attributed bodies.
  *
  * Every stroke here is lighter than the canonical linework: this is the
  * secondary model and it must read as secondary.
@@ -1365,9 +1363,8 @@
 .numBandZone[data-zone="8"], .numBandZoneText[data-zone="8"] { --zc: #9a7bff; }
 .numBandZone[data-zone="9"], .numBandZoneText[data-zone="9"] { --zc: #8a939e; }
 
-/* The Moon and the fixed stars have a place in the Ptolemaic cosmos and no
- * zone in the Planetwork. Said out loud, because a row that lights nothing
- * in the figure otherwise looks like a broken one. */
+/* Retained for provenance-backed datasets with bodies that have no zone. A
+ * row that lights nothing must say so rather than look broken. */
 .numBandNoZone {
 	fill: var(--num-ink);
 	font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;

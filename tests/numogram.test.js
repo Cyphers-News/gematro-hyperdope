@@ -6,6 +6,7 @@
 // focus handling need a browser; those are checked by reading the source for
 // the behaviour they must have, and exercised for real in the browser.
 const assert = require('assert');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -222,6 +223,11 @@ vm.runInContext(src, ctx);
 	const idx = read('index.html');
 	assert.ok(/id="numogramMenuArea"/.test(idx), 'the panel has its own area');
 	assert.ok(/calc\/numogram\.js/.test(idx) && /calc\/numogram\.css/.test(idx), 'both files are loaded');
+	const digest = p => crypto.createHash('sha256').update(read(p)).digest('hex').slice(0, 16);
+	assert.ok(idx.includes('calc/numogram.js?v=' + digest('calc/numogram.js')),
+		'the JavaScript reference carries its content hash');
+	assert.ok(idx.includes('calc/numogram.css?v=' + digest('calc/numogram.css')),
+		'the stylesheet reference carries its content hash');
 
 	console.log('source: keyboard, live region, reduced motion, isolated palette, five-line integration');
 })();
@@ -454,7 +460,11 @@ vm.runInContext(src, ctx);
 			'no cosmological element reaches the canonical figure in ' + mode);
 	}
 	ctx.numCosmo = 'off';
-	assert.strictEqual(ctx.numogramGeoPanel(), '', 'the panel is empty with the mode off');
+	const planetwork = ctx.numogramGeoPanel();
+	assert.ok(planetwork.length > 500, 'the canonical mode shows the Planetwork panel');
+	assert.strictEqual((planetwork.match(/data-body="/g) || []).length, 10,
+		'the Planetwork has one row for every zone');
+	assert.ok(/The Lemurian Planetwork/.test(planetwork));
 	assert.strictEqual(ctx.numogramSvg(), canonicalOff, 'and the figure is unchanged');
 	assert.strictEqual(typeof ctx.numogramGeoLayer, 'undefined',
 		'the old through-the-figure overlay is gone, not merely hidden');
@@ -526,14 +536,15 @@ vm.runInContext(src, ctx);
 
 	// --- the arrangement, region by region
 	const upper = H * 0.3, lower = H * 0.5;
-	const left = W * 0.4, right = W * 0.5;
+	const left = W * 0.4;
 
-	assert.ok(Z(6).y < upper && Z(6).x < left, 'Zone 6 upper-left');
-	assert.ok(Z(3).y < upper && Z(3).x > right, 'Zone 3 upper-right');
-	assert.ok(Z(6).x < Z(3).x, 'Zone 6 is left of Zone 3');
+	assert.ok(Z(3).y < upper && Z(3).x < left, 'Zone 3 heads the upper-left of the pair');
+	assert.ok(Z(6).y < upper && Z(6).x > left, 'Zone 6 heads the upper-right of the pair');
+	assert.ok(Z(3).x < Z(6).x, 'Zone 3 is left of Zone 6');
 
 	assert.ok(Z(5).x < left && Z(5).y > upper && Z(5).y < lower, 'Zone 5 left-middle');
-	assert.ok(Z(2).y > upper && Z(2).y < lower, 'Zone 2 middle band');
+	assert.ok(Z(2).y > Math.max(Z(3).y, Z(6).y) && Z(2).y < lower,
+		'Zone 2 sits below the head and above the lower field');
 	assert.ok(Z(5).x < Z(2).x, 'Zone 5 is left of Zone 2');
 	assert.ok(Z(7).x > Z(2).x && Z(7).y > Z(2).y, 'Zone 7 is right of and lower than Zone 2');
 
@@ -575,7 +586,7 @@ vm.runInContext(src, ctx);
 	assert.ok(new Set([0,1,2,3,4,5,6,7,8,9].map(n => Math.round(Z(n).y / 50))).size >= 7,
 		'the zones are not on a regular grid of rows');
 
-	console.log('geometry: 6/3 across the top, 5-2-7 through the middle, 4 far left, spine 1-8-9-0, 9 beside 0');
+	console.log('geometry: 3/6 across the top, 5-2-7 through the middle, 4 far left, spine 1-8-9-0, 9 beside 0');
 })();
 
 // --------------------------------------------- the canonical data is frozen
@@ -679,6 +690,12 @@ vm.runInContext(src, ctx);
 				'Gt-' + pos[i].v + ' and Gt-' + pos[j].v + ' overlap (' + d.toFixed(1) + ')');
 		}
 	}
+	const gate6 = pos.find(g => g.v === 6).p;
+	const gate21 = pos.find(g => g.v === 21).p;
+	assert.ok(gate6.y < Math.min(ctx.numZone(3).y, ctx.numZone(6).y),
+		'Gt-6 arcs above the 3::6 pair');
+	assert.ok(gate21.y > Math.max(ctx.numZone(3).y, ctx.numZone(6).y),
+		'Gt-21 arcs below the 3::6 pair');
 
 	// nor may a gate label sit on a zone circle
 	for (const g of pos) {
@@ -704,8 +721,8 @@ vm.runInContext(src, ctx);
 	assert.ok(/class="numHit"/.test(svg), 'hit areas are rendered');
 	assert.strictEqual((svg.match(/class="numHit"/g) || []).length, 19,
 		'a hit disc for each of the ten zones and each of the nine drawn gates');
-	assert.strictEqual((svg.match(/class="numHitLine"/g) || []).length, 14,
-		'a forgiving stroke under every current and every drawn channel');
+	assert.strictEqual((svg.match(/class="numHitLine"/g) || []).length, 19,
+		'a forgiving stroke under five bonds, five tractors and nine drawn channels');
 
 	// each zone's hit radius exceeds its visible radius, but never reaches a
 	// neighbour - otherwise clicking one zone would select another
@@ -713,7 +730,7 @@ vm.runInContext(src, ctx);
 		for (const o of ctx.NUM_ZONES) {
 			if (o.n === z.n) continue;
 			const d = Math.hypot(z.x - o.x, z.y - o.y);
-			assert.ok(d > (z.r + 8) + (o.r + 8),
+			assert.ok(d > (z.r + ctx.NUM_ZONE_HIT_PAD) + (o.r + ctx.NUM_ZONE_HIT_PAD),
 				'hit areas of Zone-' + z.n + ' and Zone-' + o.n + ' would overlap');
 		}
 	}
@@ -729,7 +746,7 @@ vm.runInContext(src, ctx);
 	assert.strictEqual((src.match(/numogramActivate\(/g) || []).length, 3,
 		'declared once, called from the click handler and the keydown handler');
 
-	console.log('hit areas: 19 discs, 14 forgiving strokes, invisible, no overlap, one shared selection path');
+	console.log('hit areas: 19 discs, 19 forgiving strokes, invisible, no overlap, one shared selection path');
 })();
 
 (function zoneMarks() {
@@ -749,32 +766,36 @@ vm.runInContext(src, ctx);
 	assert.ok(/3\.jpg/.test(ctx.NUM_REFERENCE.canonical), 'the CCRU cover is canonical');
 	assert.ok(/mirrored/.test(ctx.NUM_REFERENCE.secondary), 'the redrawing is recorded as mirrored');
 	assert.ok(/16 and 8 incorrect/.test(ctx.NUM_REFERENCE.secondary), 'and its two bad gate labels are named');
+	assert.ok(/3 upper-left, 6 upper-right/.test(ctx.NUM_REFERENCE.orientationFollows),
+		'the orientation follows the canonical cover');
+	assert.strictEqual(ctx.NUM_ZONE_MARK[3], 'right');
+	assert.strictEqual(ctx.NUM_ZONE_MARK[6], 'left');
 
 	console.log('marks: ten direction triangles, spine pairs facing, canonical reference recorded');
 })();
 
-(function geocentricPanel() {
+(function gnosticPanel() {
 	ctx.numCosmo = 'geo'; ctx.numGeoSet = 'classical';
 	const panel = ctx.numogramGeoPanel();
 
-	// one band per body, no shared geometry to collide on
-	assert.strictEqual((panel.match(/data-body="/g) || []).length, 9);
-	for (const b of ['EARTH','MOON','MERCURY','VENUS','SUN','MARS','JUPITER','SATURN','STARS']) {
+	// one band per attributed body, no shared geometry to collide on
+	assert.strictEqual((panel.match(/data-body="/g) || []).length, 10);
+	for (const b of ['VOID','SATURN','EARTH','PLUTO','JUPITER','VENUS','URANUS','MARS','MERCURY','NEPTUNE']) {
 		assert.ok(panel.indexOf('>' + b + '<') !== -1, b + ' has a band');
 	}
-	for (const b of ['URANUS','NEPTUNE','PLUTO']) {
-		assert.ok(panel.indexOf('>' + b + '<') === -1, b + ' is excluded from Classical');
+	for (const b of ['MOON','SUN','STARS']) {
+		assert.ok(panel.indexOf('>' + b + '<') === -1, b + ' is not invented in the Gnostic arrangement');
 	}
+	assert.ok(/The Gnostic attribution/.test(panel), 'the accessible name states the selected model');
 
-	// Earth is the ground of the figure - the lowest band
+	// the Void is the ground; the attributed bodies rise in zone order
 	const ys = {};
 	for (const m of panel.matchAll(/data-body="([A-Z]+)"[\s\S]*?y1="([\d.]+)"/g)) ys[m[1]] = +m[2];
-	assert.ok(ys.EARTH > ys.MOON, 'Earth sits below the Moon');
-	assert.ok(ys.MOON > ys.MERCURY && ys.MERCURY > ys.VENUS && ys.VENUS > ys.SUN,
-		'Moon, Mercury, Venus inside the Sun');
-	assert.ok(ys.SUN > ys.MARS && ys.MARS > ys.JUPITER && ys.JUPITER > ys.SATURN,
-		'Mars, Jupiter, Saturn outside the Sun');
-	assert.ok(ys.SATURN > ys.STARS, 'the fixed stars lie beyond Saturn');
+	const ordered = ctx.NUM_GNOSTIC.slice().sort((a, b) => a.zone - b.zone);
+	for (let i = 1; i < ordered.length; i++) {
+		assert.ok(ys[ordered[i - 1].body] > ys[ordered[i].body],
+			ordered[i].body + ' rises above ' + ordered[i - 1].body);
+	}
 
 	// bands are far enough apart that two labels cannot collide
 	const sorted = Object.values(ys).sort((a, b) => a - b);
@@ -782,21 +803,14 @@ vm.runInContext(src, ctx);
 		assert.ok(sorted[i] - sorted[i - 1] >= 60, 'bands are spaced for their labels');
 	}
 
-	assert.ok(/SCHEMATIC PTOLEMAIC REPRESENTATION/.test(panel), 'the panel says it is schematic');
-
-	// cross-map shares the same dataset and draws one tie, for the selection only
-	ctx.numCosmo = 'cross'; ctx.numBody = null;
-	assert.strictEqual((ctx.numogramGeoPanel().match(/numBandTie"/g) || []).length, 0,
-		'no web of ties with nothing selected');
-	ctx.numBody = 'MARS';
-	assert.strictEqual((ctx.numogramGeoPanel().match(/numBandTie"/g) || []).length, 1,
-		'exactly one tie, for the selected body');
-	ctx.numGeoSet = 'extended';
-	assert.strictEqual((ctx.numogramGeoPanel().match(/data-body="/g) || []).length, 12,
-		'cross-map uses the same body dataset as the geocentric view');
+	for (const role of ['KENOMA','CRONUS','GAIA','HADES','ZEUS','APHRODITE','OURANOS','ARES','HERMES','POSEIDON']) {
+		assert.ok(panel.indexOf('>' + role + '<') !== -1, role + ' states the attribution');
+	}
+	const model = ctx.NUM_MODELS.find(m => m.label === 'Gnosticism');
+	assert.ok(model && model.cosmo === 'geo', 'the selectable secondary model is Gnosticism');
 	ctx.numBody = null; ctx.numCosmo = 'off'; ctx.numGeoSet = 'classical';
 
-	console.log('geocentric panel: nine bands Earth-up, spaced, schematic, one tie only, shared dataset');
+	console.log('gnostic panel: ten attributed bands rise from the Void, spaced and selectable');
 })();
 
 console.log('\nall numogram checks passed');

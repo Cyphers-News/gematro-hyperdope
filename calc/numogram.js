@@ -46,17 +46,15 @@
 //          (the cumulation of 5 is 15), and 8 where the cover has 3 (the
 //          cumulation of 2 is 3). Not used for values.
 //
-// The arrangement here follows the written brief - Zone-6 upper-left, Zone-3
-// upper-right - which matches 4.webp's orientation rather than the cover's.
-// The cover has that pair the other way round. The brief has specified it
-// twice and asked for it to be preserved, so it is preserved; the geometry is
-// data-driven, so mirroring the figure later is x -> width - x and nothing
-// else. Everything other than that one pair follows the cover.
+// The arrangement follows the canonical cover: Zone-3 upper-left and Zone-6
+// upper-right. The supplied redrawing mirrors that pair along with the rest of
+// the figure; it is retained as a secondary visual reference, not as the
+// orientation authority.
 var NUM_REFERENCE = Object.freeze({
 	canonical: "3.jpg - CCRU 1997-2003 cover",
 	secondary: "4.webp - redrawing, mirrored, gate labels 16 and 8 incorrect",
-	orientationFollows: "written brief (6 upper-left, 3 upper-right)",
-	orientationNote: "the cover shows 3 upper-left and 6 upper-right"
+	orientationFollows: "3.jpg cover (3 upper-left, 6 upper-right)",
+	orientationNote: "the secondary redrawing mirrors the pair"
 })
 
 // ---- on the earlier reference image -----------------------------------
@@ -580,6 +578,7 @@ function numNumeralOffset(z, dir) {
 }
 
 var NUM_GATE_R = 23
+var NUM_ZONE_HIT_PAD = 6
 var NUM_GATE_DRAWN = { 0: false, 1: true, 2: true, 3: true, 4: true,
                        5: true, 6: true, 7: true, 8: true, 9: true }
 
@@ -634,6 +633,30 @@ function numCubic(ax, ay, ar, bx, by, br, bend) {
 	// the curve's belly where `bend` says it is
 	return { x0: x0, y0: y0, cx: cx, cy: cy, x3: x3, y3: y3,
 	         d: "M" + numR(x0) + " " + numR(y0) + " Q" + numR(cx) + " " + numR(cy) + " " + numR(x3) + " " + numR(y3) }
+}
+
+// The current geometry consumed by both the renderer and the clearance proof.
+// Keeping one constructor prevents the test from measuring a path the SVG does
+// not actually draw.
+function numCurrentGeometry(sz) {
+	var current = numCurrent(sz)
+	var za = numZone(sz.a), zb = numZone(sz.b), zt = numZone(current)
+	var closed = (current === sz.a || current === sz.b)
+	var bond = numCubic(za.x, za.y, za.r, zb.x, zb.y, zb.r,
+	                    NUM_CURRENT_BEND[sz.key] || 0)
+	var tractor
+	if (closed) {
+		var other = numZone(current === sz.a ? sz.b : sz.a)
+		tractor = numCubic(other.x, other.y, other.r * 0.3,
+		                   zt.x, zt.y, zt.r * 0.92,
+		                   NUM_TRACTOR_BEND[sz.key] || 0)
+	} else {
+		var mx = (za.x + zb.x) / 2, my = (za.y + zb.y) / 2
+		tractor = numCubic(mx, my, za.r * 0.72, zt.x, zt.y, zt.r,
+		                   NUM_TRACTOR_BEND[sz.key] || 0)
+	}
+	return { current: current, za: za, zb: zb, zt: zt, closed: closed,
+	         bond: bond, tractor: tractor }
 }
 
 function numR(v) { return Math.round(v * 10) / 10 }
@@ -709,8 +732,10 @@ function numLoop(z, angleDeg, size) {
 // Hand-set so the figure reads the way the reference does: long channels sweep
 // wide around the empty field rather than cutting across the middle.
 // Struck so the channels sweep round the field rather than cutting across the
-// middle. 3->6 and 6->3 run between the same pair in opposite directions, so
-// they are bowed opposite ways and do not lie on top of each other.
+// middle. 3->6 and 6->3 run between the same pair in opposite directions. The
+// endpoint reversal already reverses the curve's perpendicular, so the same
+// numeric bend puts them on opposite sides; opposite signs would make the two
+// paths coincide.
 // 3 -> 6 arcs over the top and 6 -> 3 dips under, so Gt-6 and Gt-21 sit on
 // opposite sides of that pair, as the reference has them. The 8 -> 9 run is
 // short - 41 units of clear span between two big circles - so it bows well out
@@ -726,7 +751,7 @@ function numLoop(z, angleDeg, size) {
 // does with this pair: the two runs between the same twins arc out either side
 // rather than lying on top of each other. A bend of 150 puts the midpoint some
 // 75 units off the straight line, clearing both rims with room to spare.
-var NUM_CHANNEL_BEND = { 0: 0, 1: 0, 2: -60, 3: 150, 4: 70, 5: -60, 6: -150, 7: 80, 8: 120, 9: 0 }
+var NUM_CHANNEL_BEND = { 0: 0, 1: 0, 2: -60, 3: -150, 4: 70, 5: -60, 6: -150, 7: 80, 8: 120, 9: 0 }
 
 // The bond between a syzygy's two zones. They sit adjacent now, with about
 // fourteen units of clear span between their rims, so this is a stub and it
@@ -745,17 +770,13 @@ var NUM_CURRENT_BEND = { "0::9": 0, "1::8": 0, "2::7": 0, "3::6": 0, "4::5": 0 }
 // hard, because a short run needs a big bend to curl at all.
 var NUM_TRACTOR_BEND = { "0::9": 90, "1::8": 80, "2::7": -95, "3::6": 90, "4::5": 55 }
 
-// ============ THE GEOCENTRIC MODEL, IN ITS OWN PANEL =====================
+// ============ THE SECONDARY COSMOLOGY, IN ITS OWN PANEL ===================
 //
-// This used to be drawn straight through the Numogram: concentric spheres
-// struck from Zone-3, with ties crossing the whole figure. It was unreadable,
-// and worse, it made the canonical diagram look like it had been redesigned.
-//
-// It now has its own composition beside the Numogram. Radial bands rather than
-// concentric rings: each body gets a band of its own, so two labels can never
-// land on the same circle, and the Ptolemaic order reads top to bottom without
-// anything to untangle. Earth is the ground of the figure, at the foot, and
-// the spheres rise from it in order.
+// The selected Gnostic attribution has its own composition beside the
+// Numogram. Each body gets a band of its own, with the Void as the ground and
+// the nine attributed bodies rising by zone. The older Ptolemaic experiment
+// remains provenance data for tracing, not the panel selected by the current
+// cosmology control.
 //
 // The canonical Numogram is untouched by any of this. It renders exactly as it
 // does with the cosmology off.
@@ -768,10 +789,9 @@ function numBandY(order, n) {
 	return NUM_BAND_H - NUM_BAND_TOP - order * NUM_BAND_GAP
 }
 
-// The rows the panel shows, and the order it shows them in. Two orderings of
-// the same bodies, which is the whole point of having both: the Planetwork
-// counts outward from the Sun, the Ptolemaic order outward from the Earth, and
-// laying one over the other is what makes the disagreement visible.
+// The rows the panel shows, and the order it shows them in. The canonical
+// Planetwork counts outward from the Sun; the secondary model uses the
+// supplied Gnostic attributions by zone.
 //
 // The panel used to appear only under a geocentric model. It shows in both now
 // - the Planetwork attributions are what tie a planet to a zone at all, so
@@ -1048,10 +1068,10 @@ function numogramGeoPanel() {
 	var h = NUM_BAND_TOP * 2 + (n - 1) * NUM_BAND_GAP
 	var bandY = function (step) { return h - NUM_BAND_TOP - step * NUM_BAND_GAP }
 
-	var geoMode = (numCosmo === "geo" || numCosmo === "cross")
+	var secondaryMode = (numCosmo === "geo" || numCosmo === "cross")
 	var o = '<svg class="numGeoSvg" id="numGeoSvg" viewBox="0 0 ' + NUM_BAND_W + ' ' + numR(h) + '" '
-	o += 'role="img" aria-label="' + (geoMode
-		? "The geocentric order, Earth at the centre and the spheres rising outward."
+	o += 'role="img" aria-label="' + (secondaryMode
+		? "The Gnostic attribution, the Void at zero and the bodies rising by zone."
 		: "The Lemurian Planetwork, the Sun at zero and the zones counting outward.") + '" '
 	o += 'preserveAspectRatio="xMidYMid meet">'
 
@@ -1136,23 +1156,20 @@ function numSamplePath(p, n) {
 	return out
 }
 
-// Every path the figure draws, sampled, with what drew it.
+// Every quadratic connector the figure draws, sampled, with what drew it.
+// Self-returning channel loops are constructed separately by numLoop.
 function numogramPathSamples() {
-	var out = [], i, sz, za, zb, zt, p, ch, zf, zt2
+	var out = [], i, sz, geom, p, ch, zf, zt2
 	for (i = 0; i < NUM_SYZYGIES.length; i++) {
 		sz = NUM_SYZYGIES[i]
-		za = numZone(sz.a); zb = numZone(sz.b); zt = numZone(numCurrent(sz))
-		p = numCubic(za.x, za.y, za.r, zb.x, zb.y, zb.r, NUM_CURRENT_BEND[sz.key] || 0)
-		out.push({ id: "current-" + sz.key, pts: numSamplePath(p, 48), ends: [sz.a, sz.b] })
-		if (!(numCurrent(sz) === sz.a || numCurrent(sz) === sz.b)) {
-			var bx = 0.25 * p.x0 + 0.5 * p.cx + 0.25 * p.x3
-			var by = 0.25 * p.y0 + 0.5 * p.cy + 0.25 * p.y3
-			var tp = numCubic(bx, by, 0, zt.x, zt.y, zt.r, NUM_TRACTOR_BEND[sz.key] || 0)
-			// a tractor line starts on its current's belly and ends on the tractor
-			// zone's rim - that zone is not named in the id, which is what made
-			// the clearance check report a false collision there
-			out.push({ id: "tractor-" + sz.key, pts: numSamplePath(tp, 48), ends: [numCurrent(sz)] })
-		}
+		geom = numCurrentGeometry(sz)
+		out.push({ id: "current-" + sz.key,
+		           pts: numSamplePath(geom.bond, 48), ends: [sz.a, sz.b] })
+		// A tractor belongs to both source zones and the zone its current names.
+		// Those are legitimate contacts; every other zone must remain clear.
+		out.push({ id: "tractor-" + sz.key,
+		           pts: numSamplePath(geom.tractor, 48),
+		           ends: [sz.a, sz.b, geom.current] })
 	}
 	for (i = 0; i < NUM_CHANNELS.length; i++) {
 		ch = NUM_CHANNELS[i]
@@ -1212,19 +1229,18 @@ function numogramGateClearance() {
 	return worst
 }
 
-// No drawn line may cut through a zone circle either. Paths are trimmed to the
-// rim at each end, so an intrusion means a bend is carrying the curve back
-// across a circle it already left.
+// No drawn line may cut through an unrelated zone circle. A current or tractor
+// is allowed to meet the zones that generate it; all other zones keep the same
+// measured clearance used for labels.
 function numogramPathZoneClearance() {
 	var paths = numogramPathSamples()
 	var worst = { d: 1e9, path: null, zone: null }
 	for (var i = 0; i < paths.length; i++) {
 		for (var z = 0; z < NUM_ZONES.length; z++) {
 			var zz = NUM_ZONES[z]
-			// the ends of a path legitimately touch the zones it joins
-			var ends = paths[i].ends.indexOf(zz.n) !== -1
+			// Related zones are deliberate contacts, not obstructions.
+			if (paths[i].ends.indexOf(zz.n) !== -1) continue
 			for (var k = 0; k < paths[i].pts.length; k++) {
-				if (ends && (k < 6 || k > paths[i].pts.length - 7)) continue
 				var d = Math.sqrt(Math.pow(paths[i].pts[k].x - zz.x, 2) + Math.pow(paths[i].pts[k].y - zz.y, 2)) - zz.r
 				if (d < worst.d) worst = { d: d, path: paths[i].id, zone: zz.n }
 			}
@@ -1317,9 +1333,9 @@ function numogramSvg() {
 	o += '<g class="numLayer numLayerCurrents">'
 	for (var s = 0; s < NUM_SYZYGIES.length; s++) {
 		var sz = NUM_SYZYGIES[s]
-		var cur = numCurrent(sz)
-		var za = numZone(sz.a), zb = numZone(sz.b), zt = numZone(cur)
-		var closed = (cur === sz.a || cur === sz.b)
+		var geom = numCurrentGeometry(sz)
+		var cur = geom.current
+		var za = geom.za, zb = geom.zb
 		var heavy = (sz.sys === "torque")
 		var g = '<g class="numCurrent' + (heavy ? ' numHeavy' : '') + '" data-syzygy="' + sz.key +
 			'" data-sys="' + sz.sys + '" data-current="' + cur + '">'
@@ -1331,7 +1347,7 @@ function numogramSvg() {
 		// actually made of: 2::7 reaching left to 5, 1::8 up to 7, 4::5 down
 		// to 1. Drawing the ribbon along the bond instead - which is what this
 		// used to do - left the tractor unmarked and the figure inert.
-		var p = numCubic(za.x, za.y, za.r, zb.x, zb.y, zb.r, NUM_CURRENT_BEND[sz.key] || 0)
+		var p = geom.bond
 		numBBPath(p, 4)
 		// a forgiving invisible stroke under the visible one
 		g += '<path class="numHitLine" d="' + p.d + '"/>'
@@ -1347,15 +1363,7 @@ function numogramSvg() {
 		// short curled form the reference gives them. Trimming from a midpoint
 		// would have overshot here - the twins are only some fourteen units of
 		// clear span apart - and a reversed path is what that produces.
-		var tr
-		if (closed) {
-			var other = numZone(cur === sz.a ? sz.b : sz.a)
-			tr = numCubic(other.x, other.y, other.r * 0.3, zt.x, zt.y, zt.r * 0.92,
-			              NUM_TRACTOR_BEND[sz.key] || 0)
-		} else {
-			var mx = (za.x + zb.x) / 2, my = (za.y + zb.y) / 2
-			tr = numCubic(mx, my, za.r * 0.72, zt.x, zt.y, zt.r, NUM_TRACTOR_BEND[sz.key] || 0)
-		}
+		var tr = geom.tractor
 		numBBPath(tr, heavy ? 26 : 20)
 		g += '<path class="numHitLine" d="' + tr.d + '"/>'
 		g += '<path class="numCurBody" d="' + numRibbon(tr, 3, heavy ? 30 : 22) + '"/>'
@@ -1440,8 +1448,8 @@ function numogramSvg() {
 		// The whole disc is the target, not the stroke. Transparent and drawn
 		// last so it sits over the ring, the mark and the numeral; a little
 		// wider than the ring for touch, but never wide enough to reach a
-		// neighbour - the closest pair are 130 apart and the radii are under 55.
-		o += '<circle class="numHit" cx="' + zz.x + '" cy="' + zz.y + '" r="' + (zz.r + 8) + '"/>'
+		// neighbour. The closest pair are just under 110 units apart.
+		o += '<circle class="numHit" cx="' + zz.x + '" cy="' + zz.y + '" r="' + (zz.r + NUM_ZONE_HIT_PAD) + '"/>'
 		o += '</g>'
 	}
 	o += '</g>'
@@ -1910,7 +1918,7 @@ function numogramApply() {
 		geoPanel.setAttribute("data-cosmo-key", want)
 		geoPanel.innerHTML = numogramGeoPanel()
 		// shown under both cosmologies now - the canonical one gets the
-		// Planetwork attributions, the geocentric one the Ptolemaic spheres
+		// Planetwork attributions, the secondary one the Gnostic arrangement
 		geoPanel.style.display = ""
 		numogramBindGeo()
 	}
@@ -2784,7 +2792,7 @@ function numogramActivate(target) {
 	return false
 }
 
-// The geocentric panel is replaced whenever the model changes, so its
+// The cosmology panel is replaced whenever the model changes, so its
 // handlers go back on with it. Same single entry point.
 function numogramBindGeo() {
 	var g = document.getElementById("numGeoSvg")
