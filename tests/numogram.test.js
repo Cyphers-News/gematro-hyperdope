@@ -35,9 +35,8 @@ vm.runInContext(src, ctx);
 		assert.ok(z.y - z.r > 0 && z.y + z.r < ctx.NUM_H, `zone ${z.n} within height`);
 	}
 
-	// the composition is tall and the figure is not centred on the canvas -
-	// both are the point of the reference, so a later tidy-up cannot quietly
-	// square it up or centre it
+	// the composition is intentionally tall and asymmetric, so a later tidy-up
+	// cannot quietly square it up or centre it
 	assert.ok(ctx.NUM_H / ctx.NUM_W > 1.3, 'the drawing space stays tall');
 	const xs = ctx.NUM_ZONES.map(z => z.x);
 	const mid = (Math.min(...xs) + Math.max(...xs)) / 2;
@@ -149,9 +148,9 @@ vm.runInContext(src, ctx);
 	console.log('gates: triangular values 0..45, channels 2->3 3->6 4->1 5->6 6->3 7->1 8->9, three self-returning');
 })();
 
-// ----------------------------------------------- the reference's errors
+// ------------------------------------------ source and rendering boundaries
 
-(function referenceIsNotCopied() {
+(function sourceIsNotCopied() {
 	// The supplied reference image carries nine zones, labels two of them 1,
 	// omits Zone-7 and repeats Gt-28 while omitting Gt-15 and Gt-21. These
 	// assert that none of that reached the model.
@@ -163,12 +162,23 @@ vm.runInContext(src, ctx);
 	assert.ok(gv.includes(15) && gv.includes(21), 'Gt-15 and Gt-21 are present');
 	assert.strictEqual(gv.filter(v => v === 28).length, 1, 'Gt-28 appears once');
 
-	// and the panel says so rather than leaving it implicit
+	// The dormant source note makes the stronger and more useful boundary:
+	// CCRU supplies the system; this application supplies the composition. It
+	// is not called by the shell and therefore is not misdescribed as a panel.
 	const note = ctx.numogramCorrections();
-	assert.ok(/degraded reproduction/i.test(note), 'the panel states the reference was corrected');
-	assert.ok(/Zone-7/.test(note) && /Gt-28/.test(note), 'it names what was wrong');
+	assert.ok(/source establishes the system, not this rendering/i.test(note),
+		'the source note does not attribute the independent composition to CCRU');
+	assert.ok(/independent Cyphers visual language/i.test(note),
+		'the application claims its own visual authorship');
+	assert.ok(/black apertures/i.test(note) && /green filament/i.test(note) && /pink gate/i.test(note),
+		'the note names the three-part visual grammar');
+	assert.strictEqual((src.match(/numogramCorrections\(\)/g) || []).length, 1,
+		'the source note remains dormant rather than becoming a hidden visible panel');
+	const visualAuthority = /drawn as the original diagram|followed closely|states this in the panel|as the reference|reference (?:puts|draws)|what the reference does/i;
+	assert.ok(!visualAuthority.test(src + '\n' + read('calc/numogram.css')),
+		'no external picture is allowed to govern composition, placement or treatment');
 
-	console.log('reference: nine-zone reproduction not copied, and the correction is stated in the panel');
+	console.log('source boundary: canonical arithmetic retained; independent rendering stated plainly');
 })();
 
 // -------------------------------------------------------- numeric input
@@ -209,11 +219,55 @@ vm.runInContext(src, ctx);
 	assert.ok(!/<circle[^>]*cx="\d+"[^>]*\/>\s*<circle/.test(src),
 		'no hand-written runs of SVG circles beside the generated ones');
 
-	// the green field must not inherit the site theme
+	// the field must not inherit the site theme, and the entire plate uses the
+	// approved black / toxic green / hot pink / bone grammar
 	const css = read('calc/numogram.css');
-	assert.ok(/--num-field:\s*#1fa14a/i.test(css), 'the field is a flat saturated green by default');
-	assert.ok(/\[data-invert="1"\]/.test(css), 'and inverts to black on one attribute');
+	assert.ok(/--num-field:\s*#020303/i.test(css), 'the field is near-black by default');
+	assert.ok(/--num-current:\s*#39ff14/i.test(css), 'currents are toxic green');
+	assert.ok(/--num-channel:\s*#ff1493/i.test(css), 'gate courses are hot pink');
+	assert.ok(/--num-gate-ink:\s*#ff1493/i.test(css), 'gate aperture numerals are hot pink');
+	assert.ok(/--num-bone:\s*#f1eadb/i.test(css), 'registration ink is bone');
+	assert.ok(/\[data-invert="1"\]/.test(css), 'a high-contrast reading exists on one attribute');
+	const tokenBlock = selector => (css.match(new RegExp(selector + '\\s*\\{([^}]*)\\}')) || [])[1] || '';
+	const token = (block, name) => (block.match(new RegExp('--' + name + ':\\s*(#[0-9a-f]{6})', 'i')) || [])[1];
+	const luminance = hex => {
+		const rgb = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+			.map(v => v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+		return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+	};
+	const contrast = (a, b) => {
+		const hi = Math.max(luminance(a), luminance(b)), lo = Math.min(luminance(a), luminance(b));
+		return (hi + 0.05) / (lo + 0.05);
+	};
+	for (const block of [tokenBlock('\\.numField'), tokenBlock('\\.numField\\[data-invert="1"\\]')]) {
+		assert.ok(contrast(token(block, 'num-gate-ink'), token(block, 'num-zone-fill')) >= 4.5,
+			'gate ink and its black aperture retain text contrast in every reading');
+	}
 	assert.ok(!/var\(--bg\b/.test(css), 'it does not read the site background variable');
+	assert.ok(!/\.numBandZone\[data-zone=/.test(css), 'secondary panels do not resurrect a ten-hue zone system');
+
+	// the primary current is five visible filaments with a pre-terminal open
+	// chevron; the source syzygy bond remains a quieter, independent primitive
+	const svg = ctx.numogramSvg();
+	assert.strictEqual((svg.match(/class="numCurrentFilament/g) || []).length, 25,
+		'five filaments for each of five currents');
+	assert.strictEqual((svg.match(/class="numSyzygyBond"/g) || []).length, 5,
+		'five independently toggleable syzygy bonds');
+	assert.strictEqual((svg.match(/class="numCurrentChevron"/g) || []).length, 5,
+		'one open directional chevron per current');
+	assert.strictEqual((svg.match(/class="numGateRing numGateTag"/g) || []).length, 9,
+		'nine drawn gates use black aperture tags');
+	assert.strictEqual((svg.match(/class="numZoneBracket"/g) || []).length, 10,
+		'every black zone gets registration corners');
+	assert.ok(!/numRibbon|numHeavy|numCurBody/.test(src), 'the inherited ribbon vocabulary is gone');
+	assert.ok(svg.indexOf('numLayerChannels') < svg.indexOf('numLayerCurrents'),
+		'currents paint after channels and win exact crossings');
+	assert.ok(/\.numCurrentHit\s*\{[^}]*stroke-width:\s*26/.test(css),
+		'the current hit stroke covers the five-filament bundle');
+	assert.ok(/data-layer-currents="0"\]\s+\.numCurrentPath/.test(css),
+		'the currents switch controls the current path');
+	assert.ok(/data-layer-syzygies="0"\]\s+\.numSyzygyBond/.test(css),
+		'the syzygies switch controls only the source bond');
 
 	// integration: one entry in the Features menu, one line in the closer
 	const calc = read('calc/calc.js');
@@ -229,7 +283,7 @@ vm.runInContext(src, ctx);
 	assert.ok(idx.includes('calc/numogram.css?v=' + digest('calc/numogram.css')),
 		'the stylesheet reference carries its content hash');
 
-	console.log('source: keyboard, live region, reduced motion, isolated palette, five-line integration');
+	console.log('source: keyboard, live region, reduced motion, independent palette and filament grammar');
 })();
 
 // ------------------------------------------------- Anglossic Qabbala
@@ -296,6 +350,91 @@ vm.runInContext(src, ctx);
 	console.log('traces: number and word land on real zones, every pass recorded, bad input refused');
 })();
 
+(function traceHistoryLifecycle() {
+	const saved = {
+		window: ctx.window,
+		document: ctx.document,
+		setPicked: ctx.numogramSetPicked,
+		apply: ctx.numogramApply,
+		sync: ctx.numogramSyncControls,
+		run: ctx.numogramRunTrace,
+		writeUrl: ctx.numogramWriteUrl
+	};
+	const storage = {};
+	const histEl = { innerHTML: '' };
+	const input = { value: '', focused: false, focus() { this.focused = true; } };
+	const clear = { classList: { toggle() {} } };
+	const msg = { textContent: '' };
+	ctx.window = {
+		localStorage: {
+			getItem: k => Object.prototype.hasOwnProperty.call(storage, k) ? storage[k] : null,
+			setItem: (k, v) => { storage[k] = v; }
+		}
+	};
+	ctx.document = {
+		getElementById: id => id === 'numHistory' ? histEl
+			: id === 'numTraceInput' ? input
+			: id === 'numTraceClear' ? clear
+			: id === 'numTraceMsg' ? msg : null
+	};
+
+	ctx.numHistory = [];
+	for (let i = 0; i < 10; i++) ctx.numHistoryAdd({ kind: 'number', raw: String(i), result: i });
+	assert.strictEqual(ctx.numHistory.length, ctx.NUM_HISTORY_MAX, 'trace history stays bounded at eight');
+	assert.deepStrictEqual(Array.from(ctx.numHistory.map(h => h.raw)), ['9','8','7','6','5','4','3','2']);
+	ctx.numHistoryAdd({ kind: 'number', raw: '6', result: 6 });
+	assert.strictEqual(ctx.numHistory.filter(h => h.kind === 'number' && h.raw === '6').length, 1,
+		'duplicate traces move to the front rather than multiplying');
+	assert.strictEqual(ctx.numHistory[0].raw, '6');
+	assert.strictEqual(JSON.parse(storage[ctx.NUM_HISTORY_KEY]).length, ctx.NUM_HISTORY_MAX,
+		'the bounded, deduplicated list is what local storage receives');
+
+	storage[ctx.NUM_HISTORY_KEY] = JSON.stringify([{ kind: 'zone', raw: 4, result: 4 }]);
+	ctx.numHistoryLoad();
+	assert.strictEqual(ctx.numHistory[0].raw, 4, 'stored history reloads');
+	storage[ctx.NUM_HISTORY_KEY] = '{broken';
+	ctx.numHistoryLoad();
+	assert.deepStrictEqual(Array.from(ctx.numHistory), [], 'malformed local history fails closed');
+
+	let picked = null, applied = 0, replay = null;
+	ctx.numogramSetPicked = n => { picked = n; };
+	ctx.numogramApply = () => { applied++; };
+	ctx.numogramSyncControls = () => {};
+	ctx.numogramRunTrace = (silent, mode) => { replay = { silent, mode, raw: input.value }; };
+	ctx.numHistory = [
+		{ kind: 'zone', raw: 4, result: 4 },
+		{ kind: 'word', raw: 'CYBERSYN', result: 8 }
+	];
+	ctx.numogramReplay(0);
+	assert.strictEqual(picked, 4, 'zone replay restores its landing');
+	assert.strictEqual(applied, 1);
+	ctx.numogramReplay(1);
+	assert.deepStrictEqual(replay, { silent: true, mode: 'word', raw: 'CYBERSYN' },
+		'typed replay restores the raw trace without adding it again');
+
+	ctx.numogramRunTrace = saved.run;
+	ctx.numogramWriteUrl = () => {};
+	ctx.numogramSetPicked = n => { picked = n; };
+	ctx.numogramApply = () => { applied++; };
+	input.value = '364';
+	ctx.numDeriv = ctx.numTraceNumber('364');
+	ctx.numogramClearTrace();
+	assert.strictEqual(input.value, '');
+	assert.strictEqual(input.focused, true, 'clearing returns focus to the trace field');
+	assert.strictEqual(ctx.numDeriv, null);
+	assert.strictEqual(picked, null, 'clearing removes the active landing');
+
+	ctx.window = saved.window;
+	ctx.document = saved.document;
+	ctx.numogramSetPicked = saved.setPicked;
+	ctx.numogramApply = saved.apply;
+	ctx.numogramSyncControls = saved.sync;
+	ctx.numogramRunTrace = saved.run;
+	ctx.numogramWriteUrl = saved.writeUrl;
+
+	console.log('trace history: bounded, deduplicated, reloadable, replayable and clearable');
+})();
+
 // ------------------------------------------------------------ provenance
 
 (function provenance() {
@@ -326,7 +465,7 @@ vm.runInContext(src, ctx);
 	assert.ok(src.indexOf('numStatusTag("experimental")') !== -1, 'the reduction block is tagged');
 	assert.ok(src.indexOf('numStatusTag("attested")') !== -1, 'the AQ block is tagged');
 
-	console.log('provenance: canonical / attested / experimental, each labelled and cited in the panel');
+	console.log('provenance: canonical / attested / experimental records stay labelled without inventing a source panel');
 })();
 
 // ------------------------------------------------ the Planetwork (canonical)
@@ -460,12 +599,15 @@ vm.runInContext(src, ctx);
 			'no cosmological element reaches the canonical figure in ' + mode);
 	}
 	ctx.numCosmo = 'off';
+	assert.strictEqual(ctx.numogramGeoPanel(), '', 'the canonical frame is the plate alone');
+	ctx.numCosmo = 'pw';
 	const planetwork = ctx.numogramGeoPanel();
-	assert.ok(planetwork.length > 500, 'the canonical mode shows the Planetwork panel');
+	assert.ok(planetwork.length > 500, 'the hidden pw state retains the Planetwork panel');
 	assert.strictEqual((planetwork.match(/data-body="/g) || []).length, 10,
 		'the Planetwork has one row for every zone');
 	assert.ok(/The Lemurian Planetwork/.test(planetwork));
 	assert.strictEqual(ctx.numogramSvg(), canonicalOff, 'and the figure is unchanged');
+	ctx.numCosmo = 'off';
 	assert.strictEqual(typeof ctx.numogramGeoLayer, 'undefined',
 		'the old through-the-figure overlay is gone, not merely hidden');
 
@@ -643,8 +785,8 @@ vm.runInContext(src, ctx);
 
 (function clearance() {
 	// Nothing may run through a gate's numeral. Measured, not eyeballed: every
-	// current, tractor and channel is sampled against every gate's exclusion
-	// disc. A gate's own channel is skipped - that is the line it labels.
+	// syzygy bond, current path and channel is sampled against every gate
+	// aperture's conservative bounding square. A gate's own channel is skipped.
 	// Nothing may sit on a gate numeral: not a path that is not its own, not
 	// another gate, and - the one that was failing, with 45, 0 and 9 lying
 	// across their zones - not a zone circle.
@@ -652,46 +794,74 @@ vm.runInContext(src, ctx);
 	assert.ok(worst.d >= ctx.NUM_GATE_CLEAR,
 		'closest approach was ' + worst.d.toFixed(1) + ' (gate ' + worst.gate +
 		' vs ' + worst.path + '), needs ' + ctx.NUM_GATE_CLEAR);
+	const hitWorst = ctx.numogramGateHitClearance();
+	assert.ok(hitWorst.d >= 0,
+		'pointer overlap was ' + hitWorst.d.toFixed(2) + ' (gate ' + hitWorst.gate +
+		' vs ' + hitWorst.path + ')');
 
 	// and no drawn line may cut through a zone circle it does not end on
 	const pz = ctx.numogramPathZoneClearance();
 	assert.ok(pz.d >= ctx.NUM_GATE_CLEAR,
 		pz.path + ' passes ' + pz.d.toFixed(1) + ' into Zone-' + pz.zone);
 
-	// the figure draws nine gates - Zone-0's is degenerate and the reference
-	// omits it - and no current-value circles, which the reference has none of
+	// the figure draws nine informative gates. Zone-0's gate is degenerate, and
+	// current values live in route labels rather than a second circle family
 	const drawn = ctx.numogramAnnotations().map(a => a.value).sort((a, b) => a - b);
 	assert.deepStrictEqual(Array.from(drawn), [1, 3, 6, 10, 15, 21, 28, 36, 45],
 		'nine gates drawn, Gt-0 omitted');
 	assert.strictEqual(ctx.NUM_GATE_DRAWN[0], false);
 	const svgAll = ctx.numogramSvg();
-	assert.ok(!/numCurValRing/.test(svgAll), 'no current-value circles - the reference has none');
+	assert.ok(!/numCurValRing/.test(svgAll), 'no redundant current-value circles');
 
-	// each gate rides its own channel rather than floating beside its zone
+	// Each gate is anchored to its own channel. Near offsets keep that anchor
+	// inside the aperture; only a farther displacement receives a visible leader.
+	let expectedLeaders = 0;
 	for (const g of ctx.NUM_GATES) {
 		if (!ctx.NUM_GATE_DRAWN[g.zone]) continue;
 		const path = ctx.numChannelPath(g.zone);
 		const pos = ctx.numGatePos(g.zone);
+		const anchor = ctx.numGateAnchor(g.zone);
 		if (path.cubic) {
 			const t = ctx.NUM_GATE_T[g.zone];
 			const on = ctx.numAt(path.cubic, t);
-			assert.ok(Math.hypot(on.x - pos.x, on.y - pos.y) < 0.001,
-				'Gt-' + g.value + ' sits on its own channel');
+			assert.ok(Math.hypot(on.x - anchor.x, on.y - anchor.y) < 0.001,
+				'Gt-' + g.value + ' retains an exact channel anchor');
 		}
+		const displacement = Math.hypot(anchor.x - pos.x, anchor.y - pos.y);
+		assert.ok(displacement < ctx.NUM_GATE_LEADER_MAX,
+			'Gt-' + g.value + ' stays visibly tied to its course');
+		if (displacement > ctx.NUM_GATE_APERTURE_R) expectedLeaders++;
 	}
+	assert.strictEqual((svgAll.match(/class="numGateLeader"/g) || []).length,
+		expectedLeaders, 'only displacements beyond the aperture radius get a visible leader');
 
 	// no two gate labels may sit on top of each other. Only the drawn ones -
 	// Gt-0 is not rendered, so it has no position to collide with.
-	const pos = ctx.numogramAnnotations().map(a => ({ v: a.value, p: a.pos }));
+	const pos = ctx.numogramAnnotations();
+	const hitPos = ctx.numogramHitAnnotations();
+	for (const g of hitPos) {
+		assert.ok(g.w >= 44 && g.h >= 44, 'Gt-' + g.value + ' keeps a 44-unit target');
+	}
+	const hitRects = [...svgAll.matchAll(/<rect class="numHit"[^>]*width="([0-9.]+)" height="([0-9.]+)"/g)];
+	assert.strictEqual(hitRects.length, 9, 'the rendered svg carries nine gate target rectangles');
+	for (const m of hitRects) assert.ok(+m[1] >= 44 && +m[2] >= 44,
+		'rendered gate target remains at least 44 by 44');
+	const paintedTags = [...svgAll.matchAll(/<circle class="numGateRing numGateTag"[^>]*r="([0-9.]+)"/g)];
+	assert.strictEqual(paintedTags.length, pos.length);
+	for (let i = 0; i < paintedTags.length; i++) {
+		assert.ok(Math.abs(+paintedTags[i][1] * 2 - pos[i].w) < 0.001 &&
+			Math.abs(+paintedTags[i][1] * 2 - pos[i].h) < 0.001,
+			'Gt-' + pos[i].value + ' clearance extent bounds its circular aperture');
+	}
 	for (let i = 0; i < pos.length; i++) {
 		for (let j = i + 1; j < pos.length; j++) {
-			const d = Math.hypot(pos[i].p.x - pos[j].p.x, pos[i].p.y - pos[j].p.y);
-			assert.ok(d > ctx.NUM_GATE_R * 2,
-				'Gt-' + pos[i].v + ' and Gt-' + pos[j].v + ' overlap (' + d.toFixed(1) + ')');
+			const d = ctx.numRectRectClearance(pos[i], pos[j]);
+			assert.ok(d >= ctx.NUM_GATE_CLEAR,
+				'Gt-' + pos[i].value + ' and Gt-' + pos[j].value + ' overlap (' + d.toFixed(1) + ')');
 		}
 	}
-	const gate6 = pos.find(g => g.v === 6).p;
-	const gate21 = pos.find(g => g.v === 21).p;
+	const gate6 = pos.find(g => g.value === 6).pos;
+	const gate21 = pos.find(g => g.value === 21).pos;
 	assert.ok(gate6.y < Math.min(ctx.numZone(3).y, ctx.numZone(6).y),
 		'Gt-6 arcs above the 3::6 pair');
 	assert.ok(gate21.y > Math.max(ctx.numZone(3).y, ctx.numZone(6).y),
@@ -700,18 +870,78 @@ vm.runInContext(src, ctx);
 	// nor may a gate label sit on a zone circle
 	for (const g of pos) {
 		for (const z of ctx.NUM_ZONES) {
-			const d = Math.hypot(z.x - g.p.x, z.y - g.p.y) - z.r;
-			assert.ok(d > 4, 'Gt-' + g.v + ' overlaps Zone-' + z.n);
+			const d = ctx.numRectCircleClearance(g, z);
+			assert.ok(d >= ctx.NUM_GATE_CLEAR, 'Gt-' + g.value + ' overlaps Zone-' + z.n);
 		}
+	}
+
+	// Registration corners are geometry too. Gt-36 was visually clear of the
+	// Zone-9 disc while its 44-unit pointer target still stole the top-left
+	// bracket; both the visible tag and target are now proved independently.
+	const g36 = pos.find(g => g.value === 36);
+	const g36Hit = hitPos.find(g => g.value === 36);
+	const g36Bracket = ctx.numRegistrationRectClearance(g36);
+	const g36HitBracket = ctx.numRegistrationRectClearance(g36Hit);
+	assert.strictEqual(g36Bracket.zone, 9, 'Zone-9 remains Gt-36\'s nearest registration corner');
+	assert.ok(g36Bracket.d >= ctx.NUM_GATE_CLEAR,
+		'Gt-36 visible tag clears Zone-9 bracket by ' + g36Bracket.d.toFixed(2));
+	assert.ok(g36HitBracket.d >= 0,
+		'Gt-36 target clears Zone-9 bracket by ' + g36HitBracket.d.toFixed(2));
+	const bracketCss = read('calc/numogram.css');
+	assert.ok(/\.numZoneBracket\s*\{[^}]*stroke-width:\s*2\.4/.test(bracketCss),
+		'the measured registration stroke matches the rendered stroke');
+	assert.ok(!/\.numZoneBracket\s*\{[^}]*vector-effect:\s*non-scaling-stroke/.test(bracketCss),
+		'the registration stroke and its proof remain in the same svg coordinate system');
+	assert.strictEqual(ctx.NUM_REGISTRATION_STROKE, 2.4);
+	assert.strictEqual(ctx.NUM_REGISTRATION_MAX_STROKE, 3.8);
+	const bracketWidths = bracketCss.split('}').filter(rule => rule.includes('.numZoneBracket'))
+		.flatMap(rule => [...rule.matchAll(/stroke-width:\s*([0-9.]+)/g)].map(m => +m[1]));
+	assert.ok(bracketWidths.length >= 5, 'all registration rest and interaction states expose a measured width');
+	assert.strictEqual(Math.max(...bracketWidths), ctx.NUM_REGISTRATION_MAX_STROKE,
+		'the registration clearance model includes the widest stroke across every css state');
+	const gateCss = read('calc/numogram.css');
+	assert.ok(/\.numGateRing\s*\{[^}]*fill:\s*var\(--num-zone-fill\)[^}]*stroke:\s*none/.test(gateCss),
+		'gate tags are borderless black apertures rather than outlined boxes');
+	assert.ok(/\.numGateText\s*\{[^}]*fill:\s*var\(--num-gate-ink\)/.test(gateCss),
+		'resting gate numerals consume the dedicated high-contrast gate-ink token');
+	const gateFont = +(gateCss.match(/\.numGateText\s*\{[^}]*font-size:\s*([0-9.]+)px/) || [])[1];
+	assert.ok(gateFont > 15 && gateFont < +paintedTags[0][1] * 2,
+		'pink gate numerals are larger than the former 15px labels and still fit their apertures');
+	assert.ok(/\.numGate\.numOn \.numGateRing\s*\{[^}]*fill:\s*var\(--num-gate-ink\)/.test(gateCss) &&
+		/\.numGate\.numOn \.numGateText\s*\{[^}]*fill:\s*var\(--num-zone-fill\)/.test(gateCss),
+		'selected gates invert the aperture and numeral without restoring a box');
+	assert.ok(/\.numGate\s*\{[^}]*opacity:\s*1/.test(gateCss),
+		'resting black gate apertures fully occlude their own channel');
+
+	// Bounds consume the rendered loop object rather than maintaining a second,
+	// stale centre formula. Prove both the isolated helper and final viewBox.
+	for (const zone of [1, 9]) {
+		const loop = ctx.numChannelPath(zone).loop;
+		ctx.numBBReset();
+		ctx.numBBLoop(loop, 3);
+		assert.strictEqual(ctx.numBB.x0, loop.loopCx - loop.loopR - 3);
+		assert.strictEqual(ctx.numBB.y0, loop.loopCy - loop.loopR - 3);
+		assert.strictEqual(ctx.numBB.x1, loop.loopCx + loop.loopR + 3);
+		assert.strictEqual(ctx.numBB.y1, loop.loopCy + loop.loopR + 3);
+	}
+	const view = [...svgAll.match(/viewBox="([^"]+)"/)[1].split(/\s+/)].map(Number);
+	for (const zone of [1, 9]) {
+		const loop = ctx.numChannelPath(zone).loop;
+		assert.ok(loop.loopCx - loop.loopR >= view[0] && loop.loopCx + loop.loopR <= view[0] + view[2] &&
+			loop.loopCy - loop.loopR >= view[1] && loop.loopCy + loop.loopR <= view[1] + view[3],
+			'Zone-' + zone + ' self-returning channel stays inside the generated viewBox');
 	}
 
 	// and every gate stays inside the frame
 	for (const g of pos) {
-		assert.ok(g.p.x > ctx.NUM_GATE_R && g.p.x < ctx.NUM_W - ctx.NUM_GATE_R, 'Gt-' + g.v + ' within width');
-		assert.ok(g.p.y > ctx.NUM_GATE_R && g.p.y < ctx.NUM_H - ctx.NUM_GATE_R, 'Gt-' + g.v + ' within height');
+		assert.ok(g.pos.x - g.w / 2 > 0 && g.pos.x + g.w / 2 < ctx.NUM_W,
+			'Gt-' + g.value + ' within width');
+		assert.ok(g.pos.y - g.h / 2 > 0 && g.pos.y + g.h / 2 < ctx.NUM_H,
+			'Gt-' + g.value + ' within height');
 	}
 
-	console.log('clearance: worst path approach ' + worst.d.toFixed(0) + ' units, no gate on a gate, a zone or the edge');
+	console.log('clearance: visible tags keep ' + worst.d.toFixed(0) +
+		' units and pointer targets do not overlap (' + hitWorst.d.toFixed(1) + ')');
 })();
 
 (function hitAreas() {
@@ -721,11 +951,18 @@ vm.runInContext(src, ctx);
 	assert.ok(/class="numHit"/.test(svg), 'hit areas are rendered');
 	assert.strictEqual((svg.match(/class="numHit"/g) || []).length, 19,
 		'a hit disc for each of the ten zones and each of the nine drawn gates');
-	assert.strictEqual((svg.match(/class="numHitLine"/g) || []).length, 19,
-		'a forgiving stroke under five bonds, five tractors and nine drawn channels');
+	assert.strictEqual((svg.match(/class="numHitLine/g) || []).length, 19,
+		'a forgiving stroke under five bonds, five current paths and nine drawn channels');
 
-	// each zone's hit radius exceeds its visible radius, but never reaches a
-	// neighbour - otherwise clicking one zone would select another
+	// A zone target ends with its visible black aperture. It remains vastly
+	// larger than the minimum target while leaving exposed current filaments
+	// honestly addressable instead of covering them with an invisible halo.
+	assert.strictEqual(ctx.NUM_ZONE_HIT_PAD, 4);
+	assert.strictEqual((svg.match(/class="numZoneRing"[^>]*r="52"/g) || []).length, 10,
+		'all ten black apertures use the canonical visible radius');
+	assert.strictEqual((svg.match(/<circle class="numHit"[^>]*r="52"/g) || []).length, 10,
+		'all ten zone targets end with the visible aperture');
+	// Nor may neighbouring zone targets overlap.
 	for (const z of ctx.NUM_ZONES) {
 		for (const o of ctx.NUM_ZONES) {
 			if (o.n === z.n) continue;
@@ -739,6 +976,20 @@ vm.runInContext(src, ctx);
 	const css = read('calc/numogram.css');
 	assert.ok(/\.numHit\s*\{[^}]*fill:\s*transparent/.test(css), 'zone hit areas are invisible');
 	assert.ok(/\.numHitLine\s*\{[^}]*stroke:\s*transparent/.test(css), 'line hit areas are invisible');
+	assert.ok(!/\.numHitLine\s*\{[^}]*vector-effect:\s*non-scaling-stroke/.test(css),
+		'line targets scale in the same svg units as hit-clearance proofs');
+	for (const selector of ['numGateRing', 'numGateLeader', 'numChHead']) {
+		const block = css.match(new RegExp('\\.' + selector + '\\s*\\{[^}]*\\}'));
+		assert.ok(block && !/vector-effect:\s*non-scaling-stroke/.test(block[0]),
+			selector + ' scales in the plate coordinate system');
+	}
+	const plateStrokeBlock = css.match(/\.numChLine,[\s\S]*?\.numCurrentChevron\s*\{[^}]*\}/);
+	assert.ok(plateStrokeBlock && !/vector-effect:\s*non-scaling-stroke/.test(plateStrokeBlock[0]),
+		'channels, bonds, filaments and chevrons scale with their geometry proofs');
+	assert.ok(13 >= 8 + ctx.NUM_CURRENT_FILAMENT_MAX_STROKE / 2,
+		'the current hit radius covers the complete five-filament bundle');
+	assert.ok(8 >= ctx.NUM_CHANNEL_MAX_STROKE / 2 && 8 >= ctx.NUM_BOND_MAX_STROKE / 2,
+		'the ordinary line hit radius covers channels and syzygy bonds in every state');
 
 	// one selection path for pointer and keyboard
 	const src = read('calc/numogram.js');
@@ -750,7 +1001,7 @@ vm.runInContext(src, ctx);
 })();
 
 (function zoneMarks() {
-	// the reference draws a solid triangle inside every zone
+	// a solid triangle inside every zone points toward its syzygetic twin
 	const svg = ctx.numogramSvg();
 	assert.strictEqual((svg.match(/class="numZoneMark"/g) || []).length, 10,
 		'every zone carries its direction mark');
@@ -762,7 +1013,7 @@ vm.runInContext(src, ctx);
 	assert.strictEqual(ctx.NUM_ZONE_MARK[9], 'down');
 	assert.strictEqual(ctx.NUM_ZONE_MARK[0], 'up');
 
-	// which reference the figure follows, recorded rather than assumed
+	// orientation provenance is recorded rather than assumed
 	assert.ok(/3\.jpg/.test(ctx.NUM_REFERENCE.canonical), 'the CCRU cover is canonical');
 	assert.ok(/mirrored/.test(ctx.NUM_REFERENCE.secondary), 'the redrawing is recorded as mirrored');
 	assert.ok(/16 and 8 incorrect/.test(ctx.NUM_REFERENCE.secondary), 'and its two bad gate labels are named');
@@ -771,7 +1022,177 @@ vm.runInContext(src, ctx);
 	assert.strictEqual(ctx.NUM_ZONE_MARK[3], 'right');
 	assert.strictEqual(ctx.NUM_ZONE_MARK[6], 'left');
 
-	console.log('marks: ten direction triangles, spine pairs facing, canonical reference recorded');
+	console.log('marks: ten direction triangles, spine pairs facing, canonical orientation recorded');
+})();
+
+// ---------------------------------------------- interaction state contracts
+
+(function interactionStateContracts() {
+	const saved = {
+		document: ctx.document,
+		apply: ctx.numogramApply,
+		historyAdd: ctx.numHistoryAdd,
+		writeUrl: ctx.numogramWriteUrl,
+		sync: ctx.numogramSyncControls
+	};
+	ctx.numogramApply = () => {};
+	ctx.numHistoryAdd = () => {};
+	ctx.numogramWriteUrl = () => {};
+	ctx.numogramSyncControls = () => {};
+
+	ctx.numPicked = [];
+	ctx.numSelected = null;
+	ctx.numExplore = -1;
+	ctx.numogramSelect(8, true);
+	ctx.numogramSelect(1, true);
+	ctx.numogramSelect(6, true);
+	assert.deepStrictEqual(Array.from(ctx.numPicked), [8, 1, 6],
+		'three-plus picks remain an ordered chain');
+	assert.strictEqual(ctx.numSelected, 6, 'the most recent pick is the reading subject');
+
+	const layer = { innerHTML: '' };
+	const svg = {
+		getAttribute: () => '',
+		querySelector: () => layer,
+		setAttribute: () => {}
+	};
+	ctx.numogramLinks(svg);
+	assert.strictEqual((layer.innerHTML.match(/class="numLinkLine"/g) || []).length, 2,
+		'three picks render two ordered links');
+
+	ctx.numogramSelect(1, true);
+	assert.deepStrictEqual(Array.from(ctx.numPicked), [8, 6], 'removing a middle pick preserves order');
+	assert.strictEqual(ctx.numSelected, 6);
+	ctx.numogramSelect(6, true);
+	assert.deepStrictEqual(Array.from(ctx.numPicked), [8]);
+	assert.strictEqual(ctx.numSelected, 8, 'removing the latest pick reveals the preceding subject');
+
+	const annot = { innerHTML: '' };
+	ctx.document = { getElementById: id => id === 'numAnnot' ? annot : null };
+	ctx.numBody = null;
+	ctx.numDeriv = null;
+	ctx.numCosmo = 'off';
+	ctx.numPicked = [3, 6];
+	ctx.numSelected = 6;
+	ctx.numogramAnnotate();
+	assert.ok(/data-box="lemur"/.test(annot.innerHTML), 'exactly two picks receive the Lemur reading');
+	ctx.numPicked = [3, 6, 8];
+	ctx.numSelected = 8;
+	ctx.numogramAnnotate();
+	assert.ok(!/data-box="lemur"/.test(annot.innerHTML), 'three picks do not masquerade as a two-zone Lemur');
+	assert.ok(/data-zone="8"/.test(annot.innerHTML), 'the latest of three picks remains the reading subject');
+	ctx.document = saved.document;
+
+	// RESET READING is intentionally not a factory reset: it clears the live
+	// reading and returns model/layers to baseline, but preserves zone filters.
+	ctx.numZoneOn[2] = false;
+	ctx.numMode = 'warp';
+	ctx.numCosmo = 'demon';
+	ctx.numModel = 'demonology';
+	ctx.numLayers = { zones: false, currents: false, gates: false, syzygies: false };
+	ctx.numogramReset();
+	assert.deepStrictEqual(Array.from(ctx.numPicked), []);
+	assert.strictEqual(ctx.numSelected, null);
+	assert.strictEqual(ctx.numModel, 'off');
+	assert.strictEqual(ctx.numCosmo, 'off');
+	assert.strictEqual(ctx.numMode, 'all');
+	assert.deepStrictEqual(JSON.parse(JSON.stringify(ctx.numLayers)),
+		{ zones: true, currents: true, gates: true, syzygies: true });
+	assert.strictEqual(ctx.numZoneOn[2], false, 'zone filters survive RESET READING');
+
+	ctx.numZoneOn[2] = true;
+	ctx.numogramApply = saved.apply;
+	ctx.numHistoryAdd = saved.historyAdd;
+	ctx.numogramWriteUrl = saved.writeUrl;
+	ctx.numogramSyncControls = saved.sync;
+
+	console.log('state: ordered three-plus picks, latest-subject reading, reset is not a factory reset');
+})();
+
+// --------------------------------------------------------- shell hierarchy
+
+(function shellHierarchy() {
+	const saved = {
+		document: ctx.document,
+		bind: ctx.numogramBind,
+		historyLoad: ctx.numHistoryLoad,
+		historyRender: ctx.numogramRenderHistory,
+		sync: ctx.numogramSyncControls,
+		readUrl: ctx.numogramReadUrl,
+		apply: ctx.numogramApply,
+		fit: ctx.numogramFit,
+		add: ctx.addEventListener,
+		remove: ctx.removeEventListener
+	};
+	const area = { innerHTML: '' };
+	ctx.document = { getElementById: id => id === 'numogramMenuArea' ? area : null };
+	ctx.numogramBind = () => {};
+	ctx.numHistoryLoad = () => {};
+	ctx.numogramRenderHistory = () => {};
+	ctx.numogramSyncControls = () => {};
+	ctx.numogramReadUrl = () => false;
+	ctx.numogramApply = () => {};
+	ctx.numogramFit = () => {};
+	ctx.addEventListener = () => {};
+	ctx.removeEventListener = () => {};
+	ctx.numogramMenuOpened = false;
+	ctx.toggleNumogramMenu();
+
+	const html = area.innerHTML;
+	assert.strictEqual((html.match(/class="numBody"/g) || []).length, 1, 'one stable primary body');
+	assert.ok(/NUMOGRAM<\/span><span class="numTitleSub">DECIMAL LABYRINTH/.test(html));
+	assert.ok(/class="numSide numSideRight"[\s\S]*SELECTION/.test(html),
+		'the reading is the one standing rail');
+	assert.ok(/<details class="numApparatus"/.test(html) && !/<details class="numApparatus"[^>]*\sopen/.test(html),
+		'advanced controls begin folded');
+	assert.ok(html.indexOf('numSideLeft') > html.indexOf('numApparatus'),
+		'filters and lists live inside the folded apparatus');
+	assert.ok(/class="numHistory hideValue"/.test(html), 'trace history remains stored but hidden');
+	assert.ok(html.indexOf('id="numCosmoSel"') > html.indexOf('numApparatus'),
+		'the model selector is advanced apparatus, not primary chrome');
+	const shellCss = read('calc/numogram.css');
+	assert.ok(/\.numogramBG button,[\s\S]*?\.numogramBG summary\s*\{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/.test(shellCss),
+		'every visible HTML control inherits a 44px target floor at the feature boundary');
+	assert.ok(/\.numCtl\s*\{[^}]*min-width:\s*44px[^}]*min-height:\s*44px/.test(shellCss),
+		'ordinary text controls keep a 44px target floor');
+	assert.ok(/\.numZoneChip\s*\{[^}]*width:\s*44px[^}]*height:\s*44px/.test(shellCss),
+		'zone filter controls are 44px square');
+	assert.ok(/\.numSideLeft\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(10em,\s*1fr\)\)/.test(shellCss),
+		'apparatus groups wrap instead of disappearing into a five-column horizontal strip');
+	assert.ok(!/grid-template-columns:\s*repeat\(5,\s*minmax\(10em/.test(shellCss),
+		'the inaccessible fixed five-column apparatus is gone');
+	assert.deepStrictEqual(Array.from(ctx.NUM_MODELS.map(m => m.key)),
+		['off', 'geo-extended', 'demonology', 'divination'], 'no retired model control is resurrected');
+
+	// Closing clears the reading but preserves view configuration. That is the
+	// existing lifecycle contract; reopening is not a hidden factory reset.
+	ctx.numZoneOn[2] = false;
+	ctx.numMode = 'warp';
+	ctx.numLayers.currents = false;
+	ctx.numPicked = [3, 6];
+	ctx.numSelected = 6;
+	ctx.toggleNumogramMenu();
+	assert.strictEqual(ctx.numogramMenuOpened, false);
+	assert.deepStrictEqual(Array.from(ctx.numPicked), [], 'closing clears the active reading');
+	assert.strictEqual(ctx.numZoneOn[2], false, 'closing preserves zone filters');
+	assert.strictEqual(ctx.numMode, 'warp', 'closing preserves region mode');
+	assert.strictEqual(ctx.numLayers.currents, false, 'closing preserves layer state');
+
+	ctx.numZoneOn[2] = true;
+	ctx.numMode = 'all';
+	ctx.numLayers.currents = true;
+	ctx.document = saved.document;
+	ctx.numogramBind = saved.bind;
+	ctx.numHistoryLoad = saved.historyLoad;
+	ctx.numogramRenderHistory = saved.historyRender;
+	ctx.numogramSyncControls = saved.sync;
+	ctx.numogramReadUrl = saved.readUrl;
+	ctx.numogramApply = saved.apply;
+	ctx.numogramFit = saved.fit;
+	ctx.addEventListener = saved.add;
+	ctx.removeEventListener = saved.remove;
+
+	console.log('shell: one primary plate, one standing reading rail, advanced apparatus folded, lifecycle preserved');
 })();
 
 (function gnosticPanel() {

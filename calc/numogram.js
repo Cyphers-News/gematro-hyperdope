@@ -1,6 +1,7 @@
 // ===================== Numogram (Decimal Labyrinth) =====================
 //
-// The CCRU Numogram, drawn as the original diagram and made interactive.
+// The CCRU Numogram's canonical arithmetic and orientation, rendered through
+// an independent Cyphers visual language and made interactive.
 //
 // EVERYTHING IS GENERATED FROM THE DATA BELOW. The six structures - zones,
 // syzygies, currents, gates, channels, timeSystems - are the only place a
@@ -14,7 +15,7 @@
 //
 //   "zones are grouped into five pairs (syzygies) by nine-sum twinning"
 //   "the arithmetical difference of each syzygy defines a current
-//    (or connection to a tractor zone)"
+//    (or current path to a tractor zone)"
 //   "each zone number when digitally cumulated defines the value of a gate,
 //    whose reduction sets the course of a corresponding channel"
 //
@@ -59,13 +60,12 @@ var NUM_REFERENCE = Object.freeze({
 
 // ---- on the earlier reference image -----------------------------------
 //
-// The visual reference supplied for this build is a degraded reproduction: it
-// carries nine zone circles rather than ten, labels two of them "1", omits
-// Zone-7, and repeats the Gt-28 annotation while omitting Gt-15 and Gt-21.
-// Its composition, line weights, circle treatment and annotation style are
-// followed closely. Its content is not - the structure below comes from the
-// rules above. numogramCorrections() states this in the panel rather than
-// leaving it implicit.
+// An earlier supplied reproduction carries nine zone circles rather than ten,
+// labels two of them "1", omits Zone-7, and repeats Gt-28 while omitting Gt-15
+// and Gt-21. It remains useful only as evidence of what not to copy: neither
+// its content nor its composition, line weights, circle treatment, or
+// annotation style governs this renderer. The structure below comes from the
+// canonical rules and orientation above; the rendering is independently ours.
 
 // ------------------------------------------------------- provenance
 //
@@ -182,8 +182,8 @@ var numogramMenuOpened = false
 // apart. That destroyed the one relationship the figure exists to show, and it
 // is what made the drawing read as a hunched vertical squiggle rather than as
 // the Numogram. Positions below are on the canonical 21-unit-radius figure,
-// scaled 2.3x so that a zone radius lands at 48 and the gate radius the rest
-// of this file assumes (NUM_GATE_R = 23) stays in proportion.
+// scaled 2.3x so that a zone radius lands at 48 while the compact gate tags
+// still clear the surrounding courses.
 //
 // Radii are uniform. They were not before, and the variation was noise: no
 // zone outranks another.
@@ -223,7 +223,7 @@ var NUM_ZONES = (function () {
 // --------------------------------------------------------------- syzygies
 //
 // Nine-sum twinning. The current is the arithmetical difference, and it runs
-// to the zone of that value - the tractor. Two of the five land back inside
+// to the zone of that value - the tractor zone. Two of the five land back inside
 // themselves (0::9 -> 9, and 3::6 -> 3); those are the two closed loops, Plex
 // and Warp. The other three close into a single cycle, which is the Torque:
 //
@@ -535,17 +535,16 @@ var NUM_CHANNELS = NUM_GATES.map(function (g) {
 
 // ------------------------------------------------- gate label placement
 //
-// The reference puts every gate circle ON its own channel, about half way
-// along, drawn opaque so the line passes behind it. That is why nothing in the
-// original ever collides: the gate is not a label parked near its zone, it is
-// a bead on the thread it names.
+// In this encoding every gate tag rides its own channel, about half way along,
+// and occludes that channel. The gate is therefore a bead on the thread it
+// names rather than a detached label parked near its zone.
 //
 // This used to pin each gate at an angle beside its zone, which is what put
 // the 45, 0 and 9 marks across the zone circles. Riding the path removes the
 // class of bug rather than tuning individual coordinates.
 //
 // Zone-0's gate is not drawn. Its cumulation is 0 and its channel runs 0 -> 0,
-// which is degenerate; the reference omits it, and so does this.
+// so neither the tag nor a second self-loop would add information.
 // The small solid triangle inside each zone. One rule, no exceptions: it
 // points at the zone's twin. Now that every pair is adjacent that is always
 // the neighbour immediately beside or below it, so four of the five pairs read
@@ -577,8 +576,37 @@ function numNumeralOffset(z, dir) {
 	return { x: z.x, y: z.y }
 }
 
-var NUM_GATE_R = 23
-var NUM_ZONE_HIT_PAD = 6
+// Two registration corners make the zone addressable without borrowing the
+// outlined-circle language of the inherited rendering. The black disc remains
+// underneath as an occluder; these marks are the visible boundary.
+var NUM_REGISTRATION_STROKE = 2.4
+var NUM_REGISTRATION_MAX_STROKE = 3.8
+
+function numRegistrationSegments(z) {
+	var r = z.r + 9, arm = 18
+	return [
+		{ x0: z.x - r + arm, y0: z.y - r, x1: z.x - r, y1: z.y - r },
+		{ x0: z.x - r, y0: z.y - r, x1: z.x - r, y1: z.y - r + arm },
+		{ x0: z.x + r - arm, y0: z.y + r, x1: z.x + r, y1: z.y + r },
+		{ x0: z.x + r, y0: z.y + r, x1: z.x + r, y1: z.y + r - arm }
+	]
+}
+
+function numRegistrationPath(z) {
+	var s = numRegistrationSegments(z)
+	return "M" + numR(s[0].x0) + " " + numR(s[0].y0) +
+	       "L" + numR(s[0].x1) + " " + numR(s[0].y1) +
+	       "L" + numR(s[1].x1) + " " + numR(s[1].y1) +
+	       "M" + numR(s[2].x0) + " " + numR(s[2].y0) +
+	       "L" + numR(s[2].x1) + " " + numR(s[2].y1) +
+	       "L" + numR(s[3].x1) + " " + numR(s[3].y1)
+}
+
+var NUM_GATE_APERTURE_R = 15
+var NUM_TARGET_MIN = 44
+// The pointer disc ends with the black aperture. Extending it farther would
+// make an invisible zone halo steal the exposed Plex/Warp filament edges.
+var NUM_ZONE_HIT_PAD = 4
 var NUM_GATE_DRAWN = { 0: false, 1: true, 2: true, 3: true, 4: true,
                        5: true, 6: true, 7: true, 8: true, 9: true }
 
@@ -586,11 +614,35 @@ var NUM_GATE_DRAWN = { 0: false, 1: true, 2: true, 3: true, 4: true,
 // for most, but a couple read better pulled toward one end.
 var NUM_GATE_T = { 1: 0.5, 2: 0.5, 3: 0.5, 4: 0.5, 5: 0.42, 6: 0.5, 7: 0.5, 8: 0.5, 9: 0.5 }
 
+// Most tags can sit directly on their course. Four apertures shift within dense
+// crossings or beside a registration corner. When the exact course anchor
+// remains inside the black well, the course itself visibly enters the aperture;
+// only a displacement beyond one radius needs an exposed pink leader. Every
+// placement is measured against visible geometry and the larger pointer target.
+var NUM_GATE_OFFSET = {
+	3: { x: 0, y: -7 },
+	4: { x: -4, y: 10 },
+	6: { x: -31, y: -4 },
+	8: { x: 0, y: -7 }
+}
+var NUM_GATE_LEADER_MAX = 33
+
+function numGateTagSize(value) {
+	return { w: NUM_GATE_APERTURE_R * 2, h: NUM_GATE_APERTURE_R * 2,
+	         r: NUM_GATE_APERTURE_R }
+}
+
+// Targets are never smaller than 44 SVG plate units. They remain independent
+// of the smaller visible aperture: an earlier generic halo trespassed onto
+// Gt-10's current and Gt-21's neighbouring zone/channel.
+function numGateHitSize(value) {
+	var tag = numGateTagSize(value)
+	return { w: Math.max(NUM_TARGET_MIN, tag.w), h: Math.max(NUM_TARGET_MIN, tag.h) }
+}
+
 // The two self-returning channels, 1 -> 1 and 9 -> 9, leave their zone and come
-// back to it. These are the directions they swing out in - Gt-1 above Zone-1,
-// Gt-45 to the left of Zone-9, both as the reference has them.
-// Gt-1 sits directly above Zone-1 and Gt-45 directly to the left of Zone-9,
-// which is where the reference puts them - and both hold full clearance.
+// back to it. They swing into the available negative space: Gt-1 above Zone-1
+// and Gt-45 to the left of Zone-9. Both placements hold measured clearance.
 var NUM_LOOP_ANGLE = { gate1: 270, gate9: 180 }
 
 // A point on a quadratic, by parameter.
@@ -609,10 +661,15 @@ function numChannelPath(n) {
 	return { cubic: numCubic(zf.x, zf.y, zf.r, zt.x, zt.y, zt.r, NUM_CHANNEL_BEND[n] || 0) }
 }
 
-function numGatePos(n) {
+function numGateAnchor(n) {
 	var path = numChannelPath(n)
 	if (path.loop) return { x: path.loop.lx, y: path.loop.ly }
 	return numAt(path.cubic, NUM_GATE_T[n] !== undefined ? NUM_GATE_T[n] : 0.5)
+}
+
+function numGatePos(n) {
+	var p = numGateAnchor(n), off = NUM_GATE_OFFSET[n] || { x: 0, y: 0 }
+	return { x: p.x + off.x, y: p.y + off.y }
 }
 
 // ------------------------------------------------------------ path maths
@@ -644,25 +701,25 @@ function numCurrentGeometry(sz) {
 	var closed = (current === sz.a || current === sz.b)
 	var bond = numCubic(za.x, za.y, za.r, zb.x, zb.y, zb.r,
 	                    NUM_CURRENT_BEND[sz.key] || 0)
-	var tractor
+	var path
 	if (closed) {
 		var other = numZone(current === sz.a ? sz.b : sz.a)
-		tractor = numCubic(other.x, other.y, other.r * 0.3,
+		path = numCubic(other.x, other.y, other.r * 0.3,
 		                   zt.x, zt.y, zt.r * 0.92,
-		                   NUM_TRACTOR_BEND[sz.key] || 0)
+		                   NUM_CURRENT_PATH_BEND[sz.key] || 0)
 	} else {
 		var mx = (za.x + zb.x) / 2, my = (za.y + zb.y) / 2
-		tractor = numCubic(mx, my, za.r * 0.72, zt.x, zt.y, zt.r,
-		                   NUM_TRACTOR_BEND[sz.key] || 0)
+		path = numCubic(mx, my, za.r * 0.72, zt.x, zt.y, zt.r,
+		                NUM_CURRENT_PATH_BEND[sz.key] || 0)
 	}
 	return { current: current, za: za, zb: zb, zt: zt, closed: closed,
-	         bond: bond, tractor: tractor }
+	         bond: bond, path: path }
 }
 
 function numR(v) { return Math.round(v * 10) / 10 }
 
-// Arrowhead as its own path, so a class on the parent group restyles the line
-// and its head together - an SVG marker would not inherit the highlight.
+// Open arrowhead as its own path, so a class on the parent group restyles the
+// line and its head together - an SVG marker would not inherit the highlight.
 function numHead(p, size) {
 	size = size || 13
 	var ax = p.x3 - p.cx, ay = p.y3 - p.cy            // tangent at the end
@@ -672,36 +729,56 @@ function numHead(p, size) {
 	var tipx = p.x3, tipy = p.y3
 	var b1x = tipx - ax * size + bx * size * 0.42, b1y = tipy - ay * size + by * size * 0.42
 	var b2x = tipx - ax * size - bx * size * 0.42, b2y = tipy - ay * size - by * size * 0.42
-	return "M" + numR(tipx) + " " + numR(tipy) + "L" + numR(b1x) + " " + numR(b1y) +
-	       "L" + numR(b2x) + " " + numR(b2y) + "Z"
+	return "M" + numR(b1x) + " " + numR(b1y) + "L" + numR(tipx) + " " + numR(tipy) +
+	       "L" + numR(b2x) + " " + numR(b2y)
 }
 
-// A tapered ribbon along the same curve, for the heavy currents. The reference
-// draws these as broad forms that swell along their length rather than as
-// thick strokes, so this builds an outline and fills it.
-//
-// The profile is the whole character of the thing: hairline at the tail,
-// swelling to full width around three-quarters along, easing back at the head
-// so the arrowhead sits on a stem rather than on a blunt end. A linear taper
-// reads as a wedge, which is what the first attempt looked like.
-function numRibbon(p, w0, w1) {
-	var N = 40, up = [], dn = []
-	for (var i = 0; i <= N; i++) {
-		var t = i / N, mt = 1 - t
-		var x = mt * mt * p.x0 + 2 * mt * t * p.cx + t * t * p.x3
-		var y = mt * mt * p.y0 + 2 * mt * t * p.cy + t * t * p.y3
-		var dx = 2 * mt * (p.cx - p.x0) + 2 * t * (p.x3 - p.cx)
-		var dy = 2 * mt * (p.cy - p.y0) + 2 * t * (p.y3 - p.cy)
-		var l = Math.sqrt(dx * dx + dy * dy) || 1
-		var nx = -dy / l, ny = dx / l
-		// swell peaking at t=0.78, never quite reaching zero at the head
-		var swell = Math.pow(Math.sin(Math.min(t / 0.78, 1) * Math.PI / 2), 1.35)
-		if (t > 0.78) swell = 1 - (t - 0.78) / 0.22 * 0.45
-		var w = (w0 + (w1 - w0) * swell) / 2
-		up.push(numR(x + nx * w) + " " + numR(y + ny * w))
-		dn.unshift(numR(x - nx * w) + " " + numR(y - ny * w))
+function numPathTangent(p, t) {
+	var mt = 1 - t
+	var dx = 2 * mt * (p.cx - p.x0) + 2 * t * (p.x3 - p.cx)
+	var dy = 2 * mt * (p.cy - p.y0) + 2 * t * (p.y3 - p.cy)
+	var l = Math.sqrt(dx * dx + dy * dy) || 1
+	return { x: dx / l, y: dy / l }
+}
+
+var NUM_CURRENT_FILAMENT_OFFSETS = [-8, -4, 0, 4, 8]
+var NUM_CURRENT_FILAMENT_STROKE = 6
+var NUM_CURRENT_FILAMENT_MAX_STROKE = 8.5
+var NUM_CHANNEL_MAX_STROKE = 10.5
+var NUM_BOND_MAX_STROKE = 6
+
+// A filament is sampled from the canonical current path and displaced along
+// its instantaneous normal. Five paths share one route; none is a translated
+// copy that can drift away when the curve bends.
+function numOffsetPath(p, offset, count) {
+	var d = ""
+	count = count || 36
+	for (var i = 0; i <= count; i++) {
+		var t = i / count
+		var q = numAt(p, t), tan = numPathTangent(p, t)
+		var x = q.x - tan.y * offset, y = q.y + tan.x * offset
+		d += (i === 0 ? "M" : "L") + numR(x) + " " + numR(y)
 	}
-	return "M" + up.join("L") + "L" + dn.join("L") + "Z"
+	return d
+}
+
+// Current chevrons sit before the destination aperture rather than under it.
+// This is intentionally not an SVG marker at the path endpoint: the enlarged
+// black aperture would occlude that marker and erase the direction.
+function numOpenChevron(p, t, size, spread) {
+	var q = numAt(p, t), tan = numPathTangent(p, t)
+	var bx = q.x - tan.x * size, by = q.y - tan.y * size
+	var nx = -tan.y, ny = tan.x
+	var x1 = bx + nx * spread, y1 = by + ny * spread
+	var x2 = bx - nx * spread, y2 = by - ny * spread
+	return "M" + numR(x1) + " " + numR(y1) + "L" + numR(q.x) + " " + numR(q.y) +
+	       "L" + numR(x2) + " " + numR(y2)
+}
+
+function numCurrentLabelPoint(p, offset, t) {
+	t = t === undefined ? 0.52 : t
+	var q = numAt(p, t), tan = numPathTangent(p, t)
+	return { x: q.x - tan.y * offset, y: q.y + tan.x * offset }
 }
 
 // A self-loop: the little circle-and-back a zone makes when its channel or
@@ -719,7 +796,9 @@ function numLoop(z, angleDeg, size) {
 	var ex = cx + Math.sin(a) * s, ey = cy - Math.cos(a) * s
 	return { d: "M" + numR(sx) + " " + numR(sy) +
 	            " A" + s + " " + s + " 0 1 1 " + numR(ex) + " " + numR(ey),
-	         x3: ex, y3: ey, cx: ex + Math.sin(a) * s * 0.6, cy: ey + Math.cos(a) * s * 0.6,
+	         x3: ex, y3: ey,
+	         cx: ex + Math.sin(a) * s * 0.6, cy: ey + Math.cos(a) * s * 0.6,
+	         loopCx: cx, loopCy: cy, loopR: s,
 	         // the loop's own centre, pushed a little further out: where a label
 	         // belongs, clear of both the loop and the zone it hangs off
 	         // the gate rides the far point of its own loop
@@ -729,28 +808,32 @@ function numLoop(z, angleDeg, size) {
 
 // --------------------------------------------------------- bend per path
 //
-// Hand-set so the figure reads the way the reference does: long channels sweep
-// wide around the empty field rather than cutting across the middle.
-// Struck so the channels sweep round the field rather than cutting across the
+// Hand-set so long channels sweep around the empty field rather than cutting
+// across the middle.
+// The curves sweep round the field rather than cutting across the
 // middle. 3->6 and 6->3 run between the same pair in opposite directions. The
 // endpoint reversal already reverses the curve's perpendicular, so the same
 // numeric bend puts them on opposite sides; opposite signs would make the two
 // paths coincide.
 // 3 -> 6 arcs over the top and 6 -> 3 dips under, so Gt-6 and Gt-21 sit on
-// opposite sides of that pair, as the reference has them. The 8 -> 9 run is
+// opposite sides of that pair. The 8 -> 9 run is
 // short - 41 units of clear span between two big circles - so it bows well out
 // or its gate cannot clear either zone.
 // A gate rides the midpoint of its own channel, so a channel with nowhere to
 // go puts its gate nowhere to be seen. Gt-21 rides 6 -> 3, and once 3 and 6
 // became adjacent that run was a sixteen-unit stub: at bend 40 the midpoint
-// landed 11 units INSIDE Zone-6's rim, with the gate's own radius of 23 on top
-// of that, so the 21 was simply behind the circle. Gt-6 on 3 -> 6 was the same
+// landed 11 units inside Zone-6's rim, with the gate tag on top of that, so the
+// 21 was simply behind the circle. Gt-6 on 3 -> 6 was the same
 // problem one notch less bad.
 //
-// Both now bow hard and in opposite directions, which is what the reference
-// does with this pair: the two runs between the same twins arc out either side
-// rather than lying on top of each other. A bend of 150 puts the midpoint some
+// Both now bow hard and in opposite directions: the two runs between the same
+// twins arc out either side rather than lying on top of each other. A bend of
+// 150 puts the midpoint some
 // 75 units off the straight line, clearing both rims with room to spare.
+//
+// gt15 routing: known visual deviation from canonical geometry due to available
+// plate clearance. preserve the canonical gate relation; revisit path routing
+// in the new site's unconstrained layout.
 var NUM_CHANNEL_BEND = { 0: 0, 1: 0, 2: -60, 3: -150, 4: 70, 5: -60, 6: -150, 7: 80, 8: 120, 9: 0 }
 
 // The bond between a syzygy's two zones. They sit adjacent now, with about
@@ -760,15 +843,11 @@ var NUM_CHANNEL_BEND = { 0: 0, 1: 0, 2: -60, 3: -150, 4: 70, 5: -60, 6: -150, 7:
 // into a loop the width of the zone it started from.
 var NUM_CURRENT_BEND = { "0::9": 0, "1::8": 0, "2::7": 0, "3::6": 0, "4::5": 0 }
 
-// The tractor line: a thin arrow off the belly of the current, running to the
-// zone the current's value names. For 0::9 and 3::6 that zone is one of the
-// pair itself, so it returns as a loop instead - those are the two closed
-// systems, Plex and Warp.
-// The broad form itself, from the bond to the zone the current's value names.
-// The three open ones bow away from the spine so they sweep through the empty
-// field instead of cutting across the zones between; the two closed ones bow
-// hard, because a short run needs a big bend to curl at all.
-var NUM_TRACTOR_BEND = { "0::9": 90, "1::8": 80, "2::7": -95, "3::6": 90, "4::5": 55 }
+// The current path runs from the syzygy to its tractor zone. The three open
+// paths bow away from the spine so they sweep through the empty field instead
+// of cutting across the zones between; the two closed paths bow hard, because
+// a short return needs a big bend to curl at all.
+var NUM_CURRENT_PATH_BEND = { "0::9": 90, "1::8": 80, "2::7": -95, "3::6": 90, "4::5": 55 }
 
 // ============ THE SECONDARY COSMOLOGY, IN ITS OWN PANEL ===================
 //
@@ -793,10 +872,9 @@ function numBandY(order, n) {
 // Planetwork counts outward from the Sun; the secondary model uses the
 // supplied Gnostic attributions by zone.
 //
-// The panel used to appear only under a geocentric model. It shows in both now
-// - the Planetwork attributions are what tie a planet to a zone at all, so
-// hiding them under the canonical diagram hid the very thing that connects the
-// two halves of the feature.
+// The canonical `off` frame is the plate alone. The hidden legacy `pw` state
+// still renders the Planetwork, while geo/cross render the Gnostic attribution;
+// auxiliary panels do not silently occupy the default composition.
 function numCosmoRows() {
 	var out = [], i, c
 	if (numCosmo === "geo" || numCosmo === "cross") {
@@ -1062,6 +1140,7 @@ function numogramHoldPair(a, b) {
 function numogramGeoPanel() {
 	if (numCosmo === "demon") return numogramDemonPanel()
 	if (numCosmo === "divine") return numogramDivinePanel()
+	if (numCosmo === "off") return ""
 	var bodies = numCosmoRows()
 	var n = bodies.length
 	if (n === 0) return ""
@@ -1120,7 +1199,7 @@ function numogramGeoPanel() {
 	return o
 }
 
-// ------------------------------------------------- measuring the drawing// ------------------------------------------------- measuring the drawing
+// ------------------------------------------------- measuring the drawing
 //
 // The viewBox used to be the nominal 800x1200 the positions were authored in,
 // which left the figure sitting right of centre with dead field down one side.
@@ -1131,8 +1210,9 @@ function numogramGeoPanel() {
 // ------------------------------------------------- gate label clearance
 //
 // The small gate numbers are only legible if nothing runs through them. Rather
-// than eyeballing it, the routing is measured: every current, channel and
-// tractor path is sampled and checked against every gate's exclusion disc.
+// than eyeballing it, the routing is measured: every syzygy bond, current path
+// and channel is sampled and checked against the painted bounding square of
+// every circular gate aperture.
 // The test suite fails if anything crosses the line.
 //
 // The paths are authored by hand through the bend tables - no automatic
@@ -1140,8 +1220,8 @@ function numogramGeoPanel() {
 
 // The margin every numeral must keep from anything that is not its own line.
 // Ten rather than something larger because the 8 - 9 run is intrinsically
-// tight: 41 units of clear span between two big circles, and it is tight in
-// the reference too. The measured worst case is 11.
+// tight: 41 units of clear span between two big circles. The measured proof
+// below, rather than a visual comparison, governs the routing.
 var NUM_GATE_CLEAR = 10
 
 function numSamplePath(p, n) {
@@ -1156,82 +1236,216 @@ function numSamplePath(p, n) {
 	return out
 }
 
-// Every quadratic connector the figure draws, sampled, with what drew it.
-// Self-returning channel loops are constructed separately by numLoop.
-function numogramPathSamples() {
-	var out = [], i, sz, geom, p, ch, zf, zt2
-	for (i = 0; i < NUM_SYZYGIES.length; i++) {
-		sz = NUM_SYZYGIES[i]
-		geom = numCurrentGeometry(sz)
-		out.push({ id: "current-" + sz.key,
-		           pts: numSamplePath(geom.bond, 48), ends: [sz.a, sz.b] })
-		// A tractor belongs to both source zones and the zone its current names.
-		// Those are legitimate contacts; every other zone must remain clear.
-		out.push({ id: "tractor-" + sz.key,
-		           pts: numSamplePath(geom.tractor, 48),
-		           ends: [sz.a, sz.b, geom.current] })
-	}
-	for (i = 0; i < NUM_CHANNELS.length; i++) {
-		ch = NUM_CHANNELS[i]
-		if (ch.from === ch.to) continue          // a loop stays beside its own zone
-		zf = numZone(ch.from); zt2 = numZone(ch.to)
-		p = numCubic(zf.x, zf.y, zf.r, zt2.x, zt2.y, zt2.r, NUM_CHANNEL_BEND[ch.from] || 0)
-		out.push({ id: "channel-" + ch.from + "-" + ch.to, pts: numSamplePath(p, 48), ends: [ch.from, ch.to] })
+// The rendered self-returning channels are large SVG arcs. Sampling their
+// full circle is deliberately conservative: it proves clearance for the
+// visible arc without depending on browser-specific interpretation of a
+// half-turn arc's large-arc flag.
+function numSampleLoop(loop, n) {
+	var out = []
+	for (var i = 0; i < n; i++) {
+		var a = Math.PI * 2 * i / n
+		out.push({ x: loop.loopCx + Math.cos(a) * loop.loopR,
+		           y: loop.loopCy + Math.sin(a) * loop.loopR })
 	}
 	return out
 }
 
-// Every annotated circle the figure actually draws: the nine gates. There are
-// no current-value circles - the reference has none - and Zone-0's gate is not
-// drawn. Each gate rides its own channel, so the check that matters is that no
+// Every connector the figure draws, sampled, with what drew it.
+function numogramPathSamples() {
+	var out = [], i, sz, geom, p, ch, zf, zt2, loop
+	for (i = 0; i < NUM_SYZYGIES.length; i++) {
+		sz = NUM_SYZYGIES[i]
+		geom = numCurrentGeometry(sz)
+		out.push({ id: "syzygy-bond-" + sz.key,
+		           pts: numSamplePath(geom.bond, 96), ends: [sz.a, sz.b],
+		           pad: NUM_BOND_MAX_STROKE / 2, hitPad: 8 })
+		// A current path belongs to both source zones and its tractor zone. Those
+		// are legitimate contacts; every other zone must remain clear.
+		out.push({ id: "current-path-" + sz.key,
+		           pts: numSamplePath(geom.path, 96),
+		           ends: [sz.a, sz.b, geom.current],
+		           pad: 8 + NUM_CURRENT_FILAMENT_MAX_STROKE / 2, hitPad: 13 })
+	}
+	for (i = 0; i < NUM_CHANNELS.length; i++) {
+		ch = NUM_CHANNELS[i]
+		if (ch.from === ch.to) {
+			if (!NUM_GATE_DRAWN[ch.from]) continue
+			loop = numChannelPath(ch.from).loop
+			out.push({ id: "channel-" + ch.from + "-" + ch.to + "-loop",
+			           pts: numSampleLoop(loop, 192), ends: [ch.from],
+			           pad: NUM_CHANNEL_MAX_STROKE / 2, hitPad: 8 })
+			continue
+		}
+		zf = numZone(ch.from); zt2 = numZone(ch.to)
+		p = numCubic(zf.x, zf.y, zf.r, zt2.x, zt2.y, zt2.r, NUM_CHANNEL_BEND[ch.from] || 0)
+		out.push({ id: "channel-" + ch.from + "-" + ch.to,
+		           pts: numSamplePath(p, 96), ends: [ch.from, ch.to],
+		           pad: NUM_CHANNEL_MAX_STROKE / 2, hitPad: 8 })
+	}
+	return out
+}
+
+// Every gate tag the figure actually draws. Current values are carried by the
+// green route labels rather than a second family of circles, and Zone-0's
+// degenerate gate is not drawn. Each gate rides its own channel, so the check that matters is that no
 // gate sits on a zone, on another gate, or on a path that is not its own.
 function numogramAnnotations() {
 	var out = []
 	for (var i = 0; i < NUM_GATES.length; i++) {
 		var z = NUM_GATES[i].zone
 		if (!NUM_GATE_DRAWN[z]) continue
+		var size = numGateTagSize(NUM_GATES[i].value)
+		var hit = numGateHitSize(NUM_GATES[i].value)
 		out.push({ kind: "gate", zone: z, value: NUM_GATES[i].value,
-		           pos: numGatePos(z), r: NUM_GATE_R })
+		           pos: numGatePos(z), w: size.w, h: size.h,
+		           hitW: hit.w, hitH: hit.h })
 	}
 	return out
 }
 
-// The closest approach of anything to any gate numeral: paths, zone circles
-// and the other gates. A gate's own channel is skipped - it rides that line by
-// design, and is drawn opaque over it, exactly as the reference does.
+function numogramHitAnnotations() {
+	var src = numogramAnnotations(), out = []
+	for (var i = 0; i < src.length; i++) {
+		out.push({ kind: src[i].kind, zone: src[i].zone, value: src[i].value,
+		           pos: src[i].pos, w: src[i].hitW, h: src[i].hitH })
+	}
+	return out
+}
+
+function numPointRectClearance(x, y, r) {
+	var dx = Math.abs(x - r.pos.x) - r.w / 2
+	var dy = Math.abs(y - r.pos.y) - r.h / 2
+	if (dx <= 0 && dy <= 0) return Math.max(dx, dy)
+	if (dx <= 0) return dy
+	if (dy <= 0) return dx
+	return Math.sqrt(dx * dx + dy * dy)
+}
+
+function numRectRectClearance(a, b) {
+	var dx = Math.abs(a.pos.x - b.pos.x) - (a.w + b.w) / 2
+	var dy = Math.abs(a.pos.y - b.pos.y) - (a.h + b.h) / 2
+	if (dx <= 0 && dy <= 0) return Math.max(dx, dy)
+	if (dx <= 0) return dy
+	if (dy <= 0) return dx
+	return Math.sqrt(dx * dx + dy * dy)
+}
+
+function numRectCircleClearance(rect, circle) {
+	var dx = Math.max(Math.abs(circle.x - rect.pos.x) - rect.w / 2, 0)
+	var dy = Math.max(Math.abs(circle.y - rect.pos.y) - rect.h / 2, 0)
+	return Math.sqrt(dx * dx + dy * dy) - circle.r
+}
+
+// Exact clearance between an axis-aligned rectangle and one horizontal or
+// vertical registration segment. The registration grammar only emits those
+// two segment types, so no sampled approximation is needed here.
+function numRectSegmentClearance(rect, seg) {
+	var rx0 = rect.pos.x - rect.w / 2, rx1 = rect.pos.x + rect.w / 2
+	var ry0 = rect.pos.y - rect.h / 2, ry1 = rect.pos.y + rect.h / 2
+	var dx = 0, dy = 0, s0, s1
+	if (seg.y0 === seg.y1) {
+		s0 = Math.min(seg.x0, seg.x1); s1 = Math.max(seg.x0, seg.x1)
+		if (s1 < rx0) dx = rx0 - s1
+		else if (s0 > rx1) dx = s0 - rx1
+		if (seg.y0 < ry0) dy = ry0 - seg.y0
+		else if (seg.y0 > ry1) dy = seg.y0 - ry1
+	} else {
+		s0 = Math.min(seg.y0, seg.y1); s1 = Math.max(seg.y0, seg.y1)
+		if (s1 < ry0) dy = ry0 - s1
+		else if (s0 > ry1) dy = s0 - ry1
+		if (seg.x0 < rx0) dx = rx0 - seg.x0
+		else if (seg.x0 > rx1) dx = seg.x0 - rx1
+	}
+	return Math.sqrt(dx * dx + dy * dy)
+}
+
+function numRegistrationRectClearance(rect) {
+	var worst = { d: 1e9, zone: null }
+	for (var z = 0; z < NUM_ZONES.length; z++) {
+		var segs = numRegistrationSegments(NUM_ZONES[z])
+		for (var s = 0; s < segs.length; s++) {
+			// The corners widen for held picks. Clearance must survive that state,
+			// not merely the quieter resting stroke.
+			var d = numRectSegmentClearance(rect, segs[s]) - NUM_REGISTRATION_MAX_STROKE / 2
+			if (d < worst.d) worst = { d: d, zone: NUM_ZONES[z].n }
+		}
+	}
+	return worst
+}
+
+// The closest approach of anything to any gate numeral: paths, zone circles,
+// registration brackets and the other gates. A gate's own channel is skipped:
+// the tag rides and occludes that line by design.
 function numogramGateClearance() {
 	var paths = numogramPathSamples()
 	var ann = numogramAnnotations()
 	var worst = { d: 1e9, gate: null, path: null }
 	var i, k, a, b
 	for (a = 0; a < ann.length; a++) {
-		var it = ann[a], gp = it.pos
+		var it = ann[a]
 		for (i = 0; i < paths.length; i++) {
 			if (paths[i].id.indexOf("channel-" + it.zone + "-") === 0) continue
 			for (k = 0; k < paths[i].pts.length; k++) {
-				var dx = paths[i].pts[k].x - gp.x, dy = paths[i].pts[k].y - gp.y
-				var d = Math.sqrt(dx * dx + dy * dy)
+				var d = numPointRectClearance(paths[i].pts[k].x, paths[i].pts[k].y, it) - (paths[i].pad || 0)
 				if (d < worst.d) worst = { d: d, gate: it.value, path: paths[i].id }
 			}
 		}
 		for (b = 0; b < ann.length; b++) {
 			if (b === a) continue
-			var od = Math.sqrt(Math.pow(ann[b].pos.x - gp.x, 2) + Math.pow(ann[b].pos.y - gp.y, 2)) - it.r - ann[b].r
+			var od = numRectRectClearance(it, ann[b])
 			if (od < worst.d) worst = { d: od, gate: it.value, path: "gate-" + ann[b].value }
 		}
 		// and it must clear every zone circle - this is the one that was failing,
 		// with 45, 0 and 9 sitting across their own zones
 		for (i = 0; i < NUM_ZONES.length; i++) {
-			var zd = Math.sqrt(Math.pow(NUM_ZONES[i].x - gp.x, 2) + Math.pow(NUM_ZONES[i].y - gp.y, 2)) - NUM_ZONES[i].r - it.r
+			var zd = numRectCircleClearance(it, NUM_ZONES[i])
 			if (zd < worst.d) worst = { d: zd, gate: it.value, path: "zone-" + NUM_ZONES[i].n }
 		}
+		var rd = numRegistrationRectClearance(it)
+		if (rd.d < worst.d) worst = { d: rd.d, gate: it.value, path: "zone-bracket-" + rd.zone }
 	}
 	return worst
 }
 
-// No drawn line may cut through an unrelated zone circle. A current or tractor
-// is allowed to meet the zones that generate it; all other zones keep the same
-// measured clearance used for labels.
+// The invisible target geometry has a separate, stricter obligation: it may
+// touch its own channel, but it may not steal another visible path, line hit
+// target, gate target, or zone hit disc. Unlike the ten-unit visual breathing
+// room above, zero is the correct threshold here: targets may meet but never
+// overlap.
+function numogramGateHitClearance() {
+	var paths = numogramPathSamples()
+	var ann = numogramHitAnnotations()
+	var worst = { d: 1e9, gate: null, path: null }
+	var i, k, a, b
+	for (a = 0; a < ann.length; a++) {
+		var it = ann[a]
+		for (i = 0; i < paths.length; i++) {
+			if (paths[i].id.indexOf("channel-" + it.zone + "-") === 0) continue
+			for (k = 0; k < paths[i].pts.length; k++) {
+				var d = numPointRectClearance(paths[i].pts[k].x, paths[i].pts[k].y, it) - (paths[i].hitPad || 0)
+				if (d < worst.d) worst = { d: d, gate: it.value, path: paths[i].id }
+			}
+		}
+		for (b = 0; b < ann.length; b++) {
+			if (b === a) continue
+			var od = numRectRectClearance(it, ann[b])
+			if (od < worst.d) worst = { d: od, gate: it.value, path: "gate-hit-" + ann[b].value }
+		}
+		for (i = 0; i < NUM_ZONES.length; i++) {
+			var zoneHit = { x: NUM_ZONES[i].x, y: NUM_ZONES[i].y,
+			                r: NUM_ZONES[i].r + NUM_ZONE_HIT_PAD }
+			var zd = numRectCircleClearance(it, zoneHit)
+			if (zd < worst.d) worst = { d: zd, gate: it.value, path: "zone-hit-" + NUM_ZONES[i].n }
+		}
+		var rd = numRegistrationRectClearance(it)
+		if (rd.d < worst.d) worst = { d: rd.d, gate: it.value, path: "zone-bracket-" + rd.zone }
+	}
+	return worst
+}
+
+// No drawn line may cut through an unrelated zone circle. A syzygy bond or
+// current path may meet the zones that generate it; all other zones keep the
+// same measured clearance used for labels, including the outermost filament.
 function numogramPathZoneClearance() {
 	var paths = numogramPathSamples()
 	var worst = { d: 1e9, path: null, zone: null }
@@ -1241,7 +1455,7 @@ function numogramPathZoneClearance() {
 			// Related zones are deliberate contacts, not obstructions.
 			if (paths[i].ends.indexOf(zz.n) !== -1) continue
 			for (var k = 0; k < paths[i].pts.length; k++) {
-				var d = Math.sqrt(Math.pow(paths[i].pts[k].x - zz.x, 2) + Math.pow(paths[i].pts[k].y - zz.y, 2)) - zz.r
+				var d = Math.sqrt(Math.pow(paths[i].pts[k].x - zz.x, 2) + Math.pow(paths[i].pts[k].y - zz.y, 2)) - zz.r - (paths[i].pad || 0)
 				if (d < worst.d) worst = { d: d, path: paths[i].id, zone: zz.n }
 			}
 		}
@@ -1273,11 +1487,11 @@ function numBBPath(p, pad) {
 	}
 }
 
-// A loop is a circle of radius `size` centred off the zone's rim.
-function numBBLoop(z, angleDeg, size, pad) {
-	var a = angleDeg * Math.PI / 180
-	numBBPt(z.x + Math.cos(a) * (z.r + size * 0.55),
-	        z.y + Math.sin(a) * (z.r + size * 0.55), size + (pad || 0))
+// Bound the same loop object that is rendered. Keeping a second centre formula
+// here once left the outward 14.5 units of both self-returning channels out of
+// the reported viewBox.
+function numBBLoop(loop, pad) {
+	numBBPt(loop.loopCx, loop.loopCy, loop.loopR + (pad || 0))
 }
 
 // ------------------------------------------- Anglossic Qabbala (attested)
@@ -1324,62 +1538,9 @@ function numogramSvg() {
 	numBBReset()
 	var o = ''
 
-	// -- currents, under everything.
-	//
-	// Each one links the two zones of its syzygy, and carries a thin tractor
-	// arrow off its belly to the zone its value names, with that value set in
-	// a small circle - the 1, 3, 5, 7, 9 annotations. The Torque's three are
-	// the broad forms; Warp and Plex are drawn fine, since both are closed.
-	o += '<g class="numLayer numLayerCurrents">'
-	for (var s = 0; s < NUM_SYZYGIES.length; s++) {
-		var sz = NUM_SYZYGIES[s]
-		var geom = numCurrentGeometry(sz)
-		var cur = geom.current
-		var za = geom.za, zb = geom.zb
-		var heavy = (sz.sys === "torque")
-		var g = '<g class="numCurrent' + (heavy ? ' numHeavy' : '') + '" data-syzygy="' + sz.key +
-			'" data-sys="' + sz.sys + '" data-current="' + cur + '">'
-
-		// Two marks, not one. The bond is the short link between the twins -
-		// they sit adjacent, so it is barely longer than the gap between their
-		// rims. The current proper is the broad form that leaves that bond and
-		// runs to the zone its value names, which is the shape the figure is
-		// actually made of: 2::7 reaching left to 5, 1::8 up to 7, 4::5 down
-		// to 1. Drawing the ribbon along the bond instead - which is what this
-		// used to do - left the tractor unmarked and the figure inert.
-		var p = geom.bond
-		numBBPath(p, 4)
-		// a forgiving invisible stroke under the visible one
-		g += '<path class="numHitLine" d="' + p.d + '"/>'
-		g += '<path class="numCurLine" d="' + p.d + '"/>'
-
-		// From the middle of the bond out to the tractor. Starting at the
-		// midpoint rather than at either twin is what makes the form read as
-		// belonging to the pair rather than to one of them.
-		//
-		// Plex and Warp are the closed ones: their value names a zone of their
-		// own pair, so there is no midpoint-to-elsewhere run to draw. They bow
-		// from the far twin round into the near one instead, which is the
-		// short curled form the reference gives them. Trimming from a midpoint
-		// would have overshot here - the twins are only some fourteen units of
-		// clear span apart - and a reversed path is what that produces.
-		var tr = geom.tractor
-		numBBPath(tr, heavy ? 26 : 20)
-		g += '<path class="numHitLine" d="' + tr.d + '"/>'
-		g += '<path class="numCurBody" d="' + numRibbon(tr, 3, heavy ? 30 : 22) + '"/>'
-		g += '<path class="numCurHead" d="' + numHead(tr, heavy ? 17 : 14) + '"/>'
-
-		// The reference labels no current, and draws a closed one as a plain link
-		// between its pair with the head at the tractor end - not as a loop. The
-		// value circles this used to place are not in the original at all, and
-		// they were the other half of the overlap problem.
-
-		g += '</g>'
-		o += g
-	}
-	o += '</g>'
-
-	// -- channels, each one a gate's course
+	// -- channels first: pink secondary flows beneath the green currents.
+	// The pointer hit layer follows the same paint order, so a current crossing
+	// a channel behaves like the foreground object it visibly is.
 	o += '<g class="numLayer numLayerChannels">'
 	for (var c = 0; c < NUM_CHANNELS.length; c++) {
 		var ch = NUM_CHANNELS[c]
@@ -1389,7 +1550,7 @@ function numogramSvg() {
 		if (ch.from === ch.to) {
 			if (!NUM_GATE_DRAWN[ch.from]) continue     // 0 -> 0 is not drawn either
 			var lp2 = numLoop(zf, NUM_LOOP_ANGLE["gate" + ch.from], 30)
-			numBBLoop(zf, NUM_LOOP_ANGLE["gate" + ch.from], 30, 3)
+			numBBLoop(lp2, 3)
 			gg += '<path class="numHitLine" d="' + lp2.d + '"/>'
 			gg += '<path class="numChLine" d="' + lp2.d + '"/>'
 			gg += '<path class="numChHead" d="' + numHead(lp2, 11) + '"/>'
@@ -1405,18 +1566,70 @@ function numogramSvg() {
 	}
 	o += '</g>'
 
-	// -- gates: the small annotated circles
+	// -- currents: the primary flows.
+	//
+	// The quiet bond articulates the source syzygy. The separate current path
+	// runs from that pair to its tractor zone and receives the five filaments.
+	// Both remain children of one .numCurrent wrapper so existing selection,
+	// filtering and reading contracts keep their identity.
+	o += '<g class="numLayer numLayerCurrents">'
+	for (var s = 0; s < NUM_SYZYGIES.length; s++) {
+		var sz = NUM_SYZYGIES[s]
+		var geom = numCurrentGeometry(sz)
+		var cur = geom.current
+		var g = '<g class="numCurrent" data-syzygy="' + sz.key +
+			'" data-sys="' + sz.sys + '" data-current="' + cur + '">'
+
+		var bond = geom.bond
+		numBBPath(bond, 4)
+		g += '<g class="numSyzygyBond">'
+		g += '<path class="numHitLine numSyzygyHit" d="' + bond.d + '"/>'
+		g += '<path class="numBondLine" d="' + bond.d + '"/>'
+		g += '</g>'
+
+		var path = geom.path
+		numBBPath(path, 18)
+		g += '<g class="numCurrentPath">'
+		g += '<path class="numHitLine numCurrentHit" d="' + path.d + '"/>'
+		for (var fi = 0; fi < NUM_CURRENT_FILAMENT_OFFSETS.length; fi++) {
+			g += '<path class="numCurrentFilament numFilament' + fi + '" d="' +
+				numOffsetPath(path, NUM_CURRENT_FILAMENT_OFFSETS[fi], 40) + '"/>'
+		}
+		g += '<path class="numCurrentChevron" d="' +
+			numOpenChevron(path, geom.closed ? 0.76 : 0.86, geom.closed ? 13 : 16, geom.closed ? 6 : 8) + '"/>'
+		var lp = numCurrentLabelPoint(path, geom.closed ? -24 : -18, geom.closed ? 0.44 : 0.52)
+		numBBPt(lp.x, lp.y, 58)
+		g += '<text class="numCurrentLabel" x="' + numR(lp.x) + '" y="' + numR(lp.y) + '">' +
+			sz.current.toLowerCase() + ' / ' + Math.max(sz.a, sz.b) + ' − ' + Math.min(sz.a, sz.b) + ' = ' + cur + '</text>'
+		g += '</g>'
+
+		g += '</g>'
+		o += g
+	}
+	o += '</g>'
+
+	// -- gates: pink numerals in black apertures riding their channel courses
 	o += '<g class="numLayer numLayerGates">'
 	for (var gi = 0; gi < NUM_GATES.length; gi++) {
 		var ga = NUM_GATES[gi]
-		if (!NUM_GATE_DRAWN[ga.zone]) continue     // Gt-0 is degenerate; the reference omits it
-		var gp = numGatePos(ga.zone)
-		numBBPt(gp.x, gp.y, NUM_GATE_R)
+		if (!NUM_GATE_DRAWN[ga.zone]) continue     // Gt-0 adds no information to its 0 -> 0 loop
+		var gp = numGatePos(ga.zone), anchor = numGateAnchor(ga.zone), gs = numGateTagSize(ga.value)
+		var hs = numGateHitSize(ga.value)
+		numBBPt(gp.x, gp.y, Math.max(gs.w, gs.h) / 2)
 		o += '<g class="numGate" data-zone="' + ga.zone + '" data-gate="' + ga.value +
 			'" data-sys="' + numSyzygyOf(ga.zone).sys + '">'
-		o += '<circle class="numGateRing" cx="' + numR(gp.x) + '" cy="' + numR(gp.y) + '" r="' + NUM_GATE_R + '"/>'
+		var leaderLength = Math.sqrt(Math.pow(gp.x - anchor.x, 2) + Math.pow(gp.y - anchor.y, 2))
+		if (leaderLength > gs.r) {
+			o += '<path class="numGateLeader" d="M' + numR(anchor.x) + ' ' + numR(anchor.y) +
+				'L' + numR(gp.x) + ' ' + numR(gp.y) + '"/>'
+		}
+		// A black disc occludes the course beneath it like a miniature zone. Its
+		// square extent remains the conservative clearance and bounds model.
+		o += '<circle class="numGateRing numGateTag" cx="' + numR(gp.x) + '" cy="' +
+			numR(gp.y) + '" r="' + gs.r + '"/>'
 		o += '<text class="numGateText" x="' + numR(gp.x) + '" y="' + numR(gp.y) + '">' + ga.value + '</text>'
-		o += '<circle class="numHit" cx="' + numR(gp.x) + '" cy="' + numR(gp.y) + '" r="' + (NUM_GATE_R + 7) + '"/>'
+		o += '<rect class="numHit" x="' + numR(gp.x - hs.w / 2) + '" y="' +
+			numR(gp.y - hs.h / 2) + '" width="' + hs.w + '" height="' + hs.h + '" rx="4"/>'
 		o += '</g>'
 	}
 	o += '</g>'
@@ -1424,9 +1637,9 @@ function numogramSvg() {
 	// Nothing cosmological is drawn here any more: the geocentric model has its
 	// own panel, so the canonical viewBox is the canonical viewBox in every mode.
 
-	// -- the link between picked zones. Empty until two are held; filled by
-	// numogramLinks() rather than at build time, because it is the only part
-	// of the figure that depends on the selection rather than on the model.
+	// -- the ordered link between picked zones. Empty until two are held, then
+	// extended pairwise through every later pick by numogramLinks(). It is the
+	// only part of the figure that depends on selection rather than the model.
 	// Above the channels so the arc reads over them, below the zones so it
 	// runs behind the discs it joins.
 	o += '<g class="numLayer numLayerLink" id="numLinkLayer"></g>'
@@ -1435,20 +1648,21 @@ function numogramSvg() {
 	o += '<g class="numLayer numLayerZones">'
 	for (var z2 = 0; z2 < NUM_ZONES.length; z2++) {
 		var zz = NUM_ZONES[z2], sz2 = numSyzygy(zz.sy)
-		numBBPt(zz.x, zz.y, zz.r + 3)
+		numBBPt(zz.x, zz.y, zz.r + 11)
 		var twin = (sz2.a === zz.n) ? sz2.b : sz2.a
 		var dir = NUM_ZONE_MARK[zz.n]
 		var np = numNumeralOffset(zz, dir)
 		o += '<g class="numZone" id="numZone' + zz.n + '" data-zone="' + zz.n + '" data-sys="' + sz2.sys + '" ' +
 			'tabindex="0" role="button" aria-pressed="false" ' +
 			'aria-label="Zone ' + zz.n + ', syzygy ' + zz.n + ' with ' + twin + ', ' + sz2.sys + '">'
-		o += '<circle class="numZoneRing" cx="' + zz.x + '" cy="' + zz.y + '" r="' + zz.r + '"/>'
+		o += '<circle class="numZoneRing" cx="' + zz.x + '" cy="' + zz.y + '" r="' + (zz.r + 4) + '"/>'
+		o += '<path class="numZoneBracket" d="' + numRegistrationPath(zz) + '"/>'
 		o += '<path class="numZoneMark" d="' + numMarkPath(zz, dir) + '"/>'
-		o += '<text class="numZoneText" x="' + numR(np.x) + '" y="' + numR(np.y) + '" style="font-size:' + Math.round(zz.r * 0.82) + 'px">' + zz.n + '</text>'
+		o += '<text class="numZoneText" x="' + numR(np.x) + '" y="' + numR(np.y) + '" style="font-size:' + Math.round(zz.r * 0.9) + 'px">' + zz.n + '</text>'
 		// The whole disc is the target, not the stroke. Transparent and drawn
-		// last so it sits over the ring, the mark and the numeral; a little
-		// wider than the ring for touch, but never wide enough to reach a
-		// neighbour. The closest pair are just under 110 units apart.
+		// last so it sits over the ring, the mark and the numeral. It ends
+		// exactly with the black aperture: an invisible halo outside it would
+		// steal the exposed edge of a neighbouring current.
 		o += '<circle class="numHit" cx="' + zz.x + '" cy="' + zz.y + '" r="' + (zz.r + NUM_ZONE_HIT_PAD) + '"/>'
 		o += '</g>'
 	}
@@ -1460,7 +1674,7 @@ function numogramSvg() {
 	var vw = numR(numBB.x1 - numBB.x0 + m * 2), vh = numR(numBB.y1 - numBB.y0 + m * 2)
 
 	var head = '<svg class="numSvg" id="numSvg" viewBox="' + vx + ' ' + vy + ' ' + vw + ' ' + vh + '" '
-	head += 'role="img" aria-label="The CCRU Numogram: ten zones, five syzygies, their currents, gates and channels." '
+	head += 'role="img" aria-label="The Decimal Numogram: ten zones, five syzygies, their currents, gates and channels." '
 	head += 'preserveAspectRatio="xMidYMid meet">'
 	return head + o + '</svg>'
 }
@@ -1481,9 +1695,9 @@ var numLayers = { zones: true, currents: true, gates: true, syzygies: true }
 // clicked; otherwise the whole derivation, so the reading can show its work.
 var numDeriv = null             // {kind:"number"|"word", ...}
 var numInputMode = "auto"       // auto | number | word | planet
-// The five things the selector offers. "off" is the canonical Numogram and is
-// the default: opening the feature shows the diagram and nothing else.
-// Two. The selector used to carry five, and three of them did not earn a slot:
+// The first selector entry is the canonical Numogram: opening the feature
+// shows the diagram and nothing else. The selector used to carry five frames,
+// and three of them did not earn a slot:
 // Planetwork is a labelling of the canonical zones rather than a second
 // geometry, Cross-map the same pairing read from the other side, and the
 // Classical scope only differs from Extended by withholding three bodies.
@@ -1572,10 +1786,9 @@ var numSections = {
 
 // ---- the two lookup panels ----------------------------------------------
 //
-// Not controls: a listing of what the figure currently holds, in the colours
-// it holds it in. Every zone number is set in that zone's own hue, so a row
-// here and a circle over there are the same colour, and the list can be read
-// against the drawing without counting.
+// Not controls: a listing of what the figure currently holds. Zone addresses
+// stay in bone; current and gate names carry the same green and pink as their
+// corresponding layers.
 function numZoneTag(n) {
 	return '<span class="numTag" data-zone="' + n + '">' + n + '</span>'
 }
@@ -1669,7 +1882,7 @@ function numogramSectionNotes() {
 }
 
 var numModel = "off"            // the selector's own value
-var numCosmo = "off"            // off | pw | geo | cross - off is the canonical diagram
+var numCosmo = "off"            // effective frame: off | pw | geo | cross | demon | divine
 var numGeoSet = "extended"      // the only scope the selector now offers
 var numBody = null              // the selected celestial body, by name
 var numHistory = []
@@ -1917,8 +2130,8 @@ function numogramApply() {
 	if (geoPanel !== null && geoPanel.getAttribute("data-cosmo-key") !== want) {
 		geoPanel.setAttribute("data-cosmo-key", want)
 		geoPanel.innerHTML = numogramGeoPanel()
-		// shown under both cosmologies now - the canonical one gets the
-		// Planetwork attributions, the secondary one the Gnostic arrangement
+			// Empty in the canonical frame; hidden `pw` and the exposed auxiliary
+			// cosmologies retain their own panel renderers.
 		geoPanel.style.display = ""
 		numogramBindGeo()
 	}
@@ -1988,7 +2201,7 @@ function numogramApply() {
 	if (sel !== null) { sel.classList.add("numOn"); sel.setAttribute("aria-pressed", "true") }
 	var tw = document.getElementById("numZone" + twin)
 	if (tw !== null) tw.classList.add("numTwin")
-	// the tractor the current runs to, and the zone the channel lands in
+	// the tractor zone the current reaches, and the zone the channel lands in
 	var tr = document.getElementById("numZone" + cur)
 	if (tr !== null) tr.classList.add("numTrace")
 	var lands = document.getElementById("numZone" + g.to)
@@ -2188,8 +2401,8 @@ function numogramSyncControls() {
 		if (rs !== null) rs.textContent = ron ? "ON" : ""
 	}
 	// EXPLORE's button is gone, so there is nothing here to keep in step with
-	// numExplore. The state and numogramExplore() remain - a URL carrying an
-	// explore step still replays - but nothing in the panel starts one.
+	// numExplore. The compatibility state and numogramExplore() remain for old
+	// internal callers; URL state contains only zone, number, or word.
 	var sel = document.getElementById("numCosmoSel")
 	if (sel !== null && sel.value !== numModel) sel.value = numModel
 
@@ -2218,11 +2431,9 @@ function numogramSyncControls() {
 	numogramSectionNotes()
 
 	// The per-cosmology explanation that used to sit here is gone: it was a
-	// paragraph of provenance in the middle of the controls. The same ground -
-	// the Ptolemaic ordering, the schematic geometry, the Planetwork's zone-to-
-	// Sol labelling - is covered by the ptolemy, crossmap and planetwork entries
-	// in SOURCES & METHOD at the foot of the panel, where the rest of the
-	// provenance lives.
+	// paragraph of provenance in the middle of the controls. Detailed source
+	// records remain internal data for generated readings; the visible shell
+	// deliberately carries only its compact CCRU credit line.
 	var im = document.querySelectorAll(".numCtl[data-input]")
 	for (var k = 0; k < im.length; k++) {
 		var on2 = im[k].getAttribute("data-input") === numInputMode
@@ -2506,12 +2717,10 @@ function numogramReadUrl() {
 
 function numogramCorrections() {
 	var o = '<div class="numNote">'
-	o += '<b>On the reference.</b> The image this was drawn from is a degraded reproduction of the Numogram: '
-	o += 'it carries nine zone circles rather than ten, labels two of them 1, omits Zone-7, and repeats the '
-	o += 'Gt-28 annotation while omitting Gt-15 and Gt-21. Its composition and line work are followed here. '
-	o += 'Its content is not &mdash; the ten zones, five syzygies, currents, gates and channels are generated from the '
-	o += 'CCRU rules (nine-sum twinning, arithmetical difference, digital cumulation and reduction), so every number '
-	o += 'on the figure is derived rather than placed.'
+	o += '<b>On the source.</b> The ten zones, five syzygies, currents, gates and channels are generated from the '
+	o += 'CCRU rules: nine-sum twinning, arithmetical difference, digital cumulation and reduction. '
+	o += 'The source establishes the system, not this rendering&rsquo;s composition. The black apertures, green filament '
+	o += 'currents, pink gate channels and registration marks form an independent Cyphers visual language.'
 	o += '</div>'
 	return o
 }
@@ -2524,24 +2733,14 @@ function toggleNumogramMenu() {
 		var o = '<div class="colorControlsBG numogramBG">'
 		o += '<input class="closeMenuBtn" type="button" value="&#215;" onclick="closeAllOpenedMenus()">'
 
-		// the green field. Everything inside it is the artefact; nothing of the
+		// the independent field. Everything inside it is the artefact; nothing of the
 		// site's chrome reaches in.
 		o += '<div class="numField" id="numField" data-invert="0">'
 
-		// The title bar carries the two controls that set up a reading -
-		// which cosmology, and what to trace - at the same level as the name.
-		// They were a column of their own on the right; up here they are on
-		// one line, and the figure gets the width back.
+		// The title carries the one action used for an ordinary reading. Model,
+		// filtering and contrast controls live in the folded apparatus below.
 		o += '<div class="numTitle">'
-		o += '<span class="numTitleMain">NUMOGRAM</span><span class="numTitleSub">CCRU</span>'
-
-		o += '<div class="numTitleCtl numTitleCosmo">'
-		o += '<span class="numTitleLabel">COSMOLOGY</span>'
-		o += '<select class="numSelect numSelectPrimary" id="numCosmoSel" onchange="numogramSetModel(this.value)" aria-label="Cosmology">'
-		for (var mi = 0; mi < NUM_MODELS.length; mi++) {
-			o += '<option value="' + NUM_MODELS[mi].key + '">' + NUM_MODELS[mi].label + '</option>'
-		}
-		o += '</select></div>'
+		o += '<span class="numTitleMain" aria-label="Numogram">NUMOGRAM</span><span class="numTitleSub">DECIMAL LABYRINTH</span>'
 
 		o += '<div class="numTitleCtl numTitleTrace">'
 		o += '<span class="numTitleLabel">TRACE</span>'
@@ -2568,13 +2767,39 @@ function toggleNumogramMenu() {
 		o += '<div class="numHistory hideValue" id="numHistory"></div>'
 
 		o += '<div class="numBody">'
-		// ---- left column: what is on the figure -------------------------
-		//
-		// Zones, layers and regions decide what is drawn; currents and gates
-		// list what has been drawn, in the colours it was drawn in. They sit
-		// on the near side of the diagram because they are read against it -
-		// the right-hand column is for asking questions, this one is for
-		// setting up the view and for looking things up in it.
+
+		o += '<div class="numStage" id="numStage">'
+		o += '<div class="numPanel numPanelMain">' + numogramSvg() + '</div>'
+		o += '<div class="numPanel numPanelGeo" id="numPanelGeo"></div>'
+		o += '</div>'
+
+		// The reading is the only standing rail. It describes the live plate;
+		// setup controls do not compete with it until the apparatus is opened.
+		o += '<div class="numSide numSideRight">'
+		o += '<div class="numRailLabel">SELECTION</div>'
+		o += numSection("reading", "READING", '<div class="numAnnot" id="numAnnot" aria-live="polite"></div>')
+		o += '</div>' // .numSideRight
+
+		o += '</div>' // .numBody
+
+		// Advanced controls remain available, but the ordinary reading does not
+		// begin inside a switchboard. The stored trace history stays off-screen.
+		o += '<details class="numApparatus" id="numApparatus" ontoggle="numogramFitSoon()">'
+		o += '<summary><span>APPARATUS</span><i>models · filters · layers · contrast</i></summary>'
+		o += '<div class="numApparatusInner">'
+		o += '<div class="numApparatusHead">'
+		o += '<div class="numTitleCtl numTitleCosmo">'
+		o += '<span class="numTitleLabel">COSMOLOGY</span>'
+		o += '<select class="numSelect numSelectPrimary" id="numCosmoSel" onchange="numogramSetModel(this.value)" aria-label="Cosmology">'
+		for (var mi = 0; mi < NUM_MODELS.length; mi++) {
+			o += '<option value="' + NUM_MODELS[mi].key + '">' + NUM_MODELS[mi].label + '</option>'
+		}
+		o += '</select></div>'
+		o += '<div class="numCtlRow numActionRow">'
+		o += '<button class="numCtl numCtlPlain" type="button" onclick="numogramReset()">RESET READING</button>'
+		o += '<button class="numCtl numCtlPlain" type="button" onclick="numogramInvert()">CONTRAST</button>'
+		o += '</div></div>'
+
 		o += '<div class="numSide numSideLeft">'
 
 		var zn = '<div class="numZoneFilter" role="group" aria-label="Zones shown">'
@@ -2602,29 +2827,8 @@ function toggleNumogramMenu() {
 		o += numSection("gates", "GATES", numogramGateList())
 
 		o += '</div>' // .numSideLeft
-
-
-		o += '<div class="numStage" id="numStage">'
-		o += '<div class="numPanel numPanelMain">' + numogramSvg() + '</div>'
-		o += '<div class="numPanel numPanelGeo" id="numPanelGeo"></div>'
-		o += '</div>'
-
-		// ---- right column: what you ask of it ---------------------------
-		// ---- right column: act on it, then read it ---------------------
-		//
-		// Two actions and the reading under them. EXPLORE is gone: it walked
-		// ZONE -> SYZYGY -> CURRENT -> GATE one step per click, which the
-		// reading now lays out in full the moment a zone is picked.
-		o += '<div class="numSide numSideRight">'
-		o += '<div class="numCtlRow numActionRow">'
-		o += '<button class="numCtl numCtlPlain" type="button" onclick="numogramReset()">RESET</button>'
-		o += '<button class="numCtl numCtlPlain" type="button" onclick="numogramInvert()">INVERT</button>'
-		o += '</div>'
-		o += numSection("reading", "READING", '<div class="numAnnot" id="numAnnot" aria-live="polite"></div>')
-		o += '</div>' // .numSideRight
-
-		o += '</div>' // .numBody
-		o += '</div>' // .numBody
+		o += '</div>' // .numApparatusInner
+		o += '</details>'
 
 		// One credit line, folded. This used to unfold into nine provenance
 		// blocks - a status badge, a claim and a source for every part of the
@@ -2691,13 +2895,11 @@ function numogramFit() {
 	// plus the column of text beside it.
 	var svg = document.getElementById("numSvg")
 	var stage = document.querySelector(".numStage")
-	// Two columns now, one either side. This used to take the first .numSide
-	// it found and count it once, so the field was sized as though the left
-	// column were not there at all - which is what pushed the contents past
-	// the edge of the panel.
-	var sideL = document.querySelector(".numSideLeft")
-	var sideR = document.querySelector(".numSideRight")
+	// The primary body is the plate plus one standing reading rail. The
+	// apparatus grid now lives below that body, so it participates in natural
+	// panel height rather than this side-by-side width calculation.
 	var body = document.querySelector(".numBody")
+	var sideR = body ? body.querySelector(".numSideRight") : null
 	if (svg === null || stage === null) return
 
 	f.style.width = ""
@@ -2729,8 +2931,9 @@ function numogramFit() {
 	// content, so giving the field a real width makes that frame hug it evenly
 	// instead of stretching the full width of the page with the artwork
 	// floating in the middle of it.
-	var sides = (sideL ? sideL.offsetWidth : 0) + (sideR ? sideR.offsetWidth : 0)
-	var gaps = gap * ((sideL ? 1 : 0) + (sideR ? 1 : 0))
+	var rightW = (sideR && sideR.offsetWidth) ? sideR.offsetWidth : 0
+	var sides = rightW
+	var gaps = gap * (rightW ? 1 : 0)
 	var want = Math.round(drawW + sides + gaps + pad)
 
 	// Never wider than the room there is. On a narrow window the columns are

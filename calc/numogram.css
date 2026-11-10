@@ -1,23 +1,24 @@
 /* ===================== Numogram (Decimal Labyrinth) =====================
  *
- * A near-black field with the diagram drawn on it in acid green, lit.
+ * Black apertures, toxic green currents and hot pink gates. The mathematics
+ * is inherited; the visual language is Cyphers' own.
  *
  * Everything here is scoped under .numField and sets its own colours from
  * scratch. The site's theme variables deliberately do not reach in: the
  * artefact keeps its own palette whatever skin the rest of the calculator is
  * wearing.
  *
- * Two tokens carry the entire palette. --num-field is the ground, --num-ink is
- * the diagram. [data-invert="1"] swaps them, which is the whole of the second
- * variant - no second stylesheet, no duplicated rules. Inverting now lands on
- * the flat green field this panel used to lead with, so that reading is still
- * one click away.
+ * Five tokens carry the palette: field and bone establish the plate; current
+ * and channel separate the two kinds of motion; gate ink keeps the small
+ * aperture numerals legible in both readings. [data-invert="1"] keeps those
+ * roles but moves them onto a bone field - no second stylesheet, no duplicated
+ * diagram.
  */
 
 /* The site's shared panel wrapper is padded 0.5em 0em 0.75em 1em - one em on
  * the left, nothing on the right - and sized with width:fit-content. On every
  * other panel that is invisible, because their background is the panel's own.
- * Here the green field IS the artwork, so the missing right-hand padding read
+ * Here the field IS the artwork, so the missing right-hand padding read
  * as the field being cut off, and the 1em on the left as it being off-centre.
  * This panel supplies its own even box instead.
  */
@@ -30,24 +31,27 @@
 }
 
 .numField {
-	--num-field: #06060a;          /* near-black ground */
-	--num-ink: #39ff14;            /* acid green, the only lit colour */
-	--num-glow: 0 0 6px rgba(57, 255, 20, 0.45);
+	--num-field: #020303;
+	--num-ink: #f1eadb;
+	--num-bone: #f1eadb;
+	--num-muted: #8d9891;
+	--num-zone-text: #f1eadb;
+	--num-glow: 0 0 7px rgba(57, 255, 20, 0.5);
 	--num-svg-glow: none;
 	--num-rule: rgba(57, 255, 20, 0.22);
-	--num-panel: rgba(11, 17, 26, 0.72);
+	--num-panel: rgba(7, 11, 9, 0.82);
 
-	/* The figure is not monochrome. Each zone owns a hue and keeps it in its
-	 * ring, its numeral and its direction mark, so a zone is identifiable
-	 * before you have read its number. The layers are separated the same way:
-	 * currents run green, gate courses violet, and the two never share a
-	 * treatment. --zc is the per-zone hue, set on each .numZone below and
-	 * picked up by everything inside it. */
-	--num-zone-fill: #0b0e13;      /* the discs are filled, not hollow */
-	--num-current: #3ef07a;        /* the syzygy links and their ribbons */
-	--num-channel: #7c5cff;        /* gate courses */
+	/* The layers, rather than the individual zones, own the colour. Black zones
+	 * are addresses; green currents and pink gate courses are motion. */
+	--num-zone-fill: #000000;
+	--num-current: #39ff14;
+	--num-channel: #ff1493;
+	--num-gate-ink: #ff1493;
 	--num-faint: 0.34;             /* unselected line work sits back */
-	background: var(--num-field);
+	background:
+		radial-gradient(circle at 50% 43%, rgba(57, 255, 20, 0.045), transparent 46%),
+		linear-gradient(rgba(255, 20, 147, 0.015), rgba(57, 255, 20, 0.012)),
+		var(--num-field);
 	color: var(--num-ink);
 	padding: 1.5em;                /* even on all four sides */
 	margin: 0 auto;
@@ -68,26 +72,29 @@
 	font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 	/* no radius, no border: it is a field, not a card - but the field itself
 	 * carries a faint bloom so it reads as lit rather than printed */
-	box-shadow: inset 0 0 120px rgba(57, 255, 20, 0.05);
+	box-shadow: inset 0 0 130px rgba(57, 255, 20, 0.055), inset 0 0 1px rgba(255, 20, 147, 0.4);
 }
 
-/* The flat green artefact, one click away on INVERT. Nothing glows here: it is
+/* The bone-field artefact, one click away on CONTRAST. Nothing glows here: it is
  * ink on paper, so the lit tokens are dropped rather than recoloured. */
 .numField[data-invert="1"] {
-	--num-field: #1fa14a;
-	--num-ink: #000000;
+	--num-field: #f1eadb;
+	--num-ink: #050606;
+	--num-bone: #050606;
+	--num-muted: #38413c;
+	--num-zone-text: #f1eadb;
 	--num-glow: none;
 	--num-svg-glow: none;
 	--num-rule: rgba(0, 0, 0, 0.3);
 	--num-panel: transparent;
-	/* ink on paper: the hues go, the whole figure returns to one colour */
-	--num-zone-fill: transparent;
-	--num-current: var(--num-ink);
-	--num-channel: var(--num-ink);
+	--num-zone-fill: #050606;
+	--num-current: #087c27;
+	--num-channel: #aa005f;
+	--num-gate-ink: #ff1493;
 	--num-faint: 1;
+	background: var(--num-field);
 	box-shadow: none;
 }
-.numField[data-invert="1"] .numZone { --zc: var(--num-ink); }
 
 /* ---- typography: two words, set small, out of the diagram's way -------- */
 
@@ -117,15 +124,15 @@
 	opacity: 0.6;
 	white-space: nowrap;
 }
-.numTitleCosmo .numTitleLabel { color: #e8c33c; opacity: 0.85; }
-.numTitleTrace .numTitleLabel { color: #4d94ff; opacity: 0.85; }
-.numTitleCosmo .numSelect { color: #e8c33c; border-bottom-color: #e8c33c; }
+.numTitleCosmo .numTitleLabel { color: var(--num-channel); opacity: 0.9; }
+.numTitleTrace .numTitleLabel { color: var(--num-current); opacity: 0.9; }
+.numTitleCosmo .numSelect { color: var(--num-channel); border-bottom-color: var(--num-channel); }
 .numTitleTrace .numNumberInput {
 	flex: 1 1 4em;
 	min-width: 3.5em;
 	max-width: 9em;
-	color: #4d94ff;
-	border-bottom-color: #4d94ff;
+	color: var(--num-current);
+	border-bottom-color: var(--num-current);
 }
 .numTitleTrace .numTraceMsg { margin: 0; font-size: 0.66em; white-space: nowrap; }
 .numField[data-invert="1"] .numTitleLabel,
@@ -138,15 +145,15 @@
 	font-size: 1.05em;
 	font-weight: 700;
 	letter-spacing: 0.34em;
-	color: var(--num-ink);
-	text-shadow: var(--num-glow);
+	color: var(--num-bone);
+	text-shadow: -1.5px 0 var(--num-channel), 1.5px 0 var(--num-current), 0 0 9px rgba(57, 255, 20, 0.34);
 }
 .numTitleSub {
 	font-size: 0.72em;
 	font-weight: 600;
 	letter-spacing: 0.3em;
 	opacity: 0.62;
-	color: var(--num-ink);
+	color: var(--num-muted);
 }
 
 /* ---- the diagram ------------------------------------------------------
@@ -161,7 +168,7 @@
 .numBody {
 	display: flex;
 	align-items: stretch;
-	gap: 1.2em;
+	gap: 1.5em;
 	flex: 1 1 auto;
 	min-height: 0;
 	/* Nothing in here may push the field taller than the height it was given:
@@ -172,15 +179,7 @@
 	overflow: hidden;
 }
 .numSide {
-	/* 32-40% of the feature, and no more: the diagram comes first. */
-	flex: 0 0 34%;
-	min-width: 15em;
-	max-width: 26em;
-	/* Stretch to the body's height and scroll its own overflow. A word trace
-	 * carries a long reading - the character values, two reductions and two
-	 * provenance lines - and that must not push the artwork out of the field
-	 * or spill over the note beneath it. The diagram stays put; only the
-	 * reading moves. */
+	min-width: 0;
 	align-self: stretch;
 	min-height: 0;
 	overflow-y: auto;
@@ -194,33 +193,83 @@
  * side of the panel rather than as a scrollbar */
 .numSide::-webkit-scrollbar-thumb { background: var(--num-rule); border-radius: 2px; }
 
-/* Two columns, one either side of the figure. The left sets up the view and
- * lists what is in it; the right is where questions are asked of it. Splitting
- * them halves the height of each, which is what stops either becoming the wall
- * the single column had turned into. */
-/* Narrow enough that three columns and the figure hold together in an ordinary
- * window, and each one scrolls its own overflow rather than pushing the field
- * taller than the height numogramFit() gave it. */
+/* The standing right rail reads the plate. The left-named legacy surface is
+ * now the auto-fit apparatus grid below the primary body; its class remains an
+ * internal compatibility name, not a claim that it is a side column. */
 .numSideLeft {
-	flex: 0 1 20%;
-	min-width: 9.5em;
-	max-width: 16em;
-	padding-right: 0.5em;
-	max-height: 100%;
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(10em, 1fr));
+	gap: 0.65em;
+	width: 100%;
+	max-width: none;
+	max-height: 32vh;
+	padding: 0.2em 0.25em 0.25em 0;
 }
-/* The right column holds the two actions and the reading under them. Narrow:
- * it is a reading column, not a control column, and the figure comes first. */
 .numSideRight {
-	flex: 0 1 21%;
-	min-width: 9.5em;
-	max-width: 17em;
+	flex: 0 0 18em;
+	min-width: 14em;
+	max-width: 22em;
 	max-height: 100%;
+	border-left: 1px solid rgba(255, 20, 147, 0.34);
+	padding-left: 1.1em;
 }
 .numSideRight .numActionRow { margin-top: 0; margin-bottom: 0.7em; }
+.numRailLabel {
+	font-size: 0.62em;
+	letter-spacing: 0.28em;
+	color: var(--num-channel);
+	margin: 0 0 0.45em;
+}
+
+.numApparatus {
+	flex: 0 0 auto;
+	margin-top: 0.8em;
+	border-top: 1px solid rgba(57, 255, 20, 0.28);
+	color: var(--num-muted);
+}
+.numApparatus > summary {
+	display: flex;
+	align-items: center;
+	gap: 1em;
+	min-height: 44px;
+	list-style: none;
+	cursor: pointer;
+	font-size: 0.68em;
+	letter-spacing: 0.24em;
+	color: var(--num-current);
+}
+.numApparatus > summary::-webkit-details-marker { display: none; }
+.numApparatus > summary::before {
+	content: "+";
+	font-size: 1.25em;
+	color: var(--num-channel);
+}
+.numApparatus[open] > summary::before { content: "−"; }
+.numApparatus > summary i {
+	font-style: normal;
+	letter-spacing: 0.08em;
+	color: var(--num-muted);
+	opacity: 0.72;
+}
+.numApparatus > summary:focus-visible { outline: 2px solid var(--num-current); outline-offset: 2px; }
+.numApparatusInner {
+	max-height: 40vh;
+	overflow: auto;
+	padding: 0.75em 0.25em 0.25em;
+}
+.numApparatusHead {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1em;
+	padding: 0 0 0.7em;
+	border-bottom: 1px solid rgba(255, 20, 147, 0.18);
+}
+.numApparatusHead .numCtlRow { margin: 0; }
 
 /* ---- the lookup lists ---------------------------------------------------
- * Name, the pair it runs between, and where it lands. Zone numbers are set
- * in their own hue in both lists, so a row and a circle are the same colour.
+ * Name, the pair it runs between, and where it lands. Zone addresses stay in
+ * bone while current and gate names carry their layer colours.
  */
 .numList { display: flex; flex-direction: column; }
 .numListRow {
@@ -247,17 +296,7 @@
 .numListPair i, .numListTo i { font-style: normal; opacity: 0.4; }
 
 /* a zone number wherever it appears in prose or in a list */
-.numTag { font-weight: 700; color: var(--zc, var(--num-ink)); }
-.numTag[data-zone="0"] { --zc: #a3adb8; }
-.numTag[data-zone="1"] { --zc: #e04ff0; }
-.numTag[data-zone="2"] { --zc: #4d94ff; }
-.numTag[data-zone="3"] { --zc: #35d46a; }
-.numTag[data-zone="4"] { --zc: #f05a5a; }
-.numTag[data-zone="5"] { --zc: #f0a028; }
-.numTag[data-zone="6"] { --zc: #e8c33c; }
-.numTag[data-zone="7"] { --zc: #6e93c8; }
-.numTag[data-zone="8"] { --zc: #9a7bff; }
-.numTag[data-zone="9"] { --zc: #8a939e; }
+.numTag { font-weight: 700; color: var(--num-bone); }
 
 /* The left column stays on the left. An earlier rule here dropped it under
  * the figure below 1100px, which at a typical window width meant it was never
@@ -316,153 +355,145 @@
  * strokes actually cross rather than each carrying its own halo. */
 .numSvg, .numGeoSvg { filter: var(--num-svg-glow); }
 
-/* Thin technical line work throughout. Stroke widths are in user units, so
- * they scale with the figure and keep their relative weights. */
+/* Thin technical line work across the canonical plate. Stroke widths are in
+ * user units, so rendering and clearance proofs share one geometry and scale
+ * together. */
 
-/* ---- the zone hues ------------------------------------------------------
- * Ten values, one per zone. Read against #0b0e13 they all clear 4.5:1, and
- * the pairs that sit closest in the figure (2/7, 8/9, 0/9) are separated by
- * lightness as well as hue so they do not merge at small sizes. */
-.numZone[data-zone="0"] { --zc: #a3adb8; }
-.numZone[data-zone="1"] { --zc: #e04ff0; }
-.numZone[data-zone="2"] { --zc: #4d94ff; }
-.numZone[data-zone="3"] { --zc: #35d46a; }
-.numZone[data-zone="4"] { --zc: #f05a5a; }
-.numZone[data-zone="5"] { --zc: #f0a028; }
-.numZone[data-zone="6"] { --zc: #e8c33c; }
-.numZone[data-zone="7"] { --zc: #6e93c8; }
-.numZone[data-zone="8"] { --zc: #9a7bff; }
-.numZone[data-zone="9"] { --zc: #8a939e; }
+/* ---- zones: black apertures, bone addresses ----------------------------- */
+.numZone { --zc: var(--num-bone); }
 
-.numZoneRing,
+.numZoneRing {
+	fill: var(--num-zone-fill);
+	stroke: none;
+}
+.numZoneBracket {
+	fill: none;
+	stroke: var(--num-bone);
+	stroke-width: 2.4;
+	stroke-linecap: square;
+	stroke-linejoin: miter;
+	opacity: 0.68;
+}
 .numGateRing {
 	fill: var(--num-zone-fill);
-	stroke: var(--zc, var(--num-ink));
-	stroke-width: 3.2;
-	vector-effect: non-scaling-stroke;
+	stroke: none;
 }
-/* Opaque, because the gate rides its own channel and the line must pass
- * behind the numeral rather than through it - which is exactly how the
- * reference draws these. */
-.numGateRing { stroke-width: 2.4; fill: var(--num-field); }
+.numGateLeader {
+	fill: none;
+	stroke: var(--num-channel);
+	stroke-width: 3.5;
+	stroke-linecap: square;
+}
 
 .numZoneText,
 .numGateText {
-	fill: var(--zc, var(--num-ink));
 	text-anchor: middle;
 	dominant-baseline: central;
 	font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 	font-weight: 500;
 	pointer-events: none;
 }
-.numGateText { font-size: 22px; font-weight: 600; }
-
-/* The current's own value, set in the same small circle as a gate so the two
- * kinds of annotation read as one family - which is how the reference does it. */
-.numCurValRing {
-	fill: var(--num-field);
-	stroke: var(--num-ink);
-	stroke-width: 2.4;
-	vector-effect: non-scaling-stroke;
-}
-.numCurValText {
-	fill: var(--num-ink);
-	text-anchor: middle;
-	dominant-baseline: central;
-	font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-	font-size: 19px;
-	font-weight: 600;
-	pointer-events: none;
-}
-.numCurrent.numOn .numCurValRing { fill: var(--num-ink); }
-.numCurrent.numOn .numCurValText { fill: var(--num-field); }
-
-/* The tractor arrow stays fine even when its current is a broad form: the
- * weight belongs to the link between the pair, not to where it runs. */
-.numCurTractor { stroke-width: 2.4; }
-.numCurrent.numOn .numCurTractor { stroke-width: 4; }
+.numZoneText { fill: var(--num-zone-text); }
+.numGateText { fill: var(--num-gate-ink); font-size: 19px; font-weight: 700; }
 
 .numChLine,
-.numCurLine {
+.numBondLine,
+.numCurrentFilament,
+.numCurrentChevron {
 	fill: none;
-	stroke-width: 2.6;
 	stroke-linecap: round;
-	vector-effect: non-scaling-stroke;
+	stroke-linejoin: round;
 }
 
-/* Gate courses: violet, dashed, and set back. There are far more of these
- * than anything else in the figure, and drawn solid at full strength they
- * were the reason it read as a thicket - the eye could not tell a course
- * from a current. Dashed and dimmed, they become the substrate the currents
- * run over. */
+/* Gate courses: hot pink, narrow, and set back. There are far more of these
+ * than anything else in the figure, so the green current filaments must keep
+ * the heavier visual rhythm and win at exact crossings. */
 .numChLine {
 	stroke: var(--num-channel);
-	stroke-dasharray: 7 6;
-	opacity: var(--num-faint);
+	stroke-width: 6.5;
+	opacity: 0.72;
 }
-.numChHead { fill: var(--num-channel); stroke: none; opacity: var(--num-faint); }
-
-/* Currents: green, solid, lit. The layer that carries the reading. */
-.numCurLine { stroke: var(--num-current); stroke-width: 3.2; }
-.numCurHead, .numCurBody { fill: var(--num-current); stroke: none; }
-
-/* The Torque circuit: the broad directional form. A filled tapered ribbon,
- * not a thick stroke - the reference's heavy currents swell along their
- * length rather than running at one width. Held under full opacity so the
- * channels behind it stay visible through the belly of the shape. */
-.numCurrent.numHeavy .numCurBody {
-	fill: var(--num-current);
+.numChHead {
+	fill: none;
+	stroke: var(--num-channel);
+	stroke-width: 6;
+	stroke-linecap: round;
+	stroke-linejoin: round;
 	opacity: 0.82;
 }
+
+.numBondLine {
+	stroke: var(--num-current);
+	stroke-width: 3.8;
+	opacity: 0.42;
+}
+.numCurrentFilament {
+	stroke: var(--num-current);
+	stroke-width: 6;
+}
+.numFilament0, .numFilament4 { opacity: 0.42; }
+.numFilament1, .numFilament3 { opacity: 0.72; }
+.numFilament2 { opacity: 1; }
+.numCurrentChevron {
+	stroke: var(--num-current);
+	stroke-width: 8;
+}
+.numCurrentLabel {
+	fill: var(--num-current);
+	font-family: Georgia, "Times New Roman", serif;
+	font-size: 16px;
+	font-style: italic;
+	letter-spacing: 0.02em;
+	text-anchor: middle;
+	dominant-baseline: central;
+	pointer-events: none;
+}
 /* the bloom belongs to this layer alone, not to the whole drawing */
-.numLayerCurrents { filter: drop-shadow(0 0 5px rgba(62, 240, 122, 0.45)); }
+.numLayerCurrents { filter: drop-shadow(0 0 4px rgba(57, 255, 20, 0.46)); }
 .numField[data-invert="1"] .numLayerCurrents { filter: none; }
 
-/* Gates: present, not competing. They annotate the courses they sit on, so
- * they take the course's colour rather than a hue of their own. */
-.numGateRing { stroke: var(--num-channel); }
-.numGateText { fill: var(--num-channel); }
-.numGate { opacity: 0.8; }
+/* Gate wells must fully occlude the channel beneath them at rest. Region and
+ * reading focus may still dim the whole semantic layer intentionally. */
+.numGate { opacity: 1; }
 
 /* ---- zones: selectable, but never buttons ------------------------------ */
 
 .numZone { cursor: pointer; }
 .numZone:focus { outline: none; }
 
-/* Hover and focus: the outline thickens. That is all. */
-.numZone:hover .numZoneRing,
-.numZone:focus-visible .numZoneRing { stroke-width: 5.4; }
-
-/* Focus needs to be visible without a glow, so the ring doubles rather than
- * lights up - a dashed companion just outside it, in the same ink. */
-.numZone:focus-visible .numZoneRing {
-	stroke-dasharray: 5 5;
+.numZone:hover .numZoneBracket,
+.numZone:focus-visible .numZoneBracket {
+	stroke: var(--num-current);
+	stroke-width: 3.4;
+	opacity: 1;
 }
-
-/* Selected: the zone inverts. Ink fills the circle, the numeral drops out to
- * the field colour. The original diagram's own vocabulary, nothing added. */
-/* Selected: the disc fills with the zone's own hue and the numeral knocks out
- * of it, so selection reads at a glance without changing the ring weight the
- * hover state is already using. */
-.numZone.numOn .numZoneRing {
-	fill: var(--zc, var(--num-ink));
+.numZone:focus-visible .numZoneBracket { stroke-dasharray: 5 4; }
+.numZone.numOn .numZoneBracket,
+.numZone.numOn .numZoneMark,
+.numZone.numPick .numZoneBracket {
+	stroke: var(--num-current);
+	fill: var(--num-current);
+	opacity: 1;
+	filter: drop-shadow(0 0 7px rgba(57, 255, 20, 0.72));
+}
+.numZone.numTwin .numZoneBracket {
+	stroke: var(--num-channel);
 	stroke-width: 3.2;
-	filter: drop-shadow(0 0 7px var(--zc, var(--num-ink)));
+	opacity: 0.92;
 }
-.numZone.numOn .numZoneText { fill: var(--num-field); }
+.numZone.numTrace .numZoneBracket {
+	stroke: var(--num-current);
+	stroke-width: 2.8;
+	stroke-dasharray: 7 4;
+	opacity: 0.88;
+}
 
-/* The syzygetic twin: heavier outline, not filled. */
-.numZone.numTwin .numZoneRing { stroke-width: 6.2; }
+.numGate.numOn .numGateRing { fill: var(--num-gate-ink); }
+.numGate.numOn .numGateText { fill: var(--num-zone-fill); }
 
-/* Where a current or channel lands: a doubled rim. */
-.numZone.numTrace .numZoneRing { stroke-width: 4.6; }
-
-.numGate.numOn .numGateRing { fill: var(--num-ink); }
-.numGate.numOn .numGateText { fill: var(--num-field); }
-
-/* A lit current or channel thickens; it does not glow. */
-.numChannel.numOn .numChLine { stroke-width: 5.2; }
-.numCurrent.numOn .numCurLine { stroke-width: 6; }
+.numChannel.numOn .numChLine { stroke-width: 10.5; opacity: 1; }
+.numCurrent.numOn .numCurrentFilament { stroke-width: 8.5; opacity: 1; }
+.numCurrent.numOn .numBondLine { stroke-width: 6; opacity: 0.86; }
 
 /* ---- dimming: selection, time system, layers ---------------------------
  *
@@ -493,9 +524,9 @@
  * and pulse gently, so choosing a region shows you the circuit rather than
  * just hiding its surroundings.
  */
-.numSvg[data-mode="torque"] { --reg: #e04ff0; }
-.numSvg[data-mode="warp"]   { --reg: #35d46a; }
-.numSvg[data-mode="plex"]   { --reg: #a3adb8; }
+.numSvg[data-mode="torque"] { --reg: var(--num-current); }
+.numSvg[data-mode="warp"]   { --reg: var(--num-channel); }
+.numSvg[data-mode="plex"]   { --reg: var(--num-bone); }
 
 .numSvg[data-mode="torque"] .numCurrent[data-sys="torque"],
 .numSvg[data-mode="torque"] .numZone[data-sys="torque"],
@@ -518,19 +549,18 @@
 }
 
 /* the bars beside the region names, in the colours above */
-.numLayerBar[data-region="torque"] { background: #e04ff0; }
-.numLayerBar[data-region="warp"]   { background: #35d46a; }
-.numLayerBar[data-region="plex"]   { background: #a3adb8; }
+.numLayerBar[data-region="torque"] { background: var(--num-current); }
+.numLayerBar[data-region="warp"]   { background: var(--num-channel); }
+.numLayerBar[data-region="plex"]   { background: var(--num-bone); }
 .numLayerBar[data-region="all"]    { background: var(--num-current); }
 
-.numSvg[data-layer-currents="0"] .numLayerCurrents,
+.numSvg[data-layer-currents="0"] .numCurrentPath,
 .numSvg[data-layer-gates="0"] .numLayerGates,
 .numSvg[data-layer-gates="0"] .numLayerChannels,
 .numSvg[data-layer-zones="0"] .numLayerZones { display: none; }
 
-/* SYZYGIES off hides only the currents that express them, leaving the gates
- * and channels - the secondary traffic - visible on their own. */
-.numSvg[data-layer-syzygies="0"] .numLayerCurrents { opacity: 0.22; }
+/* The source pair and its current are independently truthful layers. */
+.numSvg[data-layer-syzygies="0"] .numSyzygyBond { display: none; }
 
 /* ---- annotation: typography, not a panel ------------------------------- */
 
@@ -568,6 +598,19 @@
 
 /* ---- controls: text, set in a row, no containers ----------------------- */
 
+/* Every visible HTML control in the Numogram meets the same target floor.
+ * Keeping the rule at the feature boundary also covers model-specific cards,
+ * list rows and future folded controls instead of certifying a hand-picked
+ * subset. SVG targets have their own measured geometry in numogram.js. */
+.numogramBG button,
+.numogramBG input:not([type="hidden"]),
+.numogramBG select,
+.numogramBG summary {
+	box-sizing: border-box;
+	min-width: 44px;
+	min-height: 44px;
+}
+
 .numCtlRow {
 	display: flex;
 	flex-wrap: wrap;
@@ -578,7 +621,13 @@
 .numCtl {
 	background: none;
 	border: none;
-	padding: 0;
+	box-sizing: border-box;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 44px;
+	min-height: 44px;
+	padding: 0 0.65em;
 	margin: 0;
 	font-family: inherit;
 	font-size: 0.74em;
@@ -611,13 +660,13 @@
 .numNumberInput:focus { outline: none; border-bottom-width: 4px; }
 .numNumberOut { margin-top: 0.6em; }
 
-/* ---- the note about the reference -------------------------------------
+/* ---- the source note ---------------------------------------------------
  * Outside the field, in the site's own voice, so it cannot be mistaken for
  * part of the diagram. */
 
 /* The panel around this is sized to fit its contents, and a paragraph's
  * max-content width is the whole sentence on one line - which was stretching
- * that panel to the full width of the page and leaving the green field adrift
+ * that panel to the full width of the page and leaving the field adrift
  * in the middle of it. width:0 keeps the note out of the intrinsic size;
  * min-width:100% then fills whatever the field settled on. */
 .numNote {
@@ -640,14 +689,14 @@
 	from { stroke-dashoffset: 320; }
 	to { stroke-dashoffset: 0; }
 }
-.numCurrent.numOn .numCurLine,
+.numCurrent.numOn .numFilament2,
 .numChannel.numOn .numChLine {
 	stroke-dasharray: 320;
 	animation: numTrace 0.75s ease-out 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.numCurrent.numOn .numCurLine,
+	.numCurrent.numOn .numFilament2,
 	.numChannel.numOn .numChLine {
 		stroke-dasharray: none;
 		animation: none;
@@ -664,7 +713,7 @@
 
 /* Narrow: the annotation goes back under the diagram, which is the only
  * arrangement that keeps the figure a usable size on a phone. */
-@media (max-width: 620px) {
+@media (max-width: 760px) {
 	/* A column, with an order set rather than left to the source. In source
 	 * order the left-hand controls come first, which on a phone put five
 	 * panels of switches above the figure they act on before you had seen it.
@@ -678,7 +727,8 @@
 	}
 	.numStage { order: 1; flex-direction: column; align-items: center; justify-content: center;
 	            gap: 1.1em; max-height: none; overflow: visible; }
-	.numSideRight { order: 2; }
+	.numSideRight { order: 2; border-left: none; border-top: 1px solid rgba(255, 20, 147, 0.34);
+	                padding: 1em 0 0; }
 	.numSideLeft { order: 3; padding-right: 0; }
 
 	/* full width, and scrolling with the page rather than inside themselves -
@@ -706,6 +756,8 @@
 	/* two-up, so five folded panels are not five full-width rows */
 	.numSideLeft { display: flex; flex-wrap: wrap; gap: 0 0.6em; }
 	.numSideLeft > .numGroupBox { flex: 1 1 13em; }
+	.numApparatusInner { max-height: none; overflow: visible; }
+	.numApparatusHead { align-items: flex-start; flex-direction: column; }
 
 	/* the deck scrolls with the page here rather than inside itself */
 	.numDeck { max-height: none; overflow-y: visible; padding-right: 0; }
@@ -820,6 +872,8 @@
 	opacity: 0.7;
 }
 .numDetails > summary {
+	display: flex;
+	align-items: center;
 	cursor: pointer;
 	font-size: 0.74em;
 	font-weight: 600;
@@ -1010,14 +1064,12 @@
  * block. Each takes a colour of its own now - the same hues the figure
  * already uses, so nothing new is introduced - and carries it in its header,
  * its caret, its left edge and its folded note. */
-.numSideRight [data-section="cosmology"] { --sec: #e8c33c; }
-.numSideRight [data-section="trace"]     { --sec: #4d94ff; }
-.numSideRight [data-section="reading"]   { --sec: #e04ff0; }
-.numSideLeft  [data-section="zones"]     { --sec: #35d46a; }
-.numSideLeft  [data-section="layers"]    { --sec: #9a7bff; }
-.numSideLeft  [data-section="regions"]   { --sec: #f0a028; }
-.numSideLeft  [data-section="currents"]  { --sec: #3ef07a; }
-.numSideLeft  [data-section="gates"]     { --sec: #7c5cff; }
+.numSideRight [data-section="reading"]   { --sec: var(--num-channel); }
+.numSideLeft  [data-section="zones"]     { --sec: var(--num-bone); }
+.numSideLeft  [data-section="layers"]    { --sec: var(--num-current); }
+.numSideLeft  [data-section="regions"]   { --sec: var(--num-channel); }
+.numSideLeft  [data-section="currents"]  { --sec: var(--num-current); }
+.numSideLeft  [data-section="gates"]     { --sec: var(--num-channel); }
 
 [data-section] .numGroupLabel { color: var(--sec, var(--num-ink)); opacity: 0.92; }
 [data-section] .numSectionCaret { border-left-color: var(--sec, currentColor); opacity: 0.85; }
@@ -1063,7 +1115,7 @@
 }
 .numLayerBar[data-bar="currents"] { background: var(--num-current); }
 .numLayerBar[data-bar="gates"]    { background: var(--num-channel); }
-.numLayerBar[data-bar="syzygies"] { background: #c7d0da; }
+.numLayerBar[data-bar="syzygies"] { background: var(--num-bone); }
 .numLayerName { flex: 1 1 auto; }
 .numLayerState {
 	flex: 0 0 auto;
@@ -1090,8 +1142,9 @@
 	margin-bottom: 0.6em;
 }
 .numZoneChip {
-	width: 1.9em;
-	height: 1.9em;
+	box-sizing: border-box;
+	width: 44px;
+	height: 44px;
 	padding: 0;
 	background: none;
 	border: 1px solid var(--zc, var(--num-ink));
@@ -1103,16 +1156,7 @@
 	cursor: pointer;
 	transition: opacity 0.15s ease, box-shadow 0.15s ease;
 }
-.numZoneChip[data-zonechip="0"] { --zc: #a3adb8; }
-.numZoneChip[data-zonechip="1"] { --zc: #e04ff0; }
-.numZoneChip[data-zonechip="2"] { --zc: #4d94ff; }
-.numZoneChip[data-zonechip="3"] { --zc: #35d46a; }
-.numZoneChip[data-zonechip="4"] { --zc: #f05a5a; }
-.numZoneChip[data-zonechip="5"] { --zc: #f0a028; }
-.numZoneChip[data-zonechip="6"] { --zc: #e8c33c; }
-.numZoneChip[data-zonechip="7"] { --zc: #6e93c8; }
-.numZoneChip[data-zonechip="8"] { --zc: #9a7bff; }
-.numZoneChip[data-zonechip="9"] { --zc: #8a939e; }
+.numZoneChip { --zc: var(--num-bone); }
 .numZoneChip:hover { box-shadow: 0 0 7px var(--zc, var(--num-ink)); }
 .numZoneChip.numZoneChipOff { opacity: 0.28; }
 .numZoneChip:focus-visible { outline: 2px solid var(--num-ink); outline-offset: 2px; }
@@ -1141,9 +1185,9 @@
 .numSvg[data-focus="1"] .numZone.numPick {
 	opacity: 1;
 }
-.numZone.numPick .numZoneRing {
-	stroke-width: 4.6;
-	filter: drop-shadow(0 0 9px var(--zc, var(--num-ink)));
+.numZone.numPick .numZoneBracket {
+	stroke-width: 3.8;
+	filter: drop-shadow(0 0 9px rgba(57, 255, 20, 0.72));
 }
 
 /* The arc itself, in three passes: a wide soft bloom, the line, and a dash
@@ -1167,7 +1211,7 @@
 	opacity: 0.85;
 }
 .numLinkPulse {
-	stroke: #ffffff;
+	stroke: var(--num-bone);
 	stroke-width: 3.2;
 	stroke-dasharray: 16 150;
 	opacity: 0.9;
@@ -1175,7 +1219,7 @@
 }
 @keyframes numPulse { to { stroke-dashoffset: -166; } }
 
-/* the flat green artefact takes the link without the bloom */
+/* the bone-field artefact takes the link without the bloom */
 .numField[data-invert="1"] .numLinkGlow { display: none; }
 .numField[data-invert="1"] .numLinkPulse { stroke: var(--num-field); }
 
@@ -1250,17 +1294,17 @@
 }
 .numSelect:focus-visible { outline: 2px solid var(--num-ink); outline-offset: 3px; }
 /* the option list is drawn by the platform, so it needs real colours */
-.numSelect option { background: #101010; color: #ededed; }
+.numSelect option { background: var(--num-field); color: var(--num-bone); }
 
 .numCosmoRow, .numGeoSetRow { align-items: baseline; gap: 0.9em; margin-top: 1.2em; }
 .numCosmoRow .numAnnotLabel,
 .numGeoSetRow .numAnnotLabel { margin: 0; }
 
 /* ---- the direction marks ----------------------------------------------
- * The small solid triangle the reference draws inside every zone. Purely
+ * Each small solid triangle points toward the zone's syzygetic twin. Purely
  * visual: it never takes a pointer event. */
-.numZoneMark { fill: var(--zc, var(--num-ink)); stroke: none; pointer-events: none; }
-.numZone.numOn .numZoneMark { fill: var(--num-field); }
+.numZoneMark { fill: var(--num-bone); stroke: none; pointer-events: none; }
+.numZone.numOn .numZoneMark { fill: var(--num-current); }
 
 /* ---- hit areas ---------------------------------------------------------
  *
@@ -1281,17 +1325,17 @@
 	stroke-linecap: round;
 	pointer-events: stroke;
 	cursor: pointer;
-	vector-effect: non-scaling-stroke;
 }
+.numCurrentHit { stroke-width: 26; }
 
 /* The visible parts no longer need to catch anything, so a click in the
  * middle of a zone cannot be swallowed by the ring or the numeral. */
-.numZoneRing, .numGateRing, .numZoneText, .numGateText,
-.numCurValRing, .numCurValText, .numCurLine, .numCurBody, .numCurHead,
+.numZoneRing, .numZoneBracket, .numGateRing, .numGateLeader, .numZoneText, .numGateText,
+.numBondLine, .numCurrentFilament, .numCurrentChevron, .numCurrentLabel,
 .numChLine, .numChHead { pointer-events: none; }
 
 .numGate { cursor: pointer; }
-.numGate:focus-visible .numGateRing { stroke-dasharray: 3 3; }
+.numGate:focus-visible .numGateRing { filter: drop-shadow(0 0 5px rgba(255, 20, 147, 0.75)); }
 
 /* ---- the cosmology panel: attributed bands ----------------------------
  *
@@ -1333,9 +1377,8 @@
 	pointer-events: none;
 }
 
-/* The zone, on every row, in that zone's own colour - the same colour the
- * zone carries in the Numogram beside it, so the attribution can be checked
- * by eye instead of taken on trust. */
+/* The zone address on every row uses the same bone registration ink as the
+ * canonical figure. Individual zones do not acquire a second colour code. */
 .numBandZone {
 	fill: none;
 	stroke: var(--zc, var(--num-ink));
@@ -1352,16 +1395,7 @@
 	dominant-baseline: central;
 	pointer-events: none;
 }
-.numBandZone[data-zone="0"], .numBandZoneText[data-zone="0"] { --zc: #a3adb8; }
-.numBandZone[data-zone="1"], .numBandZoneText[data-zone="1"] { --zc: #e04ff0; }
-.numBandZone[data-zone="2"], .numBandZoneText[data-zone="2"] { --zc: #4d94ff; }
-.numBandZone[data-zone="3"], .numBandZoneText[data-zone="3"] { --zc: #35d46a; }
-.numBandZone[data-zone="4"], .numBandZoneText[data-zone="4"] { --zc: #f05a5a; }
-.numBandZone[data-zone="5"], .numBandZoneText[data-zone="5"] { --zc: #f0a028; }
-.numBandZone[data-zone="6"], .numBandZoneText[data-zone="6"] { --zc: #e8c33c; }
-.numBandZone[data-zone="7"], .numBandZoneText[data-zone="7"] { --zc: #6e93c8; }
-.numBandZone[data-zone="8"], .numBandZoneText[data-zone="8"] { --zc: #9a7bff; }
-.numBandZone[data-zone="9"], .numBandZoneText[data-zone="9"] { --zc: #8a939e; }
+.numBandZone, .numBandZoneText { --zc: var(--num-bone); }
 
 /* Retained for provenance-backed datasets with bodies that have no zone. A
  * row that lights nothing must say so rather than look broken. */
@@ -1473,7 +1507,7 @@
 	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
 	font-size: 0.66em;
 	line-height: 1.55;
-	color: #98a3ae;
+	color: var(--num-muted);
 	margin: 0.35em 0 0.6em;
 }
 .numDeckTabs { display: flex; flex-wrap: wrap; gap: 0.4em; }
@@ -1503,11 +1537,11 @@
 	font-size: 0.58em;
 	font-weight: 700;
 	letter-spacing: 0.16em;
-	color: #e04ff0;
+	color: var(--num-channel);
 }
 /* the nine-sum segment is the one that matters most, so it is marked */
-.numDeckSegKey .numDeckSegHead { border-bottom-color: #e04ff0; }
-.numDeckSegKey .numDeckSegName { opacity: 1; color: #e04ff0; }
+.numDeckSegKey .numDeckSegHead { border-bottom-color: var(--num-channel); }
+.numDeckSegKey .numDeckSegName { opacity: 1; color: var(--num-channel); }
 
 /* Forty of the forty-five carry arithmetic and nothing else, so they are set
  * as a compact row: two-up where there is width for it, and without the
@@ -1543,12 +1577,12 @@
 	border-color: var(--reg-c, var(--num-ink));
 	box-shadow: 0 0 12px -2px var(--reg-c, var(--num-ink));
 }
-.numCard[data-sys="torque"] { --reg-c: #e04ff0; }
-.numCard[data-sys="warp"]   { --reg-c: #35d46a; }
-.numCard[data-sys="plex"]   { --reg-c: #a3adb8; }
+.numCard[data-sys="torque"] { --reg-c: var(--num-current); }
+.numCard[data-sys="warp"]   { --reg-c: var(--num-channel); }
+.numCard[data-sys="plex"]   { --reg-c: var(--num-bone); }
 /* a pair that is not a syzygy belongs to no region, so it takes no region
  * colour - the deck should not imply a membership the arithmetic denies */
-.numCard[data-sys="none"]   { --reg-c: #6b7684; }
+.numCard[data-sys="none"]   { --reg-c: var(--num-muted); }
 
 .numCardTop {
 	display: flex;
@@ -1573,7 +1607,7 @@
 	font-size: 1.32em;
 	font-weight: 700;
 	letter-spacing: 0.02em;
-	color: #e8ecf0;
+	color: var(--num-bone);
 	line-height: 1.1;
 }
 .numCardEpithet {
@@ -1593,12 +1627,12 @@
 	font-size: 0.7em;
 }
 .numCardFacts dt { opacity: 0.5; letter-spacing: 0.1em; }
-.numCardFacts dd { margin: 0; color: #e8ecf0; }
+.numCardFacts dd { margin: 0; color: var(--num-bone); }
 .numCardReads {
 	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
 	font-size: 0.72em;
 	line-height: 1.55;
-	color: #98a3ae;
+	color: var(--num-muted);
 }
 .numCardTag {
 	margin-top: 0.5em;
@@ -1623,29 +1657,29 @@
  * app is saying from what the figure is.
  */
 .numBox[data-box] { --bx: var(--num-ink); }
-.numBox[data-box="zone"]             { --bx: #a3adb8; }
-.numBox[data-box="syzygy"]           { --bx: #e04ff0; }
-.numBox[data-box="arithmetic"]       { --bx: #4d94ff; }
-.numBox[data-box="structures"]       { --bx: #9a7bff; }
-.numBox[data-box="reduction"]        { --bx: #f0a028; }
-.numBox[data-box="aq-values"]        { --bx: #e8c33c; }
+.numBox[data-box="zone"]             { --bx: var(--num-bone); }
+.numBox[data-box="syzygy"]           { --bx: var(--num-current); }
+.numBox[data-box="arithmetic"]       { --bx: var(--num-bone); }
+.numBox[data-box="structures"]       { --bx: var(--num-current); }
+.numBox[data-box="reduction"]        { --bx: var(--num-channel); }
+.numBox[data-box="aq-values"]        { --bx: var(--num-bone); }
 .numBox[data-box="number-trace"],
 .numBox[data-box="word-trace"],
-.numBox[data-box="planet-trace"]     { --bx: #4d94ff; }
-.numBox[data-box="body"]             { --bx: #e8e8ea; }
-.numBox[data-box="geocentric"]       { --bx: #6e93c8; }
+.numBox[data-box="planet-trace"]     { --bx: var(--num-current); }
+.numBox[data-box="body"]             { --bx: var(--num-bone); }
+.numBox[data-box="geocentric"]       { --bx: var(--num-channel); }
 .numBox[data-box="ccru-planetwork"],
-.numBox[data-box="geocentric-zone"]  { --bx: #35d46a; }
+.numBox[data-box="geocentric-zone"]  { --bx: var(--num-current); }
 
 .numBox[data-box] { border-top-color: var(--bx); }
 .numBoxLabel { color: var(--bx); opacity: 0.85; }
 
 /* Values read as answers: near-white, and a size up from the label. */
-.numAnnotLine { color: #e8ecf0; }
+.numAnnotLine { color: var(--num-bone); }
 .numAnnotRow > span:first-child { color: var(--bx); opacity: 0.7; }
-.numAnnotRow > span:last-child { color: #e8ecf0; }
+.numAnnotRow > span:last-child { color: var(--num-bone); }
 
-/* The big numeral takes its zone's own colour, set by .numTag. */
+/* The big numeral stays in the figure's bone registration ink. */
 .numAnnotBig { font-size: 1.9em; font-weight: 700; line-height: 1.1; }
 
 /* A demon's name is a name, not a value - it gets the block's colour and
@@ -1664,8 +1698,8 @@
 	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
 	letter-spacing: 0.02em;
 }
-.numAnnotFoot { color: #98a3ae; opacity: 1; font-size: 0.92em; }
-.numAnnotIdle { color: #98a3ae; opacity: 1; }
+.numAnnotFoot { color: var(--num-muted); opacity: 1; font-size: 0.92em; }
+.numAnnotIdle { color: var(--num-muted); opacity: 1; }
 .numStatus { opacity: 0.6; }
 
 /* invert is ink on paper: one colour, no exceptions */
@@ -1682,20 +1716,26 @@
 .numTraceField { position: relative; display: inline-flex; flex: 1 1 9em; min-width: 7em; }
 .numTraceField .numNumberInput {
 	width: 100%;
+	box-sizing: border-box;
+	min-height: 44px;
+	padding-right: 0;
 	/* smaller than the rest of the title row, and with the row's wide tracking
 	   dropped: the placeholder is a phrase, and at the row's own size and
 	   letter-spacing it needed 101px in a 98px field */
 	font-size: 0.64em;
 	letter-spacing: 0.02em;
 }
-/* Top left of the field, and invisible until the field is hovered - it should
- * not sit there as a permanent mark on a control that is usually empty. */
+.numTraceField .numNumberInput:not(:placeholder-shown) { padding-right: 44px; }
+/* The right end of the field, invisible until the field is hovered. The input
+ * reserves the same width, so the target never covers typed text. */
 .numTraceClear {
 	position: absolute;
-	left: -0.15em;
-	top: -0.75em;
-	width: 1.05em;
-	height: 1.05em;
+	right: 0;
+	top: 0;
+	width: 44px;
+	height: 44px;
+	min-width: 44px;
+	min-height: 44px;
 	padding: 0;
 	line-height: 1;
 	background: var(--num-field);
@@ -1726,14 +1766,14 @@
 	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
 	font-size: 0.66em;
 	font-style: italic;
-	color: #98a3ae;
+	color: var(--num-muted);
 	margin-top: 0.1em;
 }
 .numCardClass {
 	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
 	font-size: 0.66em;
 	line-height: 1.45;
-	color: #98a3ae;
+	color: var(--num-muted);
 	margin-top: 0.4em;
 }
 .numCard .numCardRegion { display: block; margin-top: 0.45em; }
@@ -1751,11 +1791,11 @@
 	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
 	font-size: 0.86em;
 	line-height: 1.45;
-	color: #98a3ae;
+	color: var(--num-muted);
 }
-.numBox[data-box="lemur"]       { --bx: #e04ff0; }
-.numBox[data-box="pandemonium"] { --bx: #9a7bff; }
-.numBox[data-box="routes"]      { --bx: #f0a028; }
+.numBox[data-box="lemur"]       { --bx: var(--num-channel); }
+.numBox[data-box="pandemonium"] { --bx: var(--num-current); }
+.numBox[data-box="routes"]      { --bx: var(--num-bone); }
 
 /* ---- Divination -------------------------------------------------------- */
 .numDivPair { display: flex; gap: 0.6em; margin-bottom: 0.6em; }
@@ -1774,7 +1814,7 @@
 	margin-top: 0.3em;
 	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
 	font-size: 0.66em;
-	color: #f05a5a;
+	color: var(--num-channel);
 }
 .numDivResult {
 	margin-top: 0.9em;
@@ -1785,22 +1825,22 @@
 	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
 	font-size: 1.25em;
 	font-weight: 700;
-	color: #e8ecf0;
+	color: var(--num-bone);
 	line-height: 1.15;
 }
-.numDivHead i { font-style: italic; font-size: 0.7em; color: #98a3ae; }
+.numDivHead i { font-style: italic; font-size: 0.7em; color: var(--num-muted); }
 .numDivEpithet {
 	font-size: 0.62em;
 	font-weight: 700;
 	letter-spacing: 0.2em;
-	color: #e04ff0;
+	color: var(--num-channel);
 	margin: 0.2em 0 0.6em;
 }
 .numDivBody {
 	font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
 	font-size: 0.72em;
 	line-height: 1.55;
-	color: #98a3ae;
+	color: var(--num-muted);
 	margin-top: 0.5em;
 }
 .numDivRoutes { margin-top: 0.7em; }
@@ -1821,15 +1861,15 @@
 }
 .numField[data-cosmo="divine"] .numPanelMain { flex: 0 1 38%; }
 .numField[data-cosmo="divine"] [data-section="reading"] { display: none; }
-.numField[data-cosmo="divine"] .numSideRight { flex: 0 0 auto; min-width: 0; max-width: 7.5em; }
+.numField[data-cosmo="divine"] .numSideRight { display: none; }
 
 /* with the room, the two fields sit side by side at a readable size */
 .numField[data-cosmo="divine"] .numDivine { font-size: 1.06em; }
 .numField[data-cosmo="divine"] .numDivHead { font-size: 1.5em; }
 .numField[data-cosmo="divine"] .numDivPair { gap: 1em; }
 
-@media (max-width: 620px) {
+@media (max-width: 760px) {
 	.numField[data-cosmo="divine"] .numPanelGeo,
 	.numField[data-cosmo="divine"] .numPanelMain { flex: 0 0 auto; max-width: none; }
-	.numField[data-cosmo="divine"] .numSideRight { max-width: none; }
+	.numField[data-cosmo="divine"] .numSideRight { display: none; }
 }

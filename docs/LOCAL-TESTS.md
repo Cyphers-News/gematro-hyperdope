@@ -21,6 +21,45 @@ Python `exec`. Neither is part of the Node suite. The Node-compatible coverage
 is `tests/localstorage.test.js`; this workflow does not claim to run every file
 whose name happens to contain “test”.
 
+## Verified Numogram release checkpoint (2026-11-10)
+
+The locally verified, uncommitted Numogram redesign candidate starts from clean
+`master` at `9c380dd`. Its focused Numogram assertion script passes, the required
+safety suite passes **51 / 51**, and the full local suite passes **78 / 78**.
+This resolves the inherited Numogram failure for this repository without an
+exclusion, expected-failure rule, or weakened assertion.
+
+The actual page was also served locally and exercised in Chromium at 1500 by
+1000, 1366 by 768, 1024 by 768, a short 1366 by 560 window, and the repository's
+520-CSS-pixel narrow viewport produced by its fixed mobile viewport. A
+200-percent-equivalent viewport remains scrollable rather than clipping the
+lower controls. Reduced motion, keyboard zone selection, ordered three-zone
+selection, independent current and syzygy layers, every exposed auxiliary
+model, hidden trace history, `?number=364` reload, and close/reopen state were
+checked with no browser exceptions or console errors. The browser census also
+measured 186 visible-control instances across the four cosmologies;
+none fell below 44 by 44 pixels. Geometry regressions now include registration
+brackets at their widest interactive state, rendered bounds for both
+self-returning channels, one shared svg coordinate system for visible and hit
+strokes, and separate visible-tag and pointer-target clearance. Actual pointer
+probes resolved all 25 filament centres and all 60 sampled outer edges,
+including the selected-width state, to their current; an exact current/channel
+crossing also activated the foreground current. The previous exact diff cleared
+fresh read-only adversarial review. The owner-requested gate-aperture refinement
+then cleared its own exact-diff follow-up with no stop-ship finding: its resting
+and selected apertures remain fully opaque and legible in both palette readings,
+and its proof binds the dedicated gate-ink token to the rendered numeral rule.
+
+The candidate's served content-key prefixes are `2de9f2e2f7617f84` for
+`calc/numogram.js` and `b2a6d07afb651362` for `calc/numogram.css`, matching the
+current source hashes. These results were collected locally before release and
+do not by themselves prove deployed cache state, database state, or provider
+behavior. The two sibling repositories have not yet been reconciled or ported,
+so their status must not be inferred from this checkpoint.
+
+The older Numogram diagnosis and repository tables below are retained as dated
+historical evidence. They do not describe this candidate's current baseline.
+
 ## Workflow boundary
 
 `.github/workflows/local-tests.yml` runs on ordinary `pull_request` events,
