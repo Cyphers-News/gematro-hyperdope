@@ -300,6 +300,7 @@ function importCalcOptions(calcOpt) { // load user options
 		if (skipped > 0) console.warn("Import: " + skipped + " option(s) skipped as unrecognised.")
 	}
 	toggleCodeRain() // update coderain
+	if (typeof applyCipherChartVisibility === "function") applyCipherChartVisibility()
 }
 
 function dragOverHandler(ev) {

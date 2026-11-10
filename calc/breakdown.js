@@ -78,6 +78,7 @@ function updateWordBreakdown(impName = breakCipher, impBool = false, chartUpd = 
 	var x, curCipher, curCiphCol, cSpot
 	var o, acw, acl
 
+	if (typeof applyCipherChartVisibility === "function") applyCipherChartVisibility()
 	updateEnabledCipherCount()
 	$("#BreakTableContainer").removeClass("hideValue") // unhide breakdown
 	$("#BreakdownDetails").attr("style", "") // reset padding (gematria card)
@@ -461,6 +462,7 @@ function buildLongBreakdown(curCipher) {
 }
 
 function updateCipherChart(curCipher) {
+	if (typeof applyCipherChartVisibility === "function") applyCipherChartVisibility()
 
 	if (optShowCipherChart == false) {
 		document.getElementById("ChartSpot").innerHTML = ""
@@ -563,6 +565,7 @@ function fitCipherChart() {
 }
 
 function updateCipherChartGemCard(impName = breakCipher) {
+	if (typeof applyCipherChartVisibility === "function") applyCipherChartVisibility()
 
 	if (optShowCipherChart == false) {
 		document.getElementById("ChartSpot").innerHTML = ""

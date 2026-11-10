@@ -693,8 +693,27 @@ var optFocusShowHistoryTable = true
 function applyFocusModeVisibility() {
 	document.body.classList.toggle("focusHideWordSums", !optFocusShowWordSums)
 	document.body.classList.toggle("focusHideBreakdown", !optFocusShowBreakdown)
-	document.body.classList.toggle("focusHideCipherChart", !optFocusShowCipherChart)
+	document.body.classList.toggle("focusHideCipherChart", !optShowCipherChart || !optFocusShowCipherChart)
 	document.body.classList.toggle("focusHideHistoryTable", !optFocusShowHistoryTable)
+
+	var focusInputs = document.querySelectorAll("[data-focus-option]")
+	for (var i = 0; i < focusInputs.length; i++) {
+		var name = focusInputs[i].getAttribute("data-focus-option")
+		if (typeof window[name] === "boolean") focusInputs[i].checked = window[name]
+	}
+}
+
+// The stored option is truth; chart markup, classes and any currently-open
+// control panel are projections of it. This is deliberately idempotent so
+// restore/import/redraw paths can converge here without replaying a toggle.
+function applyCipherChartVisibility() {
+	var chart = document.getElementById("ChartSpot")
+	if (chart !== null) chart.classList.toggle("hideValue", !optShowCipherChart)
+
+	var checkbox = document.getElementById("chkbox_CC")
+	if (checkbox !== null) checkbox.checked = optShowCipherChart
+
+	applyFocusModeVisibility()
 }
 
 function focusOptionSet(varName, checked) {
@@ -703,14 +722,15 @@ function focusOptionSet(varName, checked) {
 }
 
 function focusOptionRow(label, varName, checked) {
-	return '<label class="chkLabel focusOptionRow">'+label+'<input type="checkbox" onchange="focusOptionSet(&quot;'+varName+'&quot;, this.checked)"'+(checked ? ' checked' : '')+'><span class="custChkBox"></span></label>'
+	return '<label class="chkLabel focusOptionRow">'+label+'<input type="checkbox" data-focus-option="'+varName+'" onchange="focusOptionSet(&quot;'+varName+'&quot;, this.checked)"'+(checked ? ' checked' : '')+'><span class="custChkBox"></span></label>'
 }
 
 // Same row, but for the display options that moved here out of the Options
 // menu: those already have their own conf_* handler and a chkbox_* id other
 // code looks up, so both are kept rather than routed through focusOptionSet().
-function displayOptionRow(label, id, handler, checked) {
-	return '<label class="chkLabel focusOptionRow">'+label+'<input type="checkbox" id="'+id+'" onclick="'+handler+'()"'+(checked ? ' checked' : '')+'><span class="custChkBox"></span></label>'
+function displayOptionRow(label, id, handler, checked, valueDriven) {
+	var call = valueDriven ? handler+'(this.checked)' : handler+'()'
+	return '<label class="chkLabel focusOptionRow">'+label+'<input type="checkbox" id="'+id+'" onclick="'+call+'"'+(checked ? ' checked' : '')+'><span class="custChkBox"></span></label>'
 }
 
 // The panel behind the sliders icon in the top left. It started as just the
@@ -728,7 +748,7 @@ function toggleFocusOptionsPanel() {
 	o += '<div class="focusOptionsTitle">Display</div>'
 	o += displayOptionRow("Word Breakdown", "chkbox_WB", "conf_WB", optWordBreakdown)
 	o += displayOptionRow("Compact Breakdown", "chkbox_CB", "conf_CB", optCompactBreakdown)
-	o += displayOptionRow("Cipher Chart", "chkbox_CC", "conf_CC", optShowCipherChart)
+	o += displayOptionRow("Cipher Chart", "chkbox_CC", "conf_CC", optShowCipherChart, true)
 	o += displayOptionRow("Letter/Word Count", "chkbox_LWC", "conf_LWC", optLetterWordCount)
 	o += displayOptionRow("Gradient Charts", "chkbox_GC", "conf_GC", optGradientCharts)
 
@@ -744,7 +764,7 @@ function toggleFocusOptionsPanel() {
 	o += '<div class="focusOptionsTitle">Show in Focus Mode</div>'
 	o += focusOptionRow("Word sums", "optFocusShowWordSums", optFocusShowWordSums)
 	o += focusOptionRow("Breakdown", "optFocusShowBreakdown", optFocusShowBreakdown)
-	o += focusOptionRow("Cipher chart", "optFocusShowCipherChart", optFocusShowCipherChart)
+	o += focusOptionRow("Cipher chart in focus mode", "optFocusShowCipherChart", optFocusShowCipherChart)
 	o += focusOptionRow("History table", "optFocusShowHistoryTable", optFocusShowHistoryTable)
 	o += '</div>'
 
@@ -831,11 +851,10 @@ function conf_CB() { // Compact Breakdown
 	updateWordBreakdown()
 }
 
-function conf_CC() { // Cipher Chart
-	optShowCipherChart = !optShowCipherChart
+function conf_CC(checked) { // Cipher Chart
+	optShowCipherChart = (typeof checked === "boolean") ? checked : !optShowCipherChart
 	updateWordBreakdown()
-	element = document.getElementById("ChartSpot")
-	element.classList.toggle("hideValue")
+	applyCipherChartVisibility()
 }
 
 function conf_GC() { // Gradient Charts
