@@ -314,6 +314,49 @@ var NUM_TIME_SYSTEMS = [
 	{ key: "plex",   label: "PLEX",   syzygies: ["0::9"] }
 ]
 
+// The zone pages already have owners for every number, relation, planet,
+// gate and Lemur. This deliberately narrow table holds only what cannot be
+// derived from those owners: the Munumese particle and one compact rendering
+// of each page's system note. Source: CCRU Pandemonium zone pages, reproduced
+// in the sourcebook section of Anders J. Aamodt's Unleashing the Numogram.
+var NUM_ZONE_LORE = Object.freeze([
+	Object.freeze({ zone: 0, particle: "eiaoung", gloss: "silent whisper of the ulterior depths", note: "Dense void, flatline and loss of signal: the protocosmic abyss anticipating primal reality.", status: "canonical", source: "CCRU ZONE 0" }),
+	Object.freeze({ zone: 1, particle: "gl",      gloss: "collapsed gargle / glottal spasm", note: "Pod-deliria and techno-immortalism; enduring ideas, historical time and remembrance.", status: "canonical", source: "CCRU ZONE 1" }),
+	Object.freeze({ zone: 2, particle: "dt",      gloss: "imploded fricative / fractured plosive", note: "Crypt-navigation, occulted cyberspace and the liminal populations of hallucination and time-fragmentation.", status: "canonical", source: "CCRU ZONE 2" }),
+	Object.freeze({ zone: 3, particle: "zx",      gloss: "buzz-cutter sonics", note: "Swirling nebulae, cosmic dust and alien pattern; extrinsic fatality, unexpected messages and xenosignal.", status: "canonical", source: "CCRU ZONE 3" }),
+	Object.freeze({ zone: 4, particle: "skr",     gloss: "anthropo-reptiloid hard resh precursor", note: "Terminal deliria, geoconvulsions, continental subsidence and random calamity.", status: "canonical", source: "CCRU ZONE 4" }),
+	Object.freeze({ zone: 5, particle: "ktt",     gloss: "paravocal tic", note: "Hyperborean and Wendigo myth, missing time and alien abduction; decision, judgement and war.", status: "canonical", source: "CCRU ZONE 5" }),
+	Object.freeze({ zone: 6, particle: "tch",     gloss: "interphoneme dzch/tj", note: "Undu, turbular erosion and the dead eye of the cyclone; gnostic death, event horizon and the unexpected.", status: "canonical", source: "CCRU ZONE 6" }),
+	Object.freeze({ zone: 7, particle: "pb",      gloss: "compounded plosive", note: "Emergence from the depths, hyper-sea water-carriers and amphibious colonization; genealogy and inherited wealth.", status: "canonical", source: "CCRU ZONE 7" }),
+	Object.freeze({ zone: 8, particle: "mnm",     gloss: "diffuse subvocal hum", note: "Limbic drift, dreams, trance-states and foetal sentience; submerged currents of fatality.", status: "canonical", source: "CCRU ZONE 8" }),
+	Object.freeze({ zone: 9, particle: "tn",      gloss: "vocal nullity", note: "The Cthellloid metallic ocean of the earth's iron core and the prehuman cultures of the Old Ones.", status: "canonical", source: "CCRU ZONE 9" })
+])
+
+function numZoneLore(n) {
+	for (var i = 0; i < NUM_ZONE_LORE.length; i++) if (NUM_ZONE_LORE[i].zone === n) return NUM_ZONE_LORE[i]
+	return null
+}
+
+// Storage remains low-first for lookup. Every visible netspan goes through
+// this one formatter so the canonical high::low notation cannot drift again.
+function numNetspan(a, b, tagged) {
+	var hi = Math.max(a, b), lo = Math.min(a, b)
+	if (tagged) return numZoneTag(hi) + '<i>::</i>' + numZoneTag(lo)
+	return hi + "::" + lo
+}
+
+function numRegionLabel(sys) {
+	return sys === "torque" ? "TIME-CIRCUIT / TORQUE" : String(sys).toUpperCase()
+}
+
+function numPhaseLemurs(n) {
+	if (n === 0) return []
+	return NUM_LEMURS.filter(function (L) { return Math.max(L.a, L.b) === n })
+		.sort(function (a, b) { return Math.min(a.a, a.b) - Math.min(b.a, b.b) })
+}
+
+function numPhasePopulation(n) { return n === 0 ? null : Math.pow(2, n) }
+
 // ============ COSMOLOGY: three datasets, deliberately not merged ==========
 //
 // canonicalPlanetwork   what CCRU says
@@ -955,7 +998,7 @@ function numDeckEntry(p) {
 		'onclick="numogramHoldPair(' + p.a + ',' + p.b + ')">'
 
 	o += '<div class="numCardTop">' +
-		'<span class="numCardPair">' + numZoneTag(p.a) + '<i>::</i>' + numZoneTag(p.b) + '</span>' +
+		'<span class="numCardPair">' + numNetspan(p.a, p.b, true) + '</span>' +
 		'<span class="numCardMesh">M#' + (L.m < 10 ? "0" + L.m : L.m) + '</span>' +
 		'</div>'
 
@@ -994,6 +1037,7 @@ function numogramDivine() {
 	var panel = document.getElementById("numPanelGeo")
 	var ra = numTraceWord(numDivA), rb = numTraceWord(numDivB)
 	if (!ra.error && !rb.error) {
+		numRelation = null
 		numDeriv = null
 		numBody = null
 		numPicked = (ra.result === rb.result) ? [ra.result] : [ra.result, rb.result]
@@ -1051,7 +1095,7 @@ function numogramDivinePanel() {
 			o += '<div class="numDivHead">' + L.name + (L.alias ? ' <i>(' + L.alias + ')</i>' : '') + '</div>'
 			if (L.title) o += '<div class="numDivEpithet">' + L.title + '</div>'
 			o += '<dl class="numCardFacts">'
-			o += '<dt>Span</dt><dd>' + numZoneTag(lo) + ' :: ' + numZoneTag(hi) + '</dd>'
+			o += '<dt>Span</dt><dd>' + numNetspan(lo, hi, true) + '</dd>'
 			o += '<dt>Mesh</dt><dd>M#' + (L.m < 10 ? "0" + L.m : L.m) + '</dd>'
 			o += '<dt>Sum</dt><dd>' + lo + ' + ' + hi + ' = ' + (lo + hi) + '</dd>'
 			o += '<dt>Motion</dt><dd>' + (hi - lo) + ' &#8594; ' + numZoneTag(numReduce(hi - lo)) + '</dd>'
@@ -1130,6 +1174,7 @@ function numogramDemonPanel() {
 // A card holds both of its zones, which is what draws the link between them.
 function numogramHoldPair(a, b) {
 	var both = (numPicked.indexOf(a) !== -1 && numPicked.indexOf(b) !== -1)
+	numRelation = null
 	numDeriv = null
 	numBody = null
 	if (both) { numPicked = []; numSelected = null }
@@ -1546,7 +1591,9 @@ function numogramSvg() {
 		var ch = NUM_CHANNELS[c]
 		var zf = numZone(ch.from), zt2 = numZone(ch.to)
 		var gg = '<g class="numChannel" data-from="' + ch.from + '" data-to="' + ch.to +
-			'" data-gate="' + ch.gate + '" data-sys="' + numSyzygyOf(ch.from).sys + '">'
+			'" data-gate="' + ch.gate + '" data-sys="' + numSyzygyOf(ch.from).sys + '" ' +
+			'tabindex="0" role="button" aria-pressed="false" aria-label="gate ' + ch.gate +
+			', zone ' + ch.from + ' to zone ' + ch.to + '">'
 		if (ch.from === ch.to) {
 			if (!NUM_GATE_DRAWN[ch.from]) continue     // 0 -> 0 is not drawn either
 			var lp2 = numLoop(zf, NUM_LOOP_ANGLE["gate" + ch.from], 30)
@@ -1578,7 +1625,10 @@ function numogramSvg() {
 		var geom = numCurrentGeometry(sz)
 		var cur = geom.current
 		var g = '<g class="numCurrent" data-syzygy="' + sz.key +
-			'" data-sys="' + sz.sys + '" data-current="' + cur + '">'
+			'" data-sys="' + sz.sys + '" data-current="' + cur + '" ' +
+			'tabindex="0" role="button" aria-pressed="false" aria-label="' +
+			sz.current.toLowerCase() + ' current, zones ' + Math.max(sz.a, sz.b) + ' and ' +
+			Math.min(sz.a, sz.b) + ' to zone ' + cur + '">'
 
 		var bond = geom.bond
 		numBBPath(bond, 4)
@@ -1617,7 +1667,9 @@ function numogramSvg() {
 		var hs = numGateHitSize(ga.value)
 		numBBPt(gp.x, gp.y, Math.max(gs.w, gs.h) / 2)
 		o += '<g class="numGate" data-zone="' + ga.zone + '" data-gate="' + ga.value +
-			'" data-sys="' + numSyzygyOf(ga.zone).sys + '">'
+			'" data-sys="' + numSyzygyOf(ga.zone).sys + '" tabindex="0" role="button" ' +
+			'aria-pressed="false" aria-label="gate ' + ga.value + ', zone ' + ga.zone +
+			' to zone ' + ga.to + '">'
 		var leaderLength = Math.sqrt(Math.pow(gp.x - anchor.x, 2) + Math.pow(gp.y - anchor.y, 2))
 		if (leaderLength > gs.r) {
 			o += '<path class="numGateLeader" d="M' + numR(anchor.x) + ' ' + numR(anchor.y) +
@@ -1637,14 +1689,14 @@ function numogramSvg() {
 	// Nothing cosmological is drawn here any more: the geocentric model has its
 	// own panel, so the canonical viewBox is the canonical viewBox in every mode.
 
-	// -- the ordered link between picked zones. Empty until two are held, then
-	// extended pairwise through every later pick by numogramLinks(). It is the
-	// only part of the figure that depends on selection rather than the model.
+	// -- the single netspan link between exactly two held zones. Three or more
+	// zones resolve the figure's own currents and gates instead of inventing a
+	// route through selection order.
 	// Above the channels so the arc reads over them, below the zones so it
 	// runs behind the discs it joins.
 	o += '<g class="numLayer numLayerLink" id="numLinkLayer"></g>'
 
-	// -- zones, on top, the only focusable things in the figure
+	// -- zones, on top. Operators now share their keyboard grammar.
 	o += '<g class="numLayer numLayerZones">'
 	for (var z2 = 0; z2 < NUM_ZONES.length; z2++) {
 		var zz = NUM_ZONES[z2], sz2 = numSyzygy(zz.sy)
@@ -1687,6 +1739,7 @@ function numogramSvg() {
 // derived from these by numogramApply(), so a state cannot survive a reset by
 // hiding in the DOM.
 var numSelected = null          // zone number, or null
+var numRelation = null          // { kind:"gate", zone:n } | { kind:"current", key:"a::b" }
 var numMode = "all"             // all | torque | warp | plex
 var numExplore = -1             // -1 off, else 0..3 along ZONE/SYZYGY/CURRENT/GATE
 var numLayers = { zones: true, currents: true, gates: true, syzygies: true }
@@ -1799,9 +1852,9 @@ function numogramCurrentList() {
 		var sz = NUM_SYZYGIES[i]
 		var cur = numCurrent(sz)
 		o += '<button class="numListRow" type="button" data-sys="' + sz.sys + '" ' +
-		     'onclick="numogramSelect(' + sz.a + ')">' +
+		     'onclick="numogramSelectRelation({kind:&quot;current&quot;,key:&quot;' + sz.key + '&quot;})">' +
 		     '<span class="numListName numListCurrent">' + sz.current + '</span>' +
-		     '<span class="numListPair">' + numZoneTag(sz.a) + '<i>::</i>' + numZoneTag(sz.b) + '</span>' +
+		     '<span class="numListPair">' + numNetspan(sz.a, sz.b, true) + '</span>' +
 		     '<span class="numListTo"><i>&#8594;</i>' + numZoneTag(cur) + '</span>' +
 		     '</button>'
 	}
@@ -1816,7 +1869,7 @@ function numogramGateList() {
 		if (!NUM_GATE_DRAWN[g.zone]) continue     // Gt-0 is degenerate and undrawn
 		var pad = g.value < 10 ? "0" + g.value : String(g.value)
 		o += '<button class="numListRow" type="button" data-sys="' + numSyzygyOf(g.zone).sys + '" ' +
-		     'onclick="numogramSelect(' + g.zone + ')">' +
+		     'onclick="numogramSelectRelation({kind:&quot;gate&quot;,zone:' + g.zone + '})">' +
 		     '<span class="numListName numListGate">Gt-' + pad + '</span>' +
 		     '<span class="numListPair">' + numZoneTag(g.zone) + '<i>&#8594;</i>' + numZoneTag(g.to) + '</span>' +
 		     '<span class="numListTo"><i>' + g.value + '</i></span>' +
@@ -1930,7 +1983,7 @@ function numLemurReading(x, y) {
 	var o = numGroup("LEMUR", head)
 
 	var facts = numRow("MESH", "M#" + (L.m < 10 ? "0" + L.m : L.m)) +
-		numRow("SPAN", lo + " :: " + hi)
+		numRow("SPAN", numNetspan(lo, hi))
 	if (L.klass) facts += numRow("CLASS", L.klass)
 	if (sz) facts += numRow("CURRENT", sz.current)
 	o += numGroup("PANDEMONIUM", facts)
@@ -1947,36 +2000,119 @@ function numLemurReading(x, y) {
 	return o
 }
 
+function numGateSum(n) {
+	if (n === 0) return "0 = 0"
+	var parts = []
+	for (var i = 1; i <= n; i++) parts.push(i)
+	return parts.join(" + ") + " = " + numCumulate(n)
+}
+
+function numGateReduction(g) {
+	var r = numReduceSteps(String(g.value))
+	if (!r.steps.length) return String(g.value)
+	var out = []
+	for (var i = 0; i < r.steps.length; i++) out.push(r.steps[i].from + " = " + r.steps[i].to)
+	return out.join(" · ")
+}
+
+function numPhaseReading(n) {
+	if (n === 0) {
+		return numGroup("PHASE", '<div class="numAnnotLine numAnnotIdle">NO PHASE POPULATION</div>' +
+			'<div class="numAnnotLine numAnnotFoot">No door, phase-limit, or impulse-entities.</div>')
+	}
+	var ls = numPhaseLemurs(n), rows = ""
+	for (var i = 0; i < ls.length; i++) {
+		var L = ls[i], low = Math.min(L.a, L.b), roles = []
+		if (low === 0) roles.push("DOOR")
+		if (low === n - 1) roles.push("PHASE-LIMIT")
+		rows += '<div class="numPhaseEntry"><span class="numPhaseSpan">' + numNetspan(L.a, L.b) + '</span>' +
+			'<span class="numPhaseName">' + L.name + '</span>' +
+			(roles.length ? '<span class="numPhaseRole">' + roles.join(" · ") + '</span>' : '') + '</div>'
+	}
+	return numGroup("PHASE", numRow("PHASE", String(n)) +
+		numRow("POPULATION", numPhasePopulation(n) + " IMPULSE-ENTITIES") + rows)
+}
+
 function numZoneReading(n) {
 	var sz = numSyzygyOf(n), twin = (sz.a === n) ? sz.b : sz.a
-	var cur = numCurrent(sz), g = numGate(n)
-	var hi = Math.max(n, twin), lo = Math.min(n, twin)
-	var o = ""
-	o += numGroup("ZONE", '<div class="numAnnotBig numTag" data-zone="' + n + '">' + n + '</div>')
-	o += numGroup("SYZYGY",
-		'<div class="numAnnotLine">' + numZoneTag(n) + ' : ' + numZoneTag(twin) + '</div>' +
-		'<div class="numAnnotLine numAnnotName">' + sz.demon + '</div>' +
-		'<div class="numAnnotLine numAnnotFoot">' + sz.sys.toUpperCase() + '</div>')
-	o += numGroup("ARITHMETIC",
-		'<div class="numAnnotLine">' + numZoneTag(n) + " + " + numZoneTag(twin) + " = " + (n + twin) + '</div>' +
-		'<div class="numAnnotLine">' + numZoneTag(hi) + " − " + numZoneTag(lo) + " = " + numZoneTag(cur) + '</div>')
-	o += numGroup("STRUCTURES",
-		numRow("CURRENT", sz.current + " · " + cur + " → ZONE " + cur) +
-		numRow("GATE", String(g.value)) +
-		numRow("CHANNEL", n + " → " + g.to))
-
-	// The reverse direction, so the map is navigable both ways: the zone back
-	// out to the body the Planetwork gives it, and - only while a cosmological
-	// layer is on - that body's classical place.
+	var cur = numCurrent(sz), g = numGate(n), lore = numZoneLore(n)
 	var pw = numPlanetworkZone(n)
-	if (pw !== null) {
-		var pbody = numRow("PLANET", pw.body) + numRow("SOL", String(pw.sol))
-		if (numCosmo !== "off") {
-			var pg = numGeo(pw.body)
-			pbody += numRow("GEOCENTRIC", pg ? (pg.sphere + " SPHERE") : "NO CLASSICAL PLACE")
-		}
-		o += numGroup("CCRU PLANETWORK", pbody)
+	var o = ""
+	o += numGroup("ZONE", '<div class="numAnnotBig numTag" data-zone="' + n + '">' + n + '</div>' +
+		numRow("PLANET", pw.body) + numRow("SOL", String(pw.sol)) +
+		numRow("REGION", numRegionLabel(sz.sys)))
+	o += numGroup("SYZYGY",
+		numRow("NETSPAN", numNetspan(n, twin)) +
+		numRow("TWIN", "ZONE " + twin) +
+		numRow("DEMON", sz.demon) +
+		numRow("CURRENT", sz.current + " → ZONE " + cur))
+	o += numGroup("GATE", numRow("IDENTITY", "GT-" + g.value) +
+		numRow("CUMULATION", numGateSum(n)) +
+		numRow("REDUCTION", numGateReduction(g)) +
+		numRow("CHANNEL", n + " → " + g.to))
+	o += numPhaseReading(n)
+	o += numGroup("QUASIPHONIC", numRow("PARTICLE", lore.particle) +
+		'<div class="numAnnotLine numAnnotFoot">' + lore.gloss + '</div>')
+	o += numGroup("SYSTEM NOTES", '<div class="numAnnotLine numAnnotFoot">' + lore.note + '</div>' +
+		'<div class="numSourceLine">' + lore.source + '</div>')
+	return o
+}
+
+function numGateReading(n) {
+	var g = numGate(n), from = numPlanetworkZone(n), to = numPlanetworkZone(g.to)
+	return numGroup("GATE", '<div class="numAnnotBig">GT-' + g.value + '</div>' +
+		numRow("SOURCE", "ZONE " + n + " · " + from.body) +
+		numRow("CUMULATION", numGateSum(n)) +
+		numRow("REDUCTION", numGateReduction(g)) +
+		numRow("CHANNEL", n + " → " + g.to) +
+		numRow("DESTINATION", "ZONE " + g.to + " · " + to.body))
+}
+
+function numCurrentReading(key) {
+	var sz = numSyzygy(key), cur = numCurrent(sz)
+	var hi = Math.max(sz.a, sz.b), lo = Math.min(sz.a, sz.b)
+	var a = numPlanetworkZone(hi), b = numPlanetworkZone(lo), to = numPlanetworkZone(cur)
+	return numGroup("CURRENT", '<div class="numAnnotBig">' + sz.current + '</div>' +
+		numRow("SYZYGY", numNetspan(sz.a, sz.b)) +
+		numRow("DEMON", sz.demon) +
+		numRow("PLANETS", a.body + " / " + b.body) +
+		numRow("DIFFERENCE", Math.max(sz.a, sz.b) + " − " + Math.min(sz.a, sz.b) + " = " + cur) +
+		numRow("TRACTOR", "ZONE " + cur + " · " + to.body))
+}
+
+function numResolvedRelations(picks) {
+	var held = {}
+	for (var i = 0; i < picks.length; i++) held[picks[i]] = true
+	var currents = [], gates = []
+	for (var s = 0; s < NUM_SYZYGIES.length; s++) {
+		var sz = NUM_SYZYGIES[s], tractor = numCurrent(sz)
+		if (held[sz.a] && held[sz.b] && numLayers.zones && numLayers.currents &&
+			numZoneOn[sz.a] && numZoneOn[sz.b] && numZoneOn[tractor] &&
+			(numMode === "all" || numMode === sz.sys)) currents.push(sz)
 	}
+	for (var g = 0; g < NUM_GATES.length; g++) {
+		var gt = NUM_GATES[g], sys = numSyzygyOf(gt.zone).sys
+		if (gt.zone !== 0 && held[gt.zone] && held[gt.to] && numLayers.zones && numLayers.gates &&
+			numZoneOn[gt.zone] && numZoneOn[gt.to] && (numMode === "all" || numMode === sys)) gates.push(gt)
+	}
+	return { currents: currents, gates: gates }
+}
+
+function numSelectionReading(picks) {
+	var rel = numResolvedRelations(picks), held = ""
+	for (var i = 0; i < picks.length; i++) held += numRow("ZONE", String(picks[i]))
+	var o = numGroup("HELD ZONES", held)
+	var currents = ""
+	for (var c = 0; c < rel.currents.length; c++) {
+		var sz = rel.currents[c], tr = numCurrent(sz)
+		currents += numRow(sz.current, numNetspan(sz.a, sz.b) + " → " + tr +
+			(picks.indexOf(tr) === -1 ? " · OUTSIDE HELD SET" : ""))
+	}
+	o += numGroup("CURRENTS", currents || '<div class="numAnnotLine numAnnotIdle">NONE RESOLVED</div>')
+	var gates = ""
+	for (var g = 0; g < rel.gates.length; g++) gates += numRow("GT-" + rel.gates[g].value,
+		rel.gates[g].zone + " → " + rel.gates[g].to)
+	o += numGroup("GATES", gates || '<div class="numAnnotLine numAnnotIdle">NONE RESOLVED</div>')
 	return o
 }
 
@@ -2040,6 +2176,11 @@ function numogramAnnotate() {
 	var el = document.getElementById("numAnnot")
 	if (el === null) return
 
+	if (numRelation !== null) {
+		el.innerHTML = numRelation.kind === "gate" ? numGateReading(numRelation.zone) : numCurrentReading(numRelation.key)
+		return
+	}
+
 	// A body is a selection in its own right, and it is checked before the
 	// zone is: the Moon and the fixed stars have a place in the Ptolemaic
 	// cosmos and no zone in the Planetwork, so their reading has to survive
@@ -2049,10 +2190,15 @@ function numogramAnnotate() {
 		return
 	}
 
-	// Two zones held: that pair IS a Lemur, and under Pandemonium it is what
-	// the reading is for. It leads, and the zone reading follows it.
+	// Two zones held: that pair IS the reading. A complete zone dossier would
+	// make one pole look primary when the netspan is the actual subject.
 	if (numPicked.length === 2) {
-		el.innerHTML = numLemurReading(numPicked[0], numPicked[1]) + numZoneReading(numSelected)
+		el.innerHTML = numLemurReading(numPicked[0], numPicked[1])
+		return
+	}
+
+	if (numPicked.length >= 3) {
+		el.innerHTML = numSelectionReading(numPicked)
 		return
 	}
 
@@ -2154,6 +2300,7 @@ function numogramApply() {
 	var all = svg.querySelectorAll(".numZone, .numGate, .numChannel, .numCurrent")
 	for (var i = 0; i < all.length; i++) {
 		all[i].classList.remove("numOn", "numTwin", "numTrace")
+		all[i].setAttribute("aria-pressed", "false")
 	}
 
 	// The zone filter. A connector is only drawn when both of the zones it
@@ -2183,16 +2330,58 @@ function numogramApply() {
 		cuEls[ui].classList.toggle("numHidden",
 			!(numZoneOn[usz.a] && numZoneOn[usz.b] && numZoneOn[utr]))
 	}
-	for (var z = 0; z < NUM_ZONES.length; z++) {
-		var el = document.getElementById("numZone" + NUM_ZONES[z].n)
-		if (el !== null) el.setAttribute("aria-pressed", "false")
-	}
+	if (numRelation !== null && !numRelationAvailable(numRelation)) numRelation = null
 	// the folded sections report their own state, and a zone click reaches
 	// here without going through numogramSyncControls()
 	numogramSectionNotes()
 	numogramLinks(svg)
 
+	if (numRelation !== null) {
+		var relationZones = []
+		if (numRelation.kind === "gate") {
+			var rg = numGate(numRelation.zone)
+			relationZones = [rg.zone, rg.to]
+			var rch = svg.querySelector('.numChannel[data-from="' + rg.zone + '"]')
+			var rge = svg.querySelector('.numGate[data-zone="' + rg.zone + '"]')
+			if (rch !== null) { rch.classList.add("numOn"); rch.setAttribute("aria-pressed", "true") }
+			if (rge !== null) { rge.classList.add("numOn"); rge.setAttribute("aria-pressed", "true") }
+		} else {
+			var rsz = numSyzygy(numRelation.key), rcur = numCurrent(rsz)
+			relationZones = [rsz.a, rsz.b, rcur]
+			var rce = svg.querySelector('.numCurrent[data-syzygy="' + rsz.key + '"]')
+			if (rce !== null) { rce.classList.add("numOn"); rce.setAttribute("aria-pressed", "true") }
+		}
+		for (var rz = 0; rz < relationZones.length; rz++) {
+			var rze = document.getElementById("numZone" + relationZones[rz])
+			if (rze !== null) rze.classList.add("numPick")
+		}
+		svg.setAttribute("data-focus", "1")
+		numogramAnnotate()
+		return
+	}
+
 	if (numSelected === null) { numogramAnnotate(); return }
+
+	// A two-zone netspan is complete in itself. Three-plus selections light only
+	// the currents and gates actually resolved by the held set.
+	if (numPicked.length >= 2) {
+		if (numPicked.length >= 3) {
+			var resolved = numResolvedRelations(numPicked)
+			for (var rc = 0; rc < resolved.currents.length; rc++) {
+				var rcurEl = svg.querySelector('.numCurrent[data-syzygy="' + resolved.currents[rc].key + '"]')
+				if (rcurEl !== null) rcurEl.classList.add("numOn")
+			}
+			for (var rgi = 0; rgi < resolved.gates.length; rgi++) {
+				var rgate = resolved.gates[rgi]
+				var rgEl = svg.querySelector('.numGate[data-zone="' + rgate.zone + '"]')
+				var rchEl = svg.querySelector('.numChannel[data-from="' + rgate.zone + '"]')
+				if (rgEl !== null) rgEl.classList.add("numOn")
+				if (rchEl !== null) rchEl.classList.add("numOn")
+			}
+		}
+		numogramAnnotate()
+		return
+	}
 
 	var n = numSelected, sz = numSyzygyOf(n), twin = (sz.a === n) ? sz.b : sz.a
 	var cur = numCurrent(sz), g = numGate(n)
@@ -2232,7 +2421,38 @@ function numogramApply() {
 // describes. Everything downstream of it is untouched.
 var numPicked = []
 
+function numRelationSame(a, b) {
+	if (a === null || b === null || a.kind !== b.kind) return false
+	return a.kind === "gate" ? a.zone === b.zone : a.key === b.key
+}
+
+function numRelationAvailable(r) {
+	if (r === null) return false
+	if (r.kind === "gate") {
+		var g = numGate(r.zone), sys = numSyzygyOf(r.zone).sys
+		return g !== null && numLayers.zones && numLayers.gates && numZoneOn[g.zone] && numZoneOn[g.to] &&
+			(numMode === "all" || numMode === sys)
+	}
+	var sz = numSyzygy(r.key)
+	if (sz === null) return false
+	var cur = numCurrent(sz)
+	return numLayers.zones && (numLayers.currents || numLayers.syzygies) && numZoneOn[sz.a] && numZoneOn[sz.b] &&
+		numZoneOn[cur] && (numMode === "all" || numMode === sz.sys)
+}
+
+function numogramSelectRelation(next) {
+	var off = numRelationSame(numRelation, next)
+	numogramSetPicked(null)
+	numBody = null
+	numDeriv = null
+	numExplore = -1
+	numRelation = off ? null : next
+	numogramWriteUrl()
+	numogramApply()
+}
+
 function numogramSelect(n, keepDeriv) {
+	numRelation = null
 	var at = numPicked.indexOf(n)
 	if (at === -1) numPicked.push(n)
 	else numPicked.splice(at, 1)
@@ -2252,6 +2472,7 @@ function numogramSelect(n, keepDeriv) {
 // body, a replay - speaks through this, so the picked set never drifts out of
 // step with numSelected.
 function numogramSetPicked(n) {
+	numRelation = null
 	numPicked = (n === null || n === undefined) ? [] : [n]
 	numSelected = numPicked.length ? numPicked[0] : null
 }
@@ -2271,22 +2492,17 @@ function numogramLinks(svg) {
 	var layer = svg.getAttribute ? svg.querySelector("#numLinkLayer") : null
 	if (layer === null) return
 
-	svg.setAttribute("data-focus", numPicked.length ? "1" : "0")
+	svg.setAttribute("data-focus", (numPicked.length || numRelation !== null) ? "1" : "0")
 	for (var p = 0; p < 10; p++) {
 		var pe = document.getElementById("numZone" + p)
 		if (pe !== null) pe.classList.toggle("numPick", numPicked.indexOf(p) !== -1)
 	}
 
-	if (numPicked.length < 2) { layer.innerHTML = ""; return }
+	if (numPicked.length !== 2) { layer.innerHTML = ""; return }
 
-	var o = ""
-	for (var i = 0; i < numPicked.length - 1; i++) {
-		var za = numZone(numPicked[i]), zb = numZone(numPicked[i + 1])
-		if (za === null || zb === null) continue
-		// bowed a little, and alternately, so three or more picks do not stack
-		// their arcs on one line
-		var bend = (i % 2 === 0 ? 1 : -1) * 54
-		var lp = numCubic(za.x, za.y, za.r, zb.x, zb.y, zb.r, bend)
+	var za = numZone(numPicked[0]), zb = numZone(numPicked[1]), o = ""
+	if (za !== null && zb !== null) {
+		var lp = numCubic(za.x, za.y, za.r, zb.x, zb.y, zb.r, 54)
 		o += '<path class="numLinkGlow" d="' + lp.d + '"/>'
 		o += '<path class="numLinkLine" d="' + lp.d + '"/>'
 		o += '<path class="numLinkPulse" d="' + lp.d + '"/>'
@@ -2298,6 +2514,7 @@ function numogramLinks(svg) {
 // no separate view: the same figure, with one link of the chain emphasised at
 // a time and the rest of it still visible.
 function numogramSelectBody(name) {
+	numRelation = null
 	var off = (numBody === name)
 	numBody = off ? null : name
 	// Clicking a lit body puts it out, and takes its zone with it. It used to
@@ -2981,17 +3198,21 @@ function numogramActivate(target) {
 	if (b !== null) { numogramSelectBody(b.getAttribute("data-body")); return true }
 	var g = target.closest(".numZone")
 	if (g !== null) { numogramSelect(+g.getAttribute("data-zone")); return true }
-	// a gate or a current selects the zone it belongs to - they are readings
-	// of that zone, so there is nothing separate to select
 	var ga = target.closest(".numGate")
-	if (ga !== null) { numogramSelect(+ga.getAttribute("data-zone")); return true }
+	if (ga !== null) {
+		numogramSelectRelation({ kind: "gate", zone: +ga.getAttribute("data-zone") })
+		return true
+	}
 	var c = target.closest(".numCurrent")
 	if (c !== null) {
 		var sz = numSyzygy(c.getAttribute("data-syzygy"))
-		if (sz !== null) { numogramSelect(sz.a); return true }
+		if (sz !== null) { numogramSelectRelation({ kind: "current", key: sz.key }); return true }
 	}
 	var ch = target.closest(".numChannel")
-	if (ch !== null) { numogramSelect(+ch.getAttribute("data-from")); return true }
+	if (ch !== null) {
+		numogramSelectRelation({ kind: "gate", zone: +ch.getAttribute("data-from") })
+		return true
+	}
 	return false
 }
 

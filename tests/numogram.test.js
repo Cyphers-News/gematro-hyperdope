@@ -205,8 +205,19 @@ vm.runInContext(src, ctx);
 	assert.ok(/prefers-reduced-motion/.test(read('calc/numogram.css')),
 		'reduced motion is respected');
 	assert.ok(/tabindex="0"/.test(src) && /role="button"/.test(src),
-		'zones are focusable and announced');
+		'zones and meaningful operators are focusable and announced');
 	assert.ok(/aria-pressed/.test(src), 'selection state is exposed to assistive tech');
+	const operatorSvg = ctx.numogramSvg();
+	assert.strictEqual((operatorSvg.match(/class="numCurrent"[^>]*tabindex="0"[^>]*role="button"/g) || []).length, 5,
+		'all five currents are keyboard-readable operators');
+	assert.strictEqual((operatorSvg.match(/class="numGate"[^>]*tabindex="0"[^>]*role="button"/g) || []).length, 9,
+		'all nine drawn gate apertures are keyboard-readable operators');
+	assert.strictEqual((operatorSvg.match(/class="numChannel"[^>]*tabindex="0"[^>]*role="button"/g) || []).length, 9,
+		'all nine drawn gate courses are keyboard-readable operators');
+	assert.ok(/aria-label="hold current, zones 7 and 2 to zone 5"/.test(operatorSvg),
+		'current accessible names expose the complete relation');
+	assert.ok(/aria-label="gate 36, zone 8 to zone 9"/.test(operatorSvg),
+		'gate accessible names expose source and destination');
 	// Enter, Space and Escape are all handled somewhere in the keydown path.
 	// Matched by key name rather than by the shape of the comparison, so
 	// rewriting the handler does not break the test that guards it.
@@ -495,6 +506,72 @@ vm.runInContext(src, ctx);
 	}
 
 	console.log('planetwork: Zone n = Sol-n, and CCRU\u2019s stated pairings are the same syzygies');
+})();
+
+// --------------------------------------- canonical zone reading derivation
+
+(function zoneReadings() {
+	assert.strictEqual(ctx.NUM_ZONE_LORE.length, 10, 'one narrow lore record per zone');
+	assert.deepStrictEqual(Array.from(ctx.NUM_ZONE_LORE.map(x => x.zone)), [0,1,2,3,4,5,6,7,8,9]);
+	for (const lore of ctx.NUM_ZONE_LORE) {
+		assert.ok(lore.particle && lore.gloss && lore.note, 'zone ' + lore.zone + ' has particle, gloss and note');
+		assert.strictEqual(lore.status, 'canonical');
+		for (const forbidden of ['planet', 'syzygy', 'gate', 'channel', 'population', 'lemurs', 'door']) {
+			assert.ok(!(forbidden in lore), 'derived ' + forbidden + ' is not duplicated into lore');
+		}
+		assert.ok(!/\b(?:gate|channel|current|tractor|syzygy|phase|door|region)\b/i.test(lore.note),
+			'zone ' + lore.zone + ' note does not restate derived machinery');
+	}
+
+	assert.strictEqual(ctx.numNetspan(2, 7), '7::2');
+	assert.strictEqual(ctx.numNetspan(6, 0), '6::0');
+	assert.deepStrictEqual(Array.from(ctx.numPhaseLemurs(6).map(L => L.name)),
+		['Tchu','Djungo','Djuddha','Djynxx','Tchakki','Tchattuk']);
+	assert.strictEqual(ctx.numPhasePopulation(6), 64);
+	assert.strictEqual(ctx.numPhasePopulation(0), null);
+
+	const six = ctx.numZoneReading(6);
+	for (const value of ['SATURN', 'SOL', 'WARP', 'tch', '6::3', 'GT-21', '64 IMPULSE-ENTITIES', 'Tchu', 'Tchattuk']) {
+		assert.ok(six.includes(value), 'zone 6 dossier includes ' + value);
+	}
+	assert.ok(/Tchu[\s\S]*DOOR/.test(six), 'Tchu is the sixth door');
+	assert.ok(/Tchattuk[\s\S]*PHASE-LIMIT/.test(six), 'Tchattuk is the sixth phase-limit');
+	const one = ctx.numPhaseReading(1);
+	assert.ok(/Lurgo[\s\S]*DOOR · PHASE-LIMIT/.test(one), 'Lurgo keeps both phase-1 roles');
+	const zero = ctx.numPhaseReading(0);
+	assert.ok(/NO PHASE POPULATION/.test(zero) && /No door, phase-limit/.test(zero),
+		'zone 0 states the phase absence explicitly');
+
+	const hold = ctx.numCurrentReading('2::7');
+	assert.ok(/HOLD/.test(hold) && /7::2/.test(hold) && /7 − 2 = 5/.test(hold) && /ZONE 5 · JUPITER/.test(hold));
+	const gt36 = ctx.numGateReading(8);
+	assert.ok(/GT-36/.test(gt36) && /1 \+ 2 \+ 3 \+ 4 \+ 5 \+ 6 \+ 7 \+ 8 = 36/.test(gt36));
+	assert.ok(/3 \+ 6 = 9/.test(gt36) && /8 → 9/.test(gt36) && /ZONE 9 · PLUTO/.test(gt36));
+
+	const resolved = ctx.numResolvedRelations([4, 5, 6]);
+	assert.deepStrictEqual(Array.from(resolved.currents.map(s => s.current)), ['SINK']);
+	assert.deepStrictEqual(Array.from(resolved.gates.map(g => g.value)), [15]);
+	const aggregate = ctx.numSelectionReading([4, 5, 6]);
+	assert.ok(/5::4 → 1 · OUTSIDE HELD SET/.test(aggregate));
+	assert.ok(/GT-15[\s\S]*5 → 6/.test(aggregate));
+	assert.ok(!/GT-10|GT-21|HOLD|WARP/.test(aggregate), 'aggregate contains no unresolved relation');
+	ctx.numZoneOn[1] = false;
+	assert.deepStrictEqual(Array.from(ctx.numResolvedRelations([4, 5, 6]).currents), [],
+		'a filtered external tractor removes the current from the aggregate');
+	assert.deepStrictEqual(Array.from(ctx.numResolvedRelations([4, 5, 6]).gates.map(g => g.value)), [15],
+		'an independently visible gate remains resolved');
+	ctx.numZoneOn[1] = true;
+	ctx.numLayers.gates = false;
+	assert.deepStrictEqual(Array.from(ctx.numResolvedRelations([4, 5, 6]).gates), [],
+		'a hidden gate layer removes gates from the aggregate');
+	ctx.numLayers.gates = true;
+	ctx.numMode = 'warp';
+	const hiddenByRegion = ctx.numResolvedRelations([4, 5, 6]);
+	assert.strictEqual(hiddenByRegion.currents.length + hiddenByRegion.gates.length, 0,
+		'the aggregate does not report relations hidden by the active region');
+	ctx.numMode = 'all';
+
+	console.log('readings: lore stays narrow; phases, operators and aggregate relations are derived');
 })();
 
 // --------------------------------------- the Ptolemaic order (historical)
@@ -1047,7 +1124,7 @@ vm.runInContext(src, ctx);
 	ctx.numogramSelect(1, true);
 	ctx.numogramSelect(6, true);
 	assert.deepStrictEqual(Array.from(ctx.numPicked), [8, 1, 6],
-		'three-plus picks remain an ordered chain');
+		'three-plus picks preserve insertion order');
 	assert.strictEqual(ctx.numSelected, 6, 'the most recent pick is the reading subject');
 
 	const layer = { innerHTML: '' };
@@ -1057,8 +1134,15 @@ vm.runInContext(src, ctx);
 		setAttribute: () => {}
 	};
 	ctx.numogramLinks(svg);
-	assert.strictEqual((layer.innerHTML.match(/class="numLinkLine"/g) || []).length, 2,
-		'three picks render two ordered links');
+	assert.strictEqual((layer.innerHTML.match(/class="numLinkLine"/g) || []).length, 0,
+		'three picks do not invent an ordered route');
+	ctx.numPicked = [8, 1];
+	ctx.numSelected = 1;
+	ctx.numogramLinks(svg);
+	assert.strictEqual((layer.innerHTML.match(/class="numLinkLine"/g) || []).length, 1,
+		'exactly two picks retain one meaningful netspan link');
+	ctx.numPicked = [8, 1, 6];
+	ctx.numSelected = 6;
 
 	ctx.numogramSelect(1, true);
 	assert.deepStrictEqual(Array.from(ctx.numPicked), [8, 6], 'removing a middle pick preserves order');
@@ -1076,12 +1160,48 @@ vm.runInContext(src, ctx);
 	ctx.numSelected = 6;
 	ctx.numogramAnnotate();
 	assert.ok(/data-box="lemur"/.test(annot.innerHTML), 'exactly two picks receive the Lemur reading');
-	ctx.numPicked = [3, 6, 8];
-	ctx.numSelected = 8;
+	assert.ok(!/data-box="zone"/.test(annot.innerHTML), 'a two-zone reading does not append a zone dossier');
+	ctx.numPicked = [4, 5, 6];
+	ctx.numSelected = 6;
 	ctx.numogramAnnotate();
 	assert.ok(!/data-box="lemur"/.test(annot.innerHTML), 'three picks do not masquerade as a two-zone Lemur');
-	assert.ok(/data-zone="8"/.test(annot.innerHTML), 'the latest of three picks remains the reading subject');
+	assert.ok(/data-box="held-zones"/.test(annot.innerHTML), 'three picks become a held-zone inventory');
+	assert.ok(/SINK[\s\S]*5::4 → 1/.test(annot.innerHTML) && /GT-15[\s\S]*5 → 6/.test(annot.innerHTML),
+		'the 4/5/6 aggregate reports only its natural current and gate');
 	ctx.document = saved.document;
+
+	ctx.numPicked = [4]; ctx.numSelected = 4; ctx.numBody = 'MARS'; ctx.numDeriv = { kind: 'number' };
+	ctx.numRelation = null;
+	ctx.numogramSelectRelation({ kind: 'current', key: '2::7' });
+	assert.deepStrictEqual(JSON.parse(JSON.stringify(ctx.numRelation)), { kind: 'current', key: '2::7' });
+	assert.deepStrictEqual(Array.from(ctx.numPicked), [], 'relation activation clears zone picks');
+	assert.strictEqual(ctx.numBody, null, 'relation activation clears a body reading');
+	assert.strictEqual(ctx.numDeriv, null, 'relation activation clears a derivation reading');
+	ctx.numogramSelectRelation({ kind: 'current', key: '2::7' });
+	assert.strictEqual(ctx.numRelation, null, 'repeating a relation toggles it to idle');
+	ctx.numRelation = { kind: 'gate', zone: 8 };
+	ctx.numogramSelect(4, true);
+	assert.strictEqual(ctx.numRelation, null, 'zone activation clears relation state');
+
+	ctx.numMode = 'all';
+	ctx.numLayers = { zones: true, currents: true, gates: true, syzygies: true };
+	for (let i = 0; i <= 9; i++) ctx.numZoneOn[i] = true;
+	assert.strictEqual(ctx.numRelationAvailable({ kind: 'gate', zone: 8 }), true);
+	ctx.numZoneOn[9] = false;
+	assert.strictEqual(ctx.numRelationAvailable({ kind: 'gate', zone: 8 }), false,
+		'a gate relation is unavailable when its destination is filtered');
+	ctx.numZoneOn[9] = true;
+	assert.strictEqual(ctx.numRelationAvailable({ kind: 'current', key: '2::7' }), true);
+	ctx.numLayers.currents = false;
+	assert.strictEqual(ctx.numRelationAvailable({ kind: 'current', key: '2::7' }), true,
+		'the source bond keeps the relation available when only the current path is hidden');
+	ctx.numLayers.syzygies = false;
+	assert.strictEqual(ctx.numRelationAvailable({ kind: 'current', key: '2::7' }), false,
+		'a current relation clears when both of its operator surfaces are hidden');
+	ctx.numLayers = { zones: true, currents: true, gates: true, syzygies: true };
+	assert.ok(!/numRelation/.test([
+		ctx.numogramWriteUrl, ctx.numogramReadUrl, ctx.numHistorySave, ctx.numHistoryLoad
+	].map(String).join('\n')), 'relation state is absent from URL and local trace persistence');
 
 	// RESET READING is intentionally not a factory reset: it clears the live
 	// reading and returns model/layers to baseline, but preserves zone filters.
@@ -1096,6 +1216,7 @@ vm.runInContext(src, ctx);
 	assert.strictEqual(ctx.numModel, 'off');
 	assert.strictEqual(ctx.numCosmo, 'off');
 	assert.strictEqual(ctx.numMode, 'all');
+	assert.strictEqual(ctx.numRelation, null, 'reset clears relation state');
 	assert.deepStrictEqual(JSON.parse(JSON.stringify(ctx.numLayers)),
 		{ zones: true, currents: true, gates: true, syzygies: true });
 	assert.strictEqual(ctx.numZoneOn[2], false, 'zone filters survive RESET READING');
@@ -1106,7 +1227,7 @@ vm.runInContext(src, ctx);
 	ctx.numogramWriteUrl = saved.writeUrl;
 	ctx.numogramSyncControls = saved.sync;
 
-	console.log('state: ordered three-plus picks, latest-subject reading, reset is not a factory reset');
+	console.log('state: exact-two link, resolved three-plus inventory, separate toggleable relation, bounded reset');
 })();
 
 // --------------------------------------------------------- shell hierarchy

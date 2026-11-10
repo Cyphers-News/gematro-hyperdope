@@ -206,9 +206,10 @@
 	padding: 0.2em 0.25em 0.25em 0;
 }
 .numSideRight {
-	flex: 0 0 18em;
-	min-width: 14em;
-	max-width: 22em;
+	flex: 0 1 28em;
+	width: clamp(24em, 28vw, 30em);
+	min-width: 20em;
+	max-width: 30em;
 	max-height: 100%;
 	border-left: 1px solid rgba(255, 20, 147, 0.34);
 	padding-left: 1.1em;
@@ -1172,9 +1173,9 @@
  * point of holding two zones is to see them AGAINST the figure, not instead
  * of it. Filtering (numHidden) removes; this only recedes.
  */
-.numSvg[data-focus="1"] .numLayerChannels,
-.numSvg[data-focus="1"] .numLayerCurrents,
-.numSvg[data-focus="1"] .numLayerGates {
+.numSvg[data-focus="1"] .numChannel:not(.numOn),
+.numSvg[data-focus="1"] .numCurrent:not(.numOn),
+.numSvg[data-focus="1"] .numGate:not(.numOn) {
 	opacity: 0.16;
 	transition: opacity 0.2s ease;
 }
@@ -1334,8 +1335,17 @@
 .numBondLine, .numCurrentFilament, .numCurrentChevron, .numCurrentLabel,
 .numChLine, .numChHead { pointer-events: none; }
 
-.numGate { cursor: pointer; }
-.numGate:focus-visible .numGateRing { filter: drop-shadow(0 0 5px rgba(255, 20, 147, 0.75)); }
+.numGate, .numChannel, .numCurrent { cursor: pointer; outline: none; }
+.numGate:focus-visible .numGateRing,
+.numChannel:focus-visible .numChLine {
+	filter: drop-shadow(0 0 5px rgba(255, 20, 147, 0.85));
+	stroke-width: 12;
+}
+.numCurrent:focus-visible .numCurrentFilament,
+.numCurrent:focus-visible .numBondLine {
+	filter: drop-shadow(0 0 5px rgba(57, 255, 20, 0.85));
+	stroke-width: 9;
+}
 
 /* ---- the cosmology panel: attributed bands ----------------------------
  *
@@ -1661,6 +1671,14 @@
 .numBox[data-box="syzygy"]           { --bx: var(--num-current); }
 .numBox[data-box="arithmetic"]       { --bx: var(--num-bone); }
 .numBox[data-box="structures"]       { --bx: var(--num-current); }
+.numBox[data-box="current"],
+.numBox[data-box="currents"]         { --bx: var(--num-current); }
+.numBox[data-box="gate"],
+.numBox[data-box="gates"]            { --bx: var(--num-channel); }
+.numBox[data-box="phase"]            { --bx: var(--num-bone); }
+.numBox[data-box="quasiphonic"]      { --bx: var(--num-current); }
+.numBox[data-box="system-notes"]     { --bx: var(--num-muted); }
+.numBox[data-box="held-zones"]       { --bx: var(--num-bone); }
 .numBox[data-box="reduction"]        { --bx: var(--num-channel); }
 .numBox[data-box="aq-values"]        { --bx: var(--num-bone); }
 .numBox[data-box="number-trace"],
@@ -1701,6 +1719,25 @@
 .numAnnotFoot { color: var(--num-muted); opacity: 1; font-size: 0.92em; }
 .numAnnotIdle { color: var(--num-muted); opacity: 1; }
 .numStatus { opacity: 0.6; }
+
+.numPhaseEntry {
+	display: grid;
+	grid-template-columns: 3.5em minmax(0, 1fr) auto;
+	gap: 0.55em;
+	align-items: baseline;
+	padding: 0.15em 0;
+	border-top: 1px solid color-mix(in srgb, var(--bx) 18%, transparent);
+}
+.numPhaseSpan { color: var(--num-bone); font-weight: 700; }
+.numPhaseName { min-width: 0; color: var(--num-bone); overflow-wrap: anywhere; }
+.numPhaseRole { color: var(--num-channel); font-size: 0.78em; letter-spacing: 0.1em; text-align: right; }
+.numSourceLine {
+	margin-top: 0.45em;
+	color: var(--bx);
+	font-size: 0.68em;
+	letter-spacing: 0.16em;
+	opacity: 0.62;
+}
 
 /* invert is ink on paper: one colour, no exceptions */
 .numField[data-invert="1"] .numBox[data-box] { --bx: var(--num-ink); }
