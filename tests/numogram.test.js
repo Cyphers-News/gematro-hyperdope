@@ -281,6 +281,8 @@ vm.runInContext(src, ctx);
 		'the currents switch controls the current path');
 	assert.ok(/data-layer-syzygies="0"\]\s+\.numSyzygyBond/.test(css),
 		'the syzygies switch controls only the source bond');
+	assert.ok(/\.numSvg\[data-focus="1"\]\s+\.numZone\.numTrace\s*\{[^}]*opacity:\s*1/.test(css),
+		'a resolved tractor remains fully legible inside the focused held-pair state');
 
 	// integration: one entry in the Features menu, one line in the closer
 	const calc = read('calc/calc.js');
