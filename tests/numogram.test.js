@@ -266,6 +266,8 @@ vm.runInContext(src, ctx);
 		'five independently toggleable syzygy bonds');
 	assert.strictEqual((svg.match(/class="numCurrentChevron"/g) || []).length, 5,
 		'one open directional chevron per current');
+	assert.ok(!/numCurrentLabel/.test(svg) && !/numCurrentLabel/.test(css),
+		'the relation rail owns current prose; the plate keeps only operable linework');
 	assert.strictEqual((svg.match(/class="numGateRing numGateTag"/g) || []).length, 9,
 		'nine drawn gates use black aperture tags');
 	assert.strictEqual((svg.match(/class="numZoneBracket"/g) || []).length, 10,
@@ -331,6 +333,11 @@ vm.runInContext(src, ctx);
 	assert.strictEqual(n.result, 4);
 	assert.deepStrictEqual(Array.from(n.steps.map(s => s.to)), [13, 4], 'every pass is recorded');
 	assert.strictEqual(n.status, 'experimental', 'the bridge is never canonical');
+	const reduction = ctx.numogramReductionBlock(n);
+	assert.ok(/data-box="reduction"[\s\S]*CANONICAL/.test(reduction),
+		'digital reduction is visibly canonical');
+	assert.ok(!/EXPERIMENTAL/.test(reduction),
+		'the experimental bridge badge is not attached to canonical reduction');
 
 	const w = ctx.numTraceWord('CYBERSYN');
 	assert.strictEqual(w.aq.total, 183);
@@ -471,10 +478,36 @@ vm.runInContext(src, ctx);
 	assert.ok(/NOT NUMOGRAMMATIC/.test(ctx.NUM_STATUS_LABEL.attested));
 	assert.ok(/NOT A CCRU PROCEDURE/.test(ctx.NUM_STATUS_LABEL.experimental));
 
-	// nothing experimental may reach the reading untagged
-	const src = read('calc/numogram.js');
-	assert.ok(src.indexOf('numStatusTag("experimental")') !== -1, 'the reduction block is tagged');
-	assert.ok(src.indexOf('numStatusTag("attested")') !== -1, 'the AQ block is tagged');
+	// Provenance follows the claim it qualifies: tracing an external input into
+	// a zone is experimental, AQ is attested, and digital reduction is canonical.
+	const savedDocument = ctx.document;
+	const savedReadingState = {
+		relation: ctx.numRelation, body: ctx.numBody, picked: ctx.numPicked,
+		selected: ctx.numSelected, explore: ctx.numExplore, deriv: ctx.numDeriv
+	};
+	const annotation = { innerHTML: '' };
+	ctx.document = { getElementById: id => id === 'numAnnot' ? annotation : null };
+	ctx.numRelation = null; ctx.numBody = null; ctx.numPicked = [];
+	ctx.numSelected = 4; ctx.numExplore = -1; ctx.numDeriv = ctx.numTraceNumber('364');
+	ctx.numogramAnnotate();
+	let html = annotation.innerHTML;
+	assert.ok(html.indexOf('data-box="number-trace"') < html.indexOf('numStatus-experimental') &&
+		html.indexOf('numStatus-experimental') < html.indexOf('data-box="reduction"') &&
+		html.indexOf('data-box="reduction"') < html.indexOf('numStatus-canonical'),
+		'number divination is experimental while its reduction is canonical');
+	ctx.numSelected = 3; ctx.numDeriv = ctx.numTraceWord('CYBERSYN');
+	ctx.numogramAnnotate();
+	html = annotation.innerHTML;
+	assert.ok(html.indexOf('data-box="word-trace"') < html.indexOf('numStatus-experimental') &&
+		html.indexOf('numStatus-experimental') < html.indexOf('data-box="aq-values"') &&
+		html.indexOf('data-box="aq-values"') < html.indexOf('numStatus-attested') &&
+		html.indexOf('numStatus-attested') < html.indexOf('data-box="reduction"') &&
+		html.indexOf('data-box="reduction"') < html.indexOf('numStatus-canonical'),
+		'word divination, AQ, and reduction each carry their own provenance');
+	ctx.document = savedDocument;
+	ctx.numRelation = savedReadingState.relation; ctx.numBody = savedReadingState.body;
+	ctx.numPicked = savedReadingState.picked; ctx.numSelected = savedReadingState.selected;
+	ctx.numExplore = savedReadingState.explore; ctx.numDeriv = savedReadingState.deriv;
 
 	console.log('provenance: canonical / attested / experimental records stay labelled without inventing a source panel');
 })();
@@ -543,10 +576,14 @@ vm.runInContext(src, ctx);
 		'zone 0 states the phase absence explicitly');
 
 	const hold = ctx.numCurrentReading('2::7');
-	assert.ok(/HOLD/.test(hold) && /7::2/.test(hold) && /7 − 2 = 5/.test(hold) && /ZONE 5 · JUPITER/.test(hold));
+	assert.ok(/HOLD/.test(hold) && /7::2/.test(hold) && /7 − 2 = 5/.test(hold));
+	assert.ok(/data-box="zones"[\s\S]*HIGH POLE[\s\S]*ZONE 7 · URANUS[\s\S]*LOW POLE[\s\S]*ZONE 2 · VENUS[\s\S]*TRACTOR[\s\S]*ZONE 5 · JUPITER/.test(hold),
+		'a current reading names both poles and its tractor as explicit zone roles');
 	const gt36 = ctx.numGateReading(8);
 	assert.ok(/GT-36/.test(gt36) && /1 \+ 2 \+ 3 \+ 4 \+ 5 \+ 6 \+ 7 \+ 8 = 36/.test(gt36));
-	assert.ok(/3 \+ 6 = 9/.test(gt36) && /8 → 9/.test(gt36) && /ZONE 9 · PLUTO/.test(gt36));
+	assert.ok(/3 \+ 6 = 9/.test(gt36) && /8 → 9/.test(gt36));
+	assert.ok(/data-box="zones"[\s\S]*SOURCE[\s\S]*ZONE 8 · NEPTUNE[\s\S]*DESTINATION[\s\S]*ZONE 9 · PLUTO/.test(gt36),
+		'a gate reading names its source and destination as explicit zone roles');
 
 	const resolved = ctx.numResolvedRelations([4, 5, 6]);
 	assert.deepStrictEqual(Array.from(resolved.currents.map(s => s.current)), ['SINK']);
@@ -565,6 +602,10 @@ vm.runInContext(src, ctx);
 	assert.deepStrictEqual(Array.from(ctx.numResolvedRelations([4, 5, 6]).gates), [],
 		'a hidden gate layer removes gates from the aggregate');
 	ctx.numLayers.gates = true;
+	const exactSyzygy = ctx.numResolvedRelations([4, 5]);
+	assert.deepStrictEqual(Array.from(exactSyzygy.currents.map(s => s.current)), ['SINK']);
+	assert.strictEqual(ctx.numCurrent(exactSyzygy.currents[0]), 1,
+		'an exact 5::4 selection resolves Sink and its Zone-1 tractor');
 	ctx.numMode = 'warp';
 	const hiddenByRegion = ctx.numResolvedRelations([4, 5, 6]);
 	assert.strictEqual(hiddenByRegion.currents.length + hiddenByRegion.gates.length, 0,
@@ -1182,6 +1223,11 @@ vm.runInContext(src, ctx);
 	ctx.numRelation = { kind: 'gate', zone: 8 };
 	ctx.numogramSelect(4, true);
 	assert.strictEqual(ctx.numRelation, null, 'zone activation clears relation state');
+	ctx.numBody = 'URANUS'; ctx.numPicked = [6]; ctx.numSelected = 6;
+	ctx.numogramSelect(6, true);
+	assert.strictEqual(ctx.numBody, null, 'manual zone deselection clears its body reading');
+	assert.deepStrictEqual(Array.from(ctx.numPicked), []);
+	assert.strictEqual(ctx.numSelected, null, 'removing the body-derived zone returns the rail to idle');
 
 	ctx.numMode = 'all';
 	ctx.numLayers = { zones: true, currents: true, gates: true, syzygies: true };

@@ -663,7 +663,10 @@ var NUM_GATE_T = { 1: 0.5, 2: 0.5, 3: 0.5, 4: 0.5, 5: 0.42, 6: 0.5, 7: 0.5, 8: 0
 // only a displacement beyond one radius needs an exposed pink leader. Every
 // placement is measured against visible geometry and the larger pointer target.
 var NUM_GATE_OFFSET = {
-	3: { x: 0, y: -7 },
+	// Gt-6 shares the Warp crown with its closed current. Bias the aperture
+	// within its own course so the two operations remain separately legible
+	// without pushing the gate outside the canonical plate.
+	3: { x: -12, y: -8 },
 	4: { x: -4, y: 10 },
 	6: { x: -31, y: -4 },
 	8: { x: 0, y: -7 }
@@ -816,12 +819,6 @@ function numOpenChevron(p, t, size, spread) {
 	var x2 = bx - nx * spread, y2 = by - ny * spread
 	return "M" + numR(x1) + " " + numR(y1) + "L" + numR(q.x) + " " + numR(q.y) +
 	       "L" + numR(x2) + " " + numR(y2)
-}
-
-function numCurrentLabelPoint(p, offset, t) {
-	t = t === undefined ? 0.52 : t
-	var q = numAt(p, t), tan = numPathTangent(p, t)
-	return { x: q.x - tan.y * offset, y: q.y + tan.x * offset }
 }
 
 // A self-loop: the little circle-and-back a zone makes when its channel or
@@ -1647,10 +1644,6 @@ function numogramSvg() {
 		}
 		g += '<path class="numCurrentChevron" d="' +
 			numOpenChevron(path, geom.closed ? 0.76 : 0.86, geom.closed ? 13 : 16, geom.closed ? 6 : 8) + '"/>'
-		var lp = numCurrentLabelPoint(path, geom.closed ? -24 : -18, geom.closed ? 0.44 : 0.52)
-		numBBPt(lp.x, lp.y, 58)
-		g += '<text class="numCurrentLabel" x="' + numR(lp.x) + '" y="' + numR(lp.y) + '">' +
-			sz.current.toLowerCase() + ' / ' + Math.max(sz.a, sz.b) + ' − ' + Math.min(sz.a, sz.b) + ' = ' + cur + '</text>'
 		g += '</g>'
 
 		g += '</g>'
@@ -2061,11 +2054,12 @@ function numZoneReading(n) {
 function numGateReading(n) {
 	var g = numGate(n), from = numPlanetworkZone(n), to = numPlanetworkZone(g.to)
 	return numGroup("GATE", '<div class="numAnnotBig">GT-' + g.value + '</div>' +
-		numRow("SOURCE", "ZONE " + n + " · " + from.body) +
 		numRow("CUMULATION", numGateSum(n)) +
 		numRow("REDUCTION", numGateReduction(g)) +
-		numRow("CHANNEL", n + " → " + g.to) +
-		numRow("DESTINATION", "ZONE " + g.to + " · " + to.body))
+		numRow("CHANNEL", n + " → " + g.to)) +
+		numGroup("ZONES",
+			numRow("SOURCE", "ZONE " + n + " · " + from.body) +
+			numRow("DESTINATION", "ZONE " + g.to + " · " + to.body))
 }
 
 function numCurrentReading(key) {
@@ -2075,9 +2069,11 @@ function numCurrentReading(key) {
 	return numGroup("CURRENT", '<div class="numAnnotBig">' + sz.current + '</div>' +
 		numRow("SYZYGY", numNetspan(sz.a, sz.b)) +
 		numRow("DEMON", sz.demon) +
-		numRow("PLANETS", a.body + " / " + b.body) +
-		numRow("DIFFERENCE", Math.max(sz.a, sz.b) + " − " + Math.min(sz.a, sz.b) + " = " + cur) +
-		numRow("TRACTOR", "ZONE " + cur + " · " + to.body))
+		numRow("DIFFERENCE", hi + " − " + lo + " = " + cur)) +
+		numGroup("ZONES",
+			numRow("HIGH POLE", "ZONE " + hi + " · " + a.body) +
+			numRow("LOW POLE", "ZONE " + lo + " · " + b.body) +
+			numRow("TRACTOR", "ZONE " + cur + " · " + to.body))
 }
 
 function numResolvedRelations(picks) {
@@ -2219,7 +2215,9 @@ function numogramAnnotate() {
 	if (numDeriv !== null && numDeriv.kind === "word") {
 		var aq = numDeriv.aq
 		o += numGroup("WORD TRACE", '<div class="numAnnotBig">' + authEscNum(numDeriv.raw) + '</div>')
-		o += numStatusTag("attested")
+		// The divinatory bridge is ours. AQ itself is attested, and the digital
+		// reduction that follows is canonical; keep each badge with its claim.
+		o += numStatusTag("experimental")
 		var cv = ""
 		for (var i = 0; i < aq.chars.length; i++) {
 			cv += '<span class="numChar">' + aq.chars[i].ch + '<b>' + aq.chars[i].v + '</b></span>'
@@ -2229,9 +2227,11 @@ function numogramAnnotate() {
 			'<div class="numAnnotLine">TOTAL ' + aq.total + '</div>' +
 			(aq.dropped ? '<div class="numAnnotLine numAnnotFoot">' + aq.dropped + ' CHARACTER' +
 				(aq.dropped > 1 ? "S" : "") + ' OUTSIDE 0-9 A-Z IGNORED</div>' : ""))
+		o += numStatusTag("attested")
 		o += numogramReductionBlock(numDeriv)
 	} else if (numDeriv !== null && numDeriv.kind === "number") {
 		o += numGroup("NUMBER TRACE", '<div class="numAnnotBig">' + authEscNum(numDeriv.raw) + '</div>')
+		o += numStatusTag("experimental")
 		o += numogramReductionBlock(numDeriv)
 	}
 
@@ -2258,7 +2258,7 @@ function numogramReductionBlock(d) {
 	}
 	if (!d.steps.length) body += '<div class="numAnnotLine numAnnotFoot">Single digit already.</div>'
 	body += '<div class="numAnnotLine numAnnotHead">&#8594; ZONE ' + d.result + '</div>'
-	return numGroup("REDUCTION", body) + numStatusTag("experimental")
+	return numGroup("REDUCTION", body) + numStatusTag("canonical")
 }
 
 // --------------------------------------------------------- highlighting
@@ -2362,15 +2362,24 @@ function numogramApply() {
 
 	if (numSelected === null) { numogramAnnotate(); return }
 
-	// A two-zone netspan is complete in itself. Three-plus selections light only
-	// the currents and gates actually resolved by the held set.
+	// A two-zone netspan keeps its Lemur reading, but when the pair is a syzygy
+	// the plate also performs the relation it resolves: its current and, when
+	// distinct from the held poles, its tractor zone. Three-plus selections
+	// continue to light every current and gate resolved by the held set.
 	if (numPicked.length >= 2) {
-		if (numPicked.length >= 3) {
-			var resolved = numResolvedRelations(numPicked)
-			for (var rc = 0; rc < resolved.currents.length; rc++) {
-				var rcurEl = svg.querySelector('.numCurrent[data-syzygy="' + resolved.currents[rc].key + '"]')
-				if (rcurEl !== null) rcurEl.classList.add("numOn")
+		var resolved = numResolvedRelations(numPicked)
+		for (var rc = 0; rc < resolved.currents.length; rc++) {
+			var rcurEl = svg.querySelector('.numCurrent[data-syzygy="' + resolved.currents[rc].key + '"]')
+			if (rcurEl !== null) rcurEl.classList.add("numOn")
+			if (numPicked.length === 2) {
+				var tractor = numCurrent(resolved.currents[rc])
+				if (numPicked.indexOf(tractor) === -1) {
+					var tractorEl = document.getElementById("numZone" + tractor)
+					if (tractorEl !== null) tractorEl.classList.add("numTrace")
+				}
 			}
+		}
+		if (numPicked.length >= 3) {
 			for (var rgi = 0; rgi < resolved.gates.length; rgi++) {
 				var rgate = resolved.gates[rgi]
 				var rgEl = svg.querySelector('.numGate[data-zone="' + rgate.zone + '"]')
@@ -2453,6 +2462,10 @@ function numogramSelectRelation(next) {
 
 function numogramSelect(n, keepDeriv) {
 	numRelation = null
+	// A direct zone gesture owns the reading now. In secondary cosmologies a
+	// body click also derives a zone pick; clearing that pick from the plate
+	// must clear the body subject or the rail survives its own deselection.
+	numBody = null
 	var at = numPicked.indexOf(n)
 	if (at === -1) numPicked.push(n)
 	else numPicked.splice(at, 1)

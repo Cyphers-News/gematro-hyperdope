@@ -72,6 +72,9 @@ deployed, published, or reconciled into a sibling repository.
   to teach the operation without turning the rail into a chapter.
 - one short sourced system note may leak through at the bottom of a zone
   dossier. it is not a freeform occult interpretation.
+- digital reduction is a canonical numogram procedure. applying an arbitrary
+  number or aq total as a divinatory route into a zone is the application's
+  experimental bridge; the visible provenance badges must distinguish them.
 
 ### relation semantics
 
@@ -166,7 +169,7 @@ surface touched by this slice. do not reorder the stored lookup keys or mutate
 |---|---|---|
 | idle | existing compact invitation | ordinary plate |
 | one zone | canonical zone dossier | selected zone plus its sourced syzygy/current/gate relations using existing focus grammar |
-| exactly two zones | existing lemur reading, with high-first netspan formatting; do not append a complete zone dossier | the two held zones and their single netspan link |
+| exactly two zones | existing lemur reading, with high-first netspan formatting; do not append a complete zone dossier | the two held zones and their single netspan link; when they are a syzygy, also light its current and the tractor zone without adding the tractor to the held set |
 | three or more zones | held-zone inventory plus resolved currents and gates | held zones plus only the natural relations resolved by the held set; no ordered synthetic link chain |
 | gate or channel | gate relation reading | source zone, gate aperture, pink course, and destination only |
 | current path or its syzygy bond | current relation reading | both syzygetic poles, green bond/current, and tractor zone only |
@@ -199,11 +202,11 @@ activating either a gate aperture or its channel course produces the same gate
 relation state. the rail uses existing terminal boxes and pink emphasis:
 
 - gate identity, for example `gt-36`;
-- source zone and source planet;
 - expanded cumulation, for example `1+2+3+4+5+6+7+8 = 36`;
 - every reduction pass needed to reach one digit;
 - final channel, for example `8 -> 9`;
-- destination zone and destination planet.
+- a separate **zones** block naming the source zone and planet, then the
+  destination zone and planet.
 
 the plate highlights no unrelated current, gate, or zone.
 
@@ -215,9 +218,12 @@ green emphasis:
 
 - current name;
 - high-first source syzygy and carrying demon;
-- source planets;
 - arithmetic difference;
-- tractor zone and tractor planet.
+- a separate **zones** block naming the high pole, low pole, and tractor zone,
+  each with its planet.
+
+the plate does not repeat current names or arithmetic as text beside the
+filaments. the operable geometry carries the relation; the rail owns its prose.
 
 the plate highlights no unrelated gate, current, or zone.
 
@@ -228,8 +234,9 @@ the plate highlights no unrelated gate, current, or zone.
 - activating a relation clears the active zone-pick/body/derivation reading and
   makes the relation the sole reading subject.
 - activating the same relation again clears it to idle.
-- activating a zone clears relation state before applying normal zone-toggle
-  behavior.
+- activating a zone clears relation and body-reading state before applying
+  normal zone-toggle behavior. removing a body-derived zone therefore returns
+  the rail to idle rather than leaving a stale body dossier.
 - running or replaying a trace, selecting a body, reset reading, escape, and
   closing the menu clear relation state.
 - a region, layer, or zone-filter change that makes the selected relation
@@ -417,7 +424,8 @@ harmless. the primary writer owns any repair and reruns affected proof.
   as specified.
 - pointer, enter, and space produce identical operator readings with visible
   focus and accurate accessible names.
-- exactly two zones retain one lemur/netspan reading and one meaningful link.
+- exactly two zones retain one lemur/netspan reading and one meaningful link;
+  a syzygetic pair additionally lights its resolved current and tractor zone.
 - selecting zones 4, 5, and 6 reports only those zones, sink `5::4 -> 1`, and
   gt-15 `5 -> 6`; it draws no arbitrary 4-to-5-to-6 link chain.
 - aggregate rail output and plate highlights name the same relation set.

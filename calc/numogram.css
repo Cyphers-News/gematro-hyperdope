@@ -439,16 +439,6 @@
 	stroke: var(--num-current);
 	stroke-width: 8;
 }
-.numCurrentLabel {
-	fill: var(--num-current);
-	font-family: Georgia, "Times New Roman", serif;
-	font-size: 16px;
-	font-style: italic;
-	letter-spacing: 0.02em;
-	text-anchor: middle;
-	dominant-baseline: central;
-	pointer-events: none;
-}
 /* the bloom belongs to this layer alone, not to the whole drawing */
 .numLayerCurrents { filter: drop-shadow(0 0 4px rgba(57, 255, 20, 0.46)); }
 .numField[data-invert="1"] .numLayerCurrents { filter: none; }
@@ -1186,6 +1176,9 @@
 .numSvg[data-focus="1"] .numZone.numPick {
 	opacity: 1;
 }
+.numSvg[data-focus="1"] .numZone.numTrace {
+	opacity: 1;
+}
 .numZone.numPick .numZoneBracket {
 	stroke-width: 3.8;
 	filter: drop-shadow(0 0 9px rgba(57, 255, 20, 0.72));
@@ -1332,7 +1325,7 @@
 /* The visible parts no longer need to catch anything, so a click in the
  * middle of a zone cannot be swallowed by the ring or the numeral. */
 .numZoneRing, .numZoneBracket, .numGateRing, .numGateLeader, .numZoneText, .numGateText,
-.numBondLine, .numCurrentFilament, .numCurrentChevron, .numCurrentLabel,
+.numBondLine, .numCurrentFilament, .numCurrentChevron,
 .numChLine, .numChHead { pointer-events: none; }
 
 .numGate, .numChannel, .numCurrent { cursor: pointer; outline: none; }
@@ -1679,6 +1672,7 @@
 .numBox[data-box="quasiphonic"]      { --bx: var(--num-current); }
 .numBox[data-box="system-notes"]     { --bx: var(--num-muted); }
 .numBox[data-box="held-zones"]       { --bx: var(--num-bone); }
+.numBox[data-box="zones"]            { --bx: var(--num-bone); }
 .numBox[data-box="reduction"]        { --bx: var(--num-channel); }
 .numBox[data-box="aq-values"]        { --bx: var(--num-bone); }
 .numBox[data-box="number-trace"],
