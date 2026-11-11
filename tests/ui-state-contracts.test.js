@@ -174,3 +174,95 @@ test('changed chart assets are served under their source hashes', () => {
     assert.match(html, new RegExp(`${file.replace(/[./-]/g, '\\$&')}\\?v=${key}`));
   }
 });
+
+test('number popover placement remains inside every viewport edge', () => {
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(functionSource(read('calc/init-variables.js'), 'numberPopoverPlacement'), context);
+  const placed = context.numberPopoverPlacement(510, 590, 350, 500, 0, 0, 520, 600);
+  assert.ok(placed.left >= 8 && placed.top >= 8);
+  assert.ok(placed.left + 350 <= 512);
+  assert.ok(placed.top + 500 <= 592);
+
+  const scrolled = context.numberPopoverPlacement(1100, 1400, 350, 500, 800, 900, 520, 600);
+  assert.ok(scrolled.left >= 808 && scrolled.top >= 908);
+  assert.ok(scrolled.left + 350 <= 1312);
+  assert.ok(scrolled.top + 500 <= 1492);
+});
+
+test('pinned number information owns explicit close, outside, escape, replacement and redraw exits', () => {
+  const source = read('calc/init-variables.js');
+  const open = functionSource(source, 'openNumberProperties');
+  const close = functionSource(source, 'closeNumberProperties');
+  assert.match(open, /closeNumberProperties\(false\)/, 'replacement closes the prior surface');
+  assert.match(open, /numPropPopoverClose/);
+  assert.match(close, /shell\.remove\(\)/);
+  assert.match(source, /pointerdown\.numPropPopover/);
+  assert.match(source, /keydown\.numPropPopover/);
+  assert.match(source, /event\.key === "Escape"/);
+  assert.match(source, /new MutationObserver/);
+  assert.match(source, /!document\.documentElement\.contains\(numPropPopoverSource\)/);
+});
+
+test('number-property markup accepts only an integer text source', () => {
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(functionSource(read('calc/init-variables.js'), 'numberPropertiesValue'), context);
+  const source = (textContent, classes = []) => ({
+    textContent,
+    classList: { contains: (name) => classes.includes(name) }
+  });
+  assert.equal(context.numberPropertiesValue(source('123456')), '123456');
+  assert.equal(context.numberPropertiesValue(source('00123')), '123');
+  assert.equal(context.numberPropertiesValue(source(' 123456 ')), null, 'direct number targets do not canonize padded text');
+  assert.equal(context.numberPropertiesValue(source('\u00a0123\u00a0')), null, 'direct number targets do not canonize nbsp padding');
+  assert.equal(context.numberPropertiesValue(source(' 123456 ', ['gV'])), '123456', 'legacy history values retain their generated padding');
+  assert.equal(context.numberPropertiesValue(source('\u00a0123\u00a0', ['gVQ'])), '123', 'legacy query values retain their generated padding');
+  assert.equal(context.numberPropertiesValue(source('-42')), null, 'negative values have no defined number-property contract');
+  assert.equal(context.numberPropertiesValue(source('+42')), null);
+  assert.equal(context.numberPropertiesValue(source('4.2')), null);
+  assert.equal(context.numberPropertiesValue(source('１２３')), null);
+  assert.equal(context.numberPropertiesValue(source('9'.repeat(400))), null, 'unbounded numeric text never reaches base conversion');
+  assert.equal(context.numberPropertiesValue(source('10000000')), null, 'the existing number-property ceiling is enforced before generation');
+  assert.equal(context.numberPropertiesValue(source('<img src=x onerror=alert(1)>')), null);
+  assert.equal(context.numberPropertiesValue(source('36 plus anything')), null);
+  assert.match(functionSource(read('calc/init-variables.js'), 'openNumberProperties'), /if \(val === null\) return false/);
+});
+
+test('source redraw closes transient and pinned popovers alike', () => {
+  const source = read('calc/init-variables.js');
+  const observer = source.slice(source.indexOf('new MutationObserver(function ()'), source.indexOf('numberSourceObserver.observe'));
+  assert.match(observer, /!document\.documentElement\.contains\(numPropPopoverSource\)/);
+  assert.doesNotMatch(observer, /dataset\.mode === "pinned"/);
+  assert.match(observer, /closeNumberProperties\(false\)/);
+});
+
+test('pinning stays narrow while all three legacy value classes retain modifier hover', () => {
+  const source = read('calc/init-variables.js');
+  assert.match(source, /"mouseenter", "\.numProp, \.gV, \.gVQ", showTooltip/);
+  assert.match(source, /"click", "\.numProp", showTooltipClick/);
+  assert.match(source, /"contextmenu", "\.numProp", showTooltipClickAlt/);
+  assert.doesNotMatch(source, /"click", "[^"\n]*\.gV/);
+  assert.doesNotMatch(source, /"contextmenu", "\.gV/);
+  assert.match(source, /data-mode='hover'/);
+  assert.match(source, /scheduleNumberPropertiesHoverClose/);
+});
+
+test('close chrome is outside the exported number-properties element and meets its target contract', () => {
+  const source = functionSource(read('calc/init-variables.js'), 'openNumberProperties');
+  assert.ok(source.indexOf('shell.appendChild(close)') < source.indexOf('shell.appendChild(tip)'));
+  assert.match(read('calc/init-variables.js'), /openImageWindow\("\.numPropTooltip"/);
+  const css = read('calc/styles.css');
+  assert.match(css, /\.numPropPopoverClose\s*\{[\s\S]*?width:\s*44px;[\s\S]*?height:\s*44px;/);
+  assert.match(css, /\.numPropPopoverClose:focus-visible/);
+  assert.match(css, /max-width:\s*min\([^\n]*calc\(100vw - 1em\)\)/);
+  assert.match(css, /max-height:\s*calc\(100vh - 1em - 44px\)/);
+});
+
+test('number-popover assets are served under their source hashes', () => {
+  const html = read('index.html');
+  for (const file of ['calc/init-variables.js', 'calc/styles.css']) {
+    const key = crypto.createHash('sha256').update(read(file)).digest('hex').slice(0, 16);
+    assert.match(html, new RegExp(`${file.replace(/[./-]/g, '\\$&')}\\?v=${key}`));
+  }
+});

@@ -1,7 +1,7 @@
 # spec: legacy calculator ui-state repair sequence
 
-status: accepted
-implementation state: gate a reconciled; slice 1 verified; local checkpoint pending
+status: retired
+implementation state: slices 1 and 2 implemented and independently cleared; unpushed; slice 3 sealed
 
 > **continuity role:** proposed transition
 > **owner:** cyphers technical owner
@@ -45,8 +45,98 @@ implementation slices:
   classifier retains the expected amber floor for runtime ui state;
 - no product file in the sealed match/options surface changed.
 
-this evidence describes the verified pre-commit candidate. the local slice-1
-commit is the rollback checkpoint and does not authorize a push.
+slice 1 is checkpointed locally at `39d31ce5d498ce89ca94f9ae2a7d6d292df1ad5a`.
+that commit is the rollback boundary and does not authorize a push.
+
+### slice 2 candidate
+
+- modifier-hover surfaces now use an explicit transient mode with a short
+  traversable source-to-popover boundary; only `.numProp` click, tap, and
+  context-menu activation creates pinned state;
+- pinned state has a visible 44-by-44 close control and exits through that
+  control, outside pointer activation, escape, replacement, or removal of its
+  source during redraw;
+- close chrome is a sibling of the existing `.numPropTooltip`, so number-image
+  export continues to capture only the established property table;
+- the focused state suite passes 13 of 13 cases, including viewport placement,
+  lifecycle exits, target-set separation, cache keys, and rejection of any
+  non-integer text before generated property markup reaches `innerHTML`;
+- local headless chrome confirms default and alternate pinning, close/outside/
+  escape/replacement/redraw exits, traversable hover, no export-menu collision,
+  fifty open-close cycles with one namespaced pointer listener and one
+  namespaced key listener, a 44-pixel close target, mobile and zoom containment,
+  no document overflow, no runtime exceptions, and rejection of an html-shaped
+  source string;
+- the full repository suite passes 91 of 91 tests.
+
+the deterministic classifier reports a red floor because the existing
+number-property builders return trusted table markup which this slice still
+places through `innerHTML`. the newly explicit enforcement point accepts only
+an optional minus sign followed by digits from the rendered value before that
+builder is called. the focused test and browser probe reject markup-shaped
+text. this is a constrained trust-boundary change requiring gate b's
+independent review before release; it is not evidence of a confirmed
+vulnerability or permission to broaden the slice.
+
+### gate b reconciliation
+
+gate b first returned `revise` with two demonstrated counterexamples against
+the exact two-commit candidate:
+
+1. removing a modifier-hover source left its transient popover behind because
+   source-disconnection cleanup was incorrectly restricted to pinned mode;
+2. the ingress allow-list admitted negative integers even though alternate
+   xenotation has no terminating contract for them, so a reachable `-1`
+   activation exhausted the call stack.
+
+the bounded repair makes source disconnection terminal for either opening mode
+and narrows number-property ingress to nonnegative decimal integers. focused
+proof now distinguishes pinned and transient redraw, and the rendered probe
+opens then removes an actual hover source and confirms closure. it also
+context-activates `-1`, confirms no popover is created, and observes no runtime
+exception. the post-repair focused suite passes 13 of 13, the full suite passes
+91 of 91, the cache key matches the repaired source, and mobile/zoom/export/
+listener evidence remains clean.
+
+the repaired candidate still requires the independent reviewer to return a
+final `clear` disposition against the amended slice-2 checkpoint. neither the
+initial `revise` nor its repair authorizes push or deployment.
+
+a fresh replacement reviewer then returned `revise` with two adjacent ingress
+counterexamples: arbitrary-length digit strings could coerce to infinity and
+leave alternate base conversion non-terminating, while unconditional trimming
+accepted padded direct `.numProp` text. the second bounded repair now:
+
+- accepts direct `.numProp` text only when its raw text is ascii decimal digits;
+- trims only `.gV` and `.gVQ`, whose generated legacy markup intentionally
+  surrounds numeric values with spaces;
+- canonicalizes leading zeroes through a finite safe integer;
+- rejects values at or above the existing ten-million number-property ceiling
+  before calling either property generator.
+
+focused proof covers ascii and non-breaking-space padding, legacy padded
+history/query values, signs, decimals, non-ascii digits, the documented ceiling,
+and a 400-digit string. rendered proof exercises both activation paths for each
+refused direct value in under 100 milliseconds and confirms padded `.gV`
+modifier-hover still opens. the focused suite remains 13 of 13 and the full
+suite 91 of 91; lifecycle, cache, export, listener, mobile, zoom, and exception
+proof remains clean. a final independent disposition is still required against
+this amended checkpoint.
+
+gate b returned `clear` against runtime candidate
+`8daea915f4c5fd67138020fd30af84469c247336`. the reviewer independently
+confirmed both earlier counterexamples closed, ordinary boundary values and
+legacy padding preserved, every prior chart and popover lifecycle claim still
+holding, focused proof at 13 of 13, full proof at 91 of 91, clean diff checks,
+matching cache keys for all five served assets, and no match/options behavior
+hunk.
+
+the only post-review amendment is this continuity reconciliation: status,
+disposition, and evidence prose in the accepted spec. no runtime, test, cache,
+or product byte changed after the clear candidate. slices 1 and 2 are therefore
+retired as implemented local work. slice 3 remains sealed and requires the
+separate owner transition already described below. no push or deployment has
+occurred.
 
 acceptance authorizes only the bounded local implementation and verification of
 slices 1 and 2, with one local commit after each slice. it does not authorize a

@@ -2203,16 +2203,51 @@ body.tourForceDropdown .dropdown:has(.ciphersContent) .dropdown-content { displa
 .numProp {
 	cursor:pointer;
 }
-.numPropTooltip {
-	max-width: 350px;
+.numPropPopoverShell {
+	max-width: calc(100vw - 1em);
 	width: max-content;
-	margin: 1em;
-	padding: 0.75em 1em 1em 1em;
-	background-color: var(--menu-bg-accent);
 	position: absolute;
 	z-index: 101;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+}
+.numPropTooltip {
+	max-width: min(350px, calc(100vw - 1em));
+	max-height: calc(100vh - 1em);
+	width: max-content;
+	margin: 0;
+	padding: 0.75em 1em 1em 1em;
+	background-color: var(--menu-bg-accent);
 	font-family: var(--font-family), "Arial", sans-serif;
 	border: 1px solid var(--border-dark-accent);
+	box-sizing: border-box;
+	overflow: auto;
+	overscroll-behavior: contain;
+}
+.numPropPopoverShell[data-variant="alternate"] .numPropTooltip {
+	max-width: min(44rem, calc(100vw - 1em));
+}
+.numPropPopoverShell[data-mode="pinned"] .numPropTooltip {
+	max-height: calc(100vh - 1em - 44px);
+}
+.numPropPopoverClose {
+	width: 44px;
+	height: 44px;
+	padding: 0;
+	margin: 0 0 -1px 0;
+	border: 1px solid var(--border-dark-accent);
+	background: var(--menu-bg-accent2);
+	color: var(--font-white-1);
+	font: 700 1.4rem/1 var(--font-family), "Arial", sans-serif;
+	cursor: pointer;
+}
+.numPropPopoverClose:hover {
+	background: var(--btn-hover-accent);
+}
+.numPropPopoverClose:focus-visible {
+	outline: 2px solid var(--font-white-1);
+	outline-offset: 2px;
 }
 .numPropTable {
 	text-align: center;

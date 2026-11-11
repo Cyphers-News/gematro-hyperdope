@@ -715,90 +715,179 @@ var primeNums; var triangularNums; var fibonacciNums; var starNums;
 
 // ======================= Number Properties ========================
 
+var numPropPopoverSource = null
+var numPropPopoverPreviousFocus = null
+var numPropHoverCloseTimer = null
+
+function numPropPopoverElement() {
+	return document.querySelector(".numPropPopoverShell")
+}
+
+function numberPropertiesValue(source) {
+	var val = source.textContent
+	var legacyPaddedValue = source.classList !== undefined && (source.classList.contains("gV") || source.classList.contains("gVQ"))
+	if (legacyPaddedValue) val = val.trim()
+	if (!/^\d+$/.test(val)) return null
+
+	var numericValue = Number(val)
+	if (!Number.isSafeInteger(numericValue) || numericValue >= 10000000) return null
+	return String(numericValue)
+}
+
+function closeNumberProperties(restoreFocus = true) {
+	if (numPropHoverCloseTimer !== null) {
+		clearTimeout(numPropHoverCloseTimer)
+		numPropHoverCloseTimer = null
+	}
+	var shell = numPropPopoverElement()
+	if (shell !== null) shell.remove()
+
+	var previous = numPropPopoverPreviousFocus
+	numPropPopoverSource = null
+	numPropPopoverPreviousFocus = null
+	if (restoreFocus && previous !== null && document.documentElement.contains(previous) && typeof previous.focus === "function") previous.focus()
+}
+
+function numberPopoverPlacement(pageX, pageY, popW, popH, viewLeft, viewTop, viewW, viewH) {
+	var gap = 8
+	var edge = 8
+	var right = viewLeft + viewW
+	var bottom = viewTop + viewH
+	var left = pageX + gap
+	var top = pageY + gap
+
+	if (left + popW > right - edge) left = pageX - popW - gap
+	if (top + popH > bottom - edge) top = pageY - popH - gap
+	left = Math.max(viewLeft + edge, Math.min(left, right - popW - edge))
+	top = Math.max(viewTop + edge, Math.min(top, bottom - popH - edge))
+	return { left: left, top: top }
+}
+
+function positionNumberProperties(event) {
+	var shell = numPropPopoverElement()
+	if (shell === null) return
+
+	var viewLeft = window.scrollX || document.documentElement.scrollLeft || 0
+	var viewTop = window.scrollY || document.documentElement.scrollTop || 0
+	var pageX = Number(event && event.pageX)
+	var pageY = Number(event && event.pageY)
+	if (!Number.isFinite(pageX) || !Number.isFinite(pageY)) {
+		var rect = numPropPopoverSource !== null ? numPropPopoverSource.getBoundingClientRect() : { left: 0, bottom: 0 }
+		pageX = viewLeft + rect.left
+		pageY = viewTop + rect.bottom
+	}
+
+	var point = numberPopoverPlacement(pageX, pageY, shell.offsetWidth, shell.offsetHeight, viewLeft, viewTop, window.innerWidth, window.innerHeight)
+	shell.style.left = point.left + "px"
+	shell.style.top = point.top + "px"
+}
+
+function openNumberProperties(source, event, alternate, mode) {
+	var val = numberPropertiesValue(source)
+	if (val === null) return false
+	closeNumberProperties(false)
+	numPropPopoverSource = source
+	numPropPopoverPreviousFocus = document.activeElement
+
+	var shell = document.createElement("div")
+	shell.className = "numPropPopoverShell"
+	shell.dataset.mode = mode
+	shell.dataset.variant = alternate ? "alternate" : "default"
+	shell.setAttribute("role", mode === "pinned" ? "dialog" : "region")
+	if (mode === "pinned") shell.setAttribute("aria-modal", "false")
+	shell.setAttribute("aria-label", (alternate ? "Additional" : "Number") + " properties for " + val)
+
+	if (mode === "pinned") {
+		var close = document.createElement("button")
+		close.type = "button"
+		close.className = "numPropPopoverClose"
+		close.setAttribute("aria-label", "Close number properties")
+		close.textContent = "×"
+		shell.appendChild(close)
+	}
+
+	var tip = document.createElement("div")
+	tip.className = "numPropTooltip"
+	tip.dataset.number = alternate ? val + "_alt" : val
+	tip.innerHTML = alternate ? listNumberPropertiesAlt(val) : listNumberProperties(val)
+	shell.appendChild(tip)
+	document.body.appendChild(shell)
+	positionNumberProperties(event)
+
+	if (mode === "pinned") {
+		var closeButton = shell.querySelector(".numPropPopoverClose")
+		if (closeButton !== null) closeButton.focus()
+	}
+	return true
+}
+
+function cancelNumberPropertiesHoverClose() {
+	if (numPropHoverCloseTimer === null) return
+	clearTimeout(numPropHoverCloseTimer)
+	numPropHoverCloseTimer = null
+}
+
+function scheduleNumberPropertiesHoverClose() {
+	cancelNumberPropertiesHoverClose()
+	numPropHoverCloseTimer = setTimeout(function () {
+		var shell = numPropPopoverElement()
+		if (shell !== null && shell.dataset.mode === "hover") closeNumberProperties(false)
+	}, 140)
+}
+
 $(document).ready(function() {
 
 	var showTooltip = function(event) {
-		// if (ctrlIsPressed || navigator.maxTouchPoints > 1) { // support for mobile devices
-		if (ctrlIsPressed) { // desktop only
-			$('div.numPropTooltip').remove(); // old tooltip
-			val = $(this).text().trim() // remove spaces
-			$('<div class="numPropTooltip" data-number="'+val+'">'+listNumberProperties(val)+'</div>').appendTo('body');
-			changeTooltipPosition(event);
-		}
-		if (shiftIsPressed) { // additional properties
-			$('div.numPropTooltip').remove(); // old tooltip
-			val = $(this).text().trim() // remove spaces
-			$('<div class="numPropTooltip" data-number="'+val+'_alt" style="max-width: unset;">'+listNumberPropertiesAlt(val)+'</div>').appendTo('body');
-			changeTooltipPosition(event);
-		}
+		if (!ctrlIsPressed && !shiftIsPressed) return
+		cancelNumberPropertiesHoverClose()
+		openNumberProperties(this, event, shiftIsPressed, "hover")
 	};
 
-	var changeTooltipPosition = function(event, wasClicked = false) {
-		if (ctrlIsPressed || shiftIsPressed || wasClicked == true) { // if modifier keys were used or opened with click
-			var tW = $('div.numPropTooltip').outerWidth() // tooltip dimensions
-			var tH = $('div.numPropTooltip').outerHeight()
-			var wndW = $(window).width() // viewport dimensions
-			var wndH = $(window).height()
-			var viewportW = $(document).scrollLeft() // window scroll position
-			var viewportH = $(document).scrollTop()
-			var coordX = event.pageX // cursor coordinates
-			var coordY = event.pageY
-			var tooltipX = 0; var tooltipY = 0; // final tooltip coordinates
-			//console.log("X:"+coordX+" Y:"+coordY)
-
-			if (coordX + tW + 8 + 35 < viewportW + wndW) { // X position
-				tooltipX = coordX + 8; // follow cursor position
-			} else { // if outside of visible viewport
-				tooltipX = viewportW + wndW - tW - 35 // display at furthest visible position
-			}
-
-			if (coordY + tH + 8 + 35 < viewportH + wndH) { // Y position
-				tooltipY = coordY + 8;
-			} else {
-				tooltipY = viewportH + wndH - tH - 35
-			}
-
-			// bottom right corner, out of viewport
-			if (coordX + tW + 8 + 35 > viewportW + wndW && coordY + tH + 8 + 35 > viewportH + wndH) {
-				tooltipX = event.pageX - tW - 27 // display to the left and above of cursor
-				tooltipY = event.pageY - tH - 27
-			}
-
-			$('div.numPropTooltip').css({top: tooltipY, left: tooltipX});
-		}
-		if (navigator.maxTouchPoints > 1 && mobileUserAgent) { // for mobile devices
-			var tooltipX = event.pageX - 8;
-			var tooltipY = event.pageY + 8;
-			$('div.numPropTooltip').css({top: tooltipY, left: tooltipX});
-		}
-	};
-
-	var hideTooltip = function() {
-		$('div.numPropTooltip').remove();
+	var moveTooltip = function(event) {
+		var shell = numPropPopoverElement()
+		if (shell !== null && shell.dataset.mode === "hover" && numPropPopoverSource === this) positionNumberProperties(event)
 	};
 
 	// numbers inside enabled ciphers and history tables
 	$("body").on("mouseenter", ".numProp, .gV, .gVQ", showTooltip);
-	$("body").on("mousemove", ".numProp, .gV, .gVQ", changeTooltipPosition);
-	// $("body").on("mouseleave", ".numProp, .gV", hideTooltip)
-	$("body").on("mouseleave", "div.numPropTooltip", hideTooltip);
+	$("body").on("mousemove", ".numProp, .gV, .gVQ", moveTooltip);
+	$("body").on("mouseleave", ".numProp, .gV, .gVQ", function () {
+		var shell = numPropPopoverElement()
+		if (shell !== null && shell.dataset.mode === "hover" && numPropPopoverSource === this) scheduleNumberPropertiesHoverClose()
+	});
+	$("body").on("mouseenter", ".numPropPopoverShell[data-mode='hover']", cancelNumberPropertiesHoverClose);
+	$("body").on("mouseleave", ".numPropPopoverShell[data-mode='hover']", scheduleNumberPropertiesHoverClose);
 
 	var showTooltipClick = function(event) {
-		$('div.numPropTooltip').remove(); // old tooltip
-		val = $(this).text().trim() // remove spaces
-		$('<div class="numPropTooltip" data-number="'+val+'">'+listNumberProperties(val)+'</div>').appendTo('body');
-		changeTooltipPosition(event, true); // a click was issued
+		openNumberProperties(this, event, false, "pinned")
 	}
 	var showTooltipClickAlt = function(event) {
-		$('div.numPropTooltip').remove(); // old tooltip
-		val = $(this).text().trim() // remove spaces
-		$('<div class="numPropTooltip" data-number="'+val+'_alt" style="max-width: unset;">'+listNumberPropertiesAlt(val)+'</div>').appendTo('body');
-		changeTooltipPosition(event, true);
+		openNumberProperties(this, event, true, "pinned")
 		return false; // no context menu
 	};
 
 	$("body").on("click", ".numProp", showTooltipClick);
 	$("body").on("contextmenu", ".numProp", showTooltipClickAlt);
+	$("body").on("click", ".numPropPopoverClose", function (event) {
+		event.preventDefault()
+		event.stopPropagation()
+		closeNumberProperties(true)
+	});
+	$(document).on("pointerdown.numPropPopover", function (event) {
+		var shell = numPropPopoverElement()
+		if (shell !== null && shell.dataset.mode === "pinned" && !shell.contains(event.target)) closeNumberProperties(true)
+	});
+	$(document).on("keydown.numPropPopover", function (event) {
+		if (event.key === "Escape" || event.keyCode === 27) closeNumberProperties(true)
+	});
+
+	if (typeof MutationObserver !== "undefined") {
+		var numberSourceObserver = new MutationObserver(function () {
+			var shell = numPropPopoverElement()
+			if (shell !== null && numPropPopoverSource !== null && !document.documentElement.contains(numPropPopoverSource)) closeNumberProperties(false)
+		})
+		numberSourceObserver.observe(document.body, { childList: true, subtree: true })
+	}
 
 });
 
