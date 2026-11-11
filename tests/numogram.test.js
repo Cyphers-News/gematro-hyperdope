@@ -285,6 +285,14 @@ vm.runInContext(src, ctx);
 		'a resolved tractor becomes fully legible only inside the focused held-pair state');
 	assert.ok(!/\.numSvg\[data-focus="1"\](?!\[data-picks="2"\])\s+\.numZone\.numTrace\s*\{[^}]*opacity:\s*1/.test(css),
 		'a single-zone trace cannot masquerade as another selected zone');
+	assert.ok(/\.numSvg\[data-focus="1"\]\s+\.numChannel\.numDerived,[\s\S]*\.numGate\.numDerived\s*\{[^}]*opacity:\s*0\.56/.test(css),
+		'a zone-derived gate is visibly distinct from both dormant and enacted operators');
+	const applySource = String(ctx.numogramApply);
+	const singleZoneProjection = applySource.slice(applySource.indexOf('var n = numSelected'),
+		applySource.indexOf('numogramAnnotate()', applySource.indexOf('var n = numSelected')));
+	assert.ok(/numDerived/.test(singleZoneProjection), 'a single zone projects its gate as derived');
+	assert.ok(!/numCurrent[^\n]*numOn|curEl[^\n]*numOn/.test(singleZoneProjection),
+		'a single syzygetic pole cannot enact a current');
 
 	// integration: one entry in the Features menu, one line in the closer
 	const calc = read('calc/calc.js');

@@ -1169,6 +1169,13 @@
 	opacity: 0.16;
 	transition: opacity 0.2s ease;
 }
+/* Derived is neither dormant nor selected. A zone supplies the gate's
+ * cumulation, so its gate course may answer the zone without performing the
+ * relation or borrowing the selected operator's inverted aperture. */
+.numSvg[data-focus="1"] .numChannel.numDerived,
+.numSvg[data-focus="1"] .numGate.numDerived {
+	opacity: 0.56;
+}
 .numSvg[data-focus="1"] .numZone:not(.numPick) {
 	opacity: 0.22;
 	transition: opacity 0.2s ease;

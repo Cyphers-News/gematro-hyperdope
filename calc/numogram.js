@@ -2299,7 +2299,7 @@ function numogramApply() {
 
 	var all = svg.querySelectorAll(".numZone, .numGate, .numChannel, .numCurrent")
 	for (var i = 0; i < all.length; i++) {
-		all[i].classList.remove("numOn", "numTwin", "numTrace")
+		all[i].classList.remove("numOn", "numDerived", "numTwin", "numTrace")
 		all[i].setAttribute("aria-pressed", "false")
 	}
 
@@ -2393,28 +2393,26 @@ function numogramApply() {
 	}
 
 	var n = numSelected, sz = numSyzygyOf(n), twin = (sz.a === n) ? sz.b : sz.a
-	var cur = numCurrent(sz), g = numGate(n)
 
 	var sel = document.getElementById("numZone" + n)
 	if (sel !== null) { sel.classList.add("numOn"); sel.setAttribute("aria-pressed", "true") }
 	var tw = document.getElementById("numZone" + twin)
 	if (tw !== null) tw.classList.add("numTwin")
-	// the tractor zone the current reaches, and the zone the channel lands in
-	var tr = document.getElementById("numZone" + cur)
-	if (tr !== null) tr.classList.add("numTrace")
-	var lands = document.getElementById("numZone" + g.to)
-	if (lands !== null) lands.classList.add("numTrace")
 
-	// With a trace running, only the link being traced is lit; without one,
-	// the whole relationship is. Either way nothing is hidden.
-	var wantCurrent = (numExplore < 0 || numExplore >= 2)
-	var wantGate = (numExplore < 0 || numExplore === 3)
-	var curEl = svg.querySelector('.numCurrent[data-syzygy="' + sz.key + '"]')
-	if (curEl !== null && wantCurrent) curEl.classList.add("numOn")
+	// One zone supplies enough information to derive its gate, but selecting
+	// the zone does not select or enact the gate. Keep the channel readable as
+	// a consequence, without giving it the inverted aperture, heavy stroke,
+	// animation or endpoint illumination reserved for a direct gate gesture.
+	// A current needs both syzygetic poles, so one zone never ignites it.
 	var chEl = svg.querySelector('.numChannel[data-from="' + n + '"]')
-	if (chEl !== null && wantGate) chEl.classList.add("numOn")
 	var gEl = svg.querySelector('.numGate[data-zone="' + n + '"]')
-	if (gEl !== null && wantGate) gEl.classList.add("numOn")
+	if (numExplore < 0) {
+		if (chEl !== null) chEl.classList.add("numDerived")
+		if (gEl !== null) gEl.classList.add("numDerived")
+	} else if (numExplore === 3) {
+		if (chEl !== null) chEl.classList.add("numOn")
+		if (gEl !== null) gEl.classList.add("numOn")
+	}
 	if (numExplore === 0 && tw !== null) tw.classList.remove("numTwin")
 
 	numogramAnnotate()
