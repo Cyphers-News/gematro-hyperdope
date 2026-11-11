@@ -2506,6 +2506,10 @@ function numogramLinks(svg) {
 	if (layer === null) return
 
 	svg.setAttribute("data-focus", (numPicked.length || numRelation !== null) ? "1" : "0")
+	// Keep selection cardinality visible to the presentation layer. A traced
+	// endpoint is contextual beside one picked zone, but becomes a resolved
+	// participant when an exact two-zone syzygy is held.
+	svg.setAttribute("data-picks", String(numPicked.length))
 	for (var p = 0; p < 10; p++) {
 		var pe = document.getElementById("numZone" + p)
 		if (pe !== null) pe.classList.toggle("numPick", numPicked.indexOf(p) !== -1)

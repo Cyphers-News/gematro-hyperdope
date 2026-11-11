@@ -281,8 +281,10 @@ vm.runInContext(src, ctx);
 		'the currents switch controls the current path');
 	assert.ok(/data-layer-syzygies="0"\]\s+\.numSyzygyBond/.test(css),
 		'the syzygies switch controls only the source bond');
-	assert.ok(/\.numSvg\[data-focus="1"\]\s+\.numZone\.numTrace\s*\{[^}]*opacity:\s*1/.test(css),
-		'a resolved tractor remains fully legible inside the focused held-pair state');
+	assert.ok(/\.numSvg\[data-focus="1"\]\[data-picks="2"\]\s+\.numZone\.numTrace\s*\{[^}]*opacity:\s*1/.test(css),
+		'a resolved tractor becomes fully legible only inside the focused held-pair state');
+	assert.ok(!/\.numSvg\[data-focus="1"\](?!\[data-picks="2"\])\s+\.numZone\.numTrace\s*\{[^}]*opacity:\s*1/.test(css),
+		'a single-zone trace cannot masquerade as another selected zone');
 
 	// integration: one entry in the Features menu, one line in the closer
 	const calc = read('calc/calc.js');
@@ -1171,19 +1173,22 @@ vm.runInContext(src, ctx);
 	assert.strictEqual(ctx.numSelected, 6, 'the most recent pick is the reading subject');
 
 	const layer = { innerHTML: '' };
+	const svgAttrs = {};
 	const svg = {
 		getAttribute: () => '',
 		querySelector: () => layer,
-		setAttribute: () => {}
+		setAttribute: (name, value) => { svgAttrs[name] = value; }
 	};
 	ctx.numogramLinks(svg);
 	assert.strictEqual((layer.innerHTML.match(/class="numLinkLine"/g) || []).length, 0,
 		'three picks do not invent an ordered route');
+	assert.strictEqual(svgAttrs['data-picks'], '3', 'the plate exposes a many-zone hold to presentation');
 	ctx.numPicked = [8, 1];
 	ctx.numSelected = 1;
 	ctx.numogramLinks(svg);
 	assert.strictEqual((layer.innerHTML.match(/class="numLinkLine"/g) || []).length, 1,
 		'exactly two picks retain one meaningful netspan link');
+	assert.strictEqual(svgAttrs['data-picks'], '2', 'the plate exposes an exact pair to presentation');
 	ctx.numPicked = [8, 1, 6];
 	ctx.numSelected = 6;
 

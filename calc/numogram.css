@@ -1176,7 +1176,10 @@
 .numSvg[data-focus="1"] .numZone.numPick {
 	opacity: 1;
 }
-.numSvg[data-focus="1"] .numZone.numTrace {
+/* A tractor is promoted to full intensity only when two held poles resolve
+ * their current. Beside one selected zone it remains contextual: visible in
+ * the traffic, but not dressed as another selection. */
+.numSvg[data-focus="1"][data-picks="2"] .numZone.numTrace {
 	opacity: 1;
 }
 .numZone.numPick .numZoneBracket {
