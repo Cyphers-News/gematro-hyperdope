@@ -281,18 +281,15 @@ vm.runInContext(src, ctx);
 		'the currents switch controls the current path');
 	assert.ok(/data-layer-syzygies="0"\]\s+\.numSyzygyBond/.test(css),
 		'the syzygies switch controls only the source bond');
-	assert.ok(/\.numSvg\[data-focus="1"\]\[data-picks="2"\]\s+\.numZone\.numTrace\s*\{[^}]*opacity:\s*1/.test(css),
-		'a resolved tractor becomes fully legible only inside the focused held-pair state');
-	assert.ok(!/\.numSvg\[data-focus="1"\](?!\[data-picks="2"\])\s+\.numZone\.numTrace\s*\{[^}]*opacity:\s*1/.test(css),
-		'a single-zone trace cannot masquerade as another selected zone');
-	assert.ok(/\.numSvg\[data-focus="1"\]\s+\.numChannel\.numDerived,[\s\S]*\.numGate\.numDerived\s*\{[^}]*opacity:\s*0\.56/.test(css),
-		'a zone-derived gate is visibly distinct from both dormant and enacted operators');
+	assert.ok(!/numDerived|numTwin|classList\.add\("numTrace"\)/.test(src + '\n' + css),
+		'zone selection has no derived, twin or tractor illumination vocabulary');
+	assert.ok(!/numLink(?:Glow|Line|Pulse|Layer)/.test(src + '\n' + css),
+		'exactly two held zones do not manufacture a synthetic relation line');
 	const applySource = String(ctx.numogramApply);
-	const singleZoneProjection = applySource.slice(applySource.indexOf('var n = numSelected'),
-		applySource.indexOf('numogramAnnotate()', applySource.indexOf('var n = numSelected')));
-	assert.ok(/numDerived/.test(singleZoneProjection), 'a single zone projects its gate as derived');
-	assert.ok(!/numCurrent[^\n]*numOn|curEl[^\n]*numOn/.test(singleZoneProjection),
-		'a single syzygetic pole cannot enact a current');
+	assert.ok(!/numResolvedRelations\(numPicked\)/.test(applySource),
+		'rail inference is not projected back onto plate operators');
+	assert.ok(/Only a direct operator gesture sets[\s\S]*numRelation/.test(applySource),
+		'the plate names its sole operator-light owner');
 
 	// integration: one entry in the Features menu, one line in the closer
 	const calc = read('calc/calc.js');
@@ -1026,7 +1023,7 @@ vm.runInContext(src, ctx);
 	assert.strictEqual(ctx.NUM_REGISTRATION_MAX_STROKE, 3.8);
 	const bracketWidths = bracketCss.split('}').filter(rule => rule.includes('.numZoneBracket'))
 		.flatMap(rule => [...rule.matchAll(/stroke-width:\s*([0-9.]+)/g)].map(m => +m[1]));
-	assert.ok(bracketWidths.length >= 5, 'all registration rest and interaction states expose a measured width');
+	assert.ok(bracketWidths.length >= 3, 'all remaining registration states expose a measured width');
 	assert.strictEqual(Math.max(...bracketWidths), ctx.NUM_REGISTRATION_MAX_STROKE,
 		'the registration clearance model includes the widest stroke across every css state');
 	const gateCss = read('calc/numogram.css');
@@ -1180,23 +1177,40 @@ vm.runInContext(src, ctx);
 		'three-plus picks preserve insertion order');
 	assert.strictEqual(ctx.numSelected, 6, 'the most recent pick is the reading subject');
 
-	const layer = { innerHTML: '' };
+	const makeClassList = () => {
+		const values = new Set();
+		return {
+			add: (...names) => names.forEach(name => values.add(name)),
+			remove: (...names) => names.forEach(name => values.delete(name)),
+			toggle: (name, force) => force ? values.add(name) : values.delete(name),
+			contains: name => values.has(name)
+		};
+	};
+	const selectionZones = Array.from({ length: 10 }, (_, zone) => ({
+		classList: makeClassList(),
+		attrs: { 'data-zone': String(zone), 'aria-pressed': 'false' },
+		setAttribute(name, value) { this.attrs[name] = String(value); }
+	}));
 	const svgAttrs = {};
 	const svg = {
-		getAttribute: () => '',
-		querySelector: () => layer,
 		setAttribute: (name, value) => { svgAttrs[name] = value; }
 	};
-	ctx.numogramLinks(svg);
-	assert.strictEqual((layer.innerHTML.match(/class="numLinkLine"/g) || []).length, 0,
-		'three picks do not invent an ordered route');
+	ctx.document = {
+		getElementById: id => /^numZone\d$/.test(id) ? selectionZones[+id.slice(-1)] : null
+	};
+	ctx.numogramSelectionView(svg);
 	assert.strictEqual(svgAttrs['data-picks'], '3', 'the plate exposes a many-zone hold to presentation');
+	assert.deepStrictEqual(selectionZones.filter(z => z.classList.contains('numPick')).map(z => +z.attrs['data-zone']),
+		[1, 6, 8], 'only explicitly held zones receive selected plate state');
+	assert.ok(selectionZones[8].attrs['aria-pressed'] === 'true' && selectionZones[4].attrs['aria-pressed'] === 'false',
+		'accessibility state follows literal zone picks');
 	ctx.numPicked = [8, 1];
 	ctx.numSelected = 1;
-	ctx.numogramLinks(svg);
-	assert.strictEqual((layer.innerHTML.match(/class="numLinkLine"/g) || []).length, 1,
-		'exactly two picks retain one meaningful netspan link');
+	ctx.numogramSelectionView(svg);
 	assert.strictEqual(svgAttrs['data-picks'], '2', 'the plate exposes an exact pair to presentation');
+	assert.deepStrictEqual(selectionZones.filter(z => z.classList.contains('numPick')).map(z => +z.attrs['data-zone']),
+		[1, 8], 'an exact pair remains two literal zones without synthetic line state');
+	ctx.document = saved.document;
 	ctx.numPicked = [8, 1, 6];
 	ctx.numSelected = 6;
 
@@ -1288,7 +1302,137 @@ vm.runInContext(src, ctx);
 	ctx.numogramWriteUrl = saved.writeUrl;
 	ctx.numogramSyncControls = saved.sync;
 
-	console.log('state: exact-two link, resolved three-plus inventory, separate toggleable relation, bounded reset');
+	console.log('state: literal zone holds, resolved rail inventory, separate toggleable relation, bounded reset');
+})();
+
+// ----------------------------------------------- plate illumination ownership
+
+(function plateIlluminationOwnership() {
+	const saved = {
+		document: ctx.document,
+		picked: ctx.numPicked,
+		selected: ctx.numSelected,
+		relation: ctx.numRelation,
+		explore: ctx.numExplore,
+		layers: ctx.numLayers,
+		zoneOn: ctx.numZoneOn,
+		mode: ctx.numMode,
+		cosmo: ctx.numCosmo,
+		body: ctx.numBody
+	};
+	const classList = () => {
+		const values = new Set();
+		return {
+			add: (...names) => names.forEach(name => values.add(name)),
+			remove: (...names) => names.forEach(name => values.delete(name)),
+			toggle: (name, force) => force ? values.add(name) : values.delete(name),
+			contains: name => values.has(name)
+		};
+	};
+	const element = attrs => ({
+		attrs: Object.assign({ 'aria-pressed': 'false' }, attrs),
+		classList: classList(),
+		getAttribute(name) { return this.attrs[name] === undefined ? null : this.attrs[name]; },
+		setAttribute(name, value) { this.attrs[name] = String(value); }
+	});
+	const zones = ctx.NUM_ZONES.map(z => element({ 'data-zone': String(z.n) }));
+	const channels = ctx.NUM_CHANNELS.map(ch => element({
+		'data-from': String(ch.from), 'data-to': String(ch.to)
+	}));
+	const gates = ctx.NUM_GATES.map(g => element({ 'data-zone': String(g.zone) }));
+	const currents = ctx.NUM_SYZYGIES.map(s => element({
+		'data-syzygy': s.key, 'data-current': String(ctx.numCurrent(s))
+	}));
+	const operators = channels.concat(gates, currents);
+	const groups = {
+		'.numZone': zones,
+		'.numChannel': channels,
+		'.numGate': gates,
+		'.numCurrent': currents,
+		'.numZone, .numGate, .numChannel, .numCurrent': zones.concat(gates, channels, currents)
+	};
+	const svg = element({});
+	svg.querySelectorAll = selector => groups[selector] || [];
+	svg.querySelector = selector => {
+		const match = selector.match(/^\.(numChannel|numGate|numCurrent)\[data-(from|zone|syzygy)="([^"]+)"\]$/);
+		if (!match) return null;
+		const pool = match[1] === 'numChannel' ? channels : match[1] === 'numGate' ? gates : currents;
+		return pool.find(el => el.getAttribute('data-' + match[2]) === match[3]) || null;
+	};
+	ctx.document = {
+		getElementById(id) {
+			if (id === 'numSvg') return svg;
+			const match = id.match(/^numZone(\d)$/);
+			return match ? zones[+match[1]] : null;
+		}
+	};
+	ctx.numLayers = { zones: true, currents: true, gates: true, syzygies: true };
+	ctx.numZoneOn = Array(10).fill(true);
+	ctx.numMode = 'all';
+	ctx.numCosmo = 'off';
+	ctx.numBody = null;
+	const on = el => el.classList.contains('numOn');
+	const picked = el => el.classList.contains('numPick');
+	const channel = zone => channels.find(el => +el.getAttribute('data-from') === zone);
+	const gate = zone => gates.find(el => +el.getAttribute('data-zone') === zone);
+	const current = key => currents.find(el => el.getAttribute('data-syzygy') === key);
+
+	ctx.numRelation = null;
+	ctx.numPicked = [4];
+	ctx.numSelected = 4;
+	ctx.numExplore = 3;
+	ctx.numogramApply();
+	assert.ok(picked(zones[4]) && zones[4].getAttribute('aria-pressed') === 'true',
+		'a directly held zone owns its visual and accessible selected state');
+	assert.ok(zones.filter(picked).length === 1 && operators.every(el => !on(el)),
+		'a single zone and the legacy exploration counter cannot ignite an operator');
+
+	ctx.numPicked = [4, 5];
+	ctx.numSelected = 5;
+	ctx.numExplore = -1;
+	ctx.numogramApply();
+	assert.deepStrictEqual(Array.from(zones.filter(picked).map(el => +el.getAttribute('data-zone'))), [4, 5]);
+	assert.ok(operators.every(el => !on(el)),
+		'a complete syzygy remains two zone picks until its current is selected directly');
+
+	ctx.numPicked = [4, 5, 6];
+	ctx.numSelected = 6;
+	ctx.numogramApply();
+	assert.deepStrictEqual(Array.from(zones.filter(picked).map(el => +el.getAttribute('data-zone'))), [4, 5, 6]);
+	assert.ok(operators.every(el => !on(el)),
+		'three held zones do not project resolved currents or gates onto the plate');
+
+	ctx.numPicked = [];
+	ctx.numSelected = null;
+	ctx.numRelation = { kind: 'gate', zone: 4 };
+	ctx.numogramApply();
+	assert.ok(on(gate(4)) && on(channel(4)), 'a direct gate gesture illuminates its aperture and channel');
+	assert.deepStrictEqual(Array.from(zones.filter(picked).map(el => +el.getAttribute('data-zone'))), [1, 4],
+		'a direct gate gesture illuminates only source and destination zones');
+	assert.ok(zones[1].getAttribute('aria-pressed') === 'true' && gate(4).getAttribute('aria-pressed') === 'true',
+		'gate participants and operator expose active accessibility state');
+
+	const sink = ctx.numSyzygyOf(4).key;
+	ctx.numRelation = { kind: 'current', key: sink };
+	ctx.numogramApply();
+	assert.ok(on(current(sink)), 'a direct current gesture illuminates the canonical current');
+	assert.deepStrictEqual(Array.from(zones.filter(picked).map(el => +el.getAttribute('data-zone'))), [1, 4, 5],
+		'a direct current gesture illuminates both poles and the tractor');
+	assert.ok(channels.every(el => !on(el)) && gates.every(el => !on(el)),
+		'current selection does not borrow gate illumination');
+
+	ctx.document = saved.document;
+	ctx.numPicked = saved.picked;
+	ctx.numSelected = saved.selected;
+	ctx.numRelation = saved.relation;
+	ctx.numExplore = saved.explore;
+	ctx.numLayers = saved.layers;
+	ctx.numZoneOn = saved.zoneOn;
+	ctx.numMode = saved.mode;
+	ctx.numCosmo = saved.cosmo;
+	ctx.numBody = saved.body;
+
+	console.log('illumination: zones stay literal; direct gates and currents alone light their relations');
 })();
 
 // --------------------------------------------------------- shell hierarchy

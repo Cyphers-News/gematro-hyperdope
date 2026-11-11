@@ -459,24 +459,12 @@
 	opacity: 1;
 }
 .numZone:focus-visible .numZoneBracket { stroke-dasharray: 5 4; }
-.numZone.numOn .numZoneBracket,
-.numZone.numOn .numZoneMark,
-.numZone.numPick .numZoneBracket {
+.numZone.numPick .numZoneBracket,
+.numZone.numPick .numZoneMark {
 	stroke: var(--num-current);
 	fill: var(--num-current);
 	opacity: 1;
 	filter: drop-shadow(0 0 7px rgba(57, 255, 20, 0.72));
-}
-.numZone.numTwin .numZoneBracket {
-	stroke: var(--num-channel);
-	stroke-width: 3.2;
-	opacity: 0.92;
-}
-.numZone.numTrace .numZoneBracket {
-	stroke: var(--num-current);
-	stroke-width: 2.8;
-	stroke-dasharray: 7 4;
-	opacity: 0.88;
 }
 
 .numGate.numOn .numGateRing { fill: var(--num-gate-ink); }
@@ -1169,13 +1157,6 @@
 	opacity: 0.16;
 	transition: opacity 0.2s ease;
 }
-/* Derived is neither dormant nor selected. A zone supplies the gate's
- * cumulation, so its gate course may answer the zone without performing the
- * relation or borrowing the selected operator's inverted aperture. */
-.numSvg[data-focus="1"] .numChannel.numDerived,
-.numSvg[data-focus="1"] .numGate.numDerived {
-	opacity: 0.56;
-}
 .numSvg[data-focus="1"] .numZone:not(.numPick) {
 	opacity: 0.22;
 	transition: opacity 0.2s ease;
@@ -1183,52 +1164,9 @@
 .numSvg[data-focus="1"] .numZone.numPick {
 	opacity: 1;
 }
-/* A tractor is promoted to full intensity only when two held poles resolve
- * their current. Beside one selected zone it remains contextual: visible in
- * the traffic, but not dressed as another selection. */
-.numSvg[data-focus="1"][data-picks="2"] .numZone.numTrace {
-	opacity: 1;
-}
 .numZone.numPick .numZoneBracket {
 	stroke-width: 3.8;
 	filter: drop-shadow(0 0 9px rgba(57, 255, 20, 0.72));
-}
-
-/* The arc itself, in three passes: a wide soft bloom, the line, and a dash
- * that travels along it. Three cheap strokes rather than an SVG filter, so it
- * stays sharp at any zoom and costs nothing to animate. */
-.numLinkGlow, .numLinkLine, .numLinkPulse {
-	fill: none;
-	stroke-linecap: round;
-	vector-effect: non-scaling-stroke;
-	pointer-events: none;
-}
-.numLinkGlow {
-	stroke: var(--num-current);
-	stroke-width: 13;
-	opacity: 0.18;
-	filter: blur(3px);
-}
-.numLinkLine {
-	stroke: var(--num-current);
-	stroke-width: 2.4;
-	opacity: 0.85;
-}
-.numLinkPulse {
-	stroke: var(--num-bone);
-	stroke-width: 3.2;
-	stroke-dasharray: 16 150;
-	opacity: 0.9;
-	animation: numPulse 1.6s linear infinite;
-}
-@keyframes numPulse { to { stroke-dashoffset: -166; } }
-
-/* the bone-field artefact takes the link without the bloom */
-.numField[data-invert="1"] .numLinkGlow { display: none; }
-.numField[data-invert="1"] .numLinkPulse { stroke: var(--num-field); }
-
-@media (prefers-reduced-motion: reduce) {
-	.numLinkPulse { animation: none; opacity: 0.55; }
 }
 
 .numPrimaryHint {

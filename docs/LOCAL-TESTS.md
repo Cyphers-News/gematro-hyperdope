@@ -21,7 +21,41 @@ Python `exec`. Neither is part of the Node suite. The Node-compatible coverage
 is `tests/localstorage.test.js`; this workflow does not claim to run every file
 whose name happens to contain “test”.
 
-## Verified Numogram release checkpoint (2026-11-10)
+## Verified Numogram operator-illumination checkpoint (2026-11-11)
+
+The locally verified, uncommitted candidate starts from `master` at `1d68917`
+and implements the accepted
+`specs/numogram-operator-exclusive-illumination.md` transition without broadly
+resetting the dirty worktree that preceded it. Ordinary zone gestures now
+illuminate only the zones explicitly held. The reading rail may still report
+derived gates, currents and Lemur netspans, but those operators remain ambient
+until their own line or aperture is selected. A direct gate selects its source
+and destination; a direct current selects its poles and tractor. The synthetic
+exact-two pulse route, derived-gate treatment, twin cue and inferred tractor
+cue are retired.
+
+The focused Numogram assertion script passes, the required safety suite passes
+**51 / 51**, and the full local suite passes **91 / 91**. The actual page was
+served locally and exercised in Chromium at 1366 by 768 and the repository's
+520-CSS-pixel narrow viewport. The browser proof covered one-, two- and
+three-zone holds, direct Gt-10 and Sink activation, repeated operator
+toggle-off, Enter, Space, Escape, current- and gate-layer invalidation,
+participant filtering, close/reopen and reduced motion. Selected zones,
+operators and relation participants exposed matching `aria-pressed` state;
+no browser exception or console error was observed.
+
+Independent read-only adversarial review found no stop-ship issue and
+independently reproduced the focused, safety and full-suite results. The
+change classifier's red HTML-sink signal is subtractive: it identifies the
+deleted synthetic-link `innerHTML` writes, not an added or widened sink.
+
+The served content-key prefixes are `5edf464e4b06a1e4` for
+`calc/numogram.js` and `7732d8e4d96c6dac` for `calc/numogram.css`, matching the
+current source hashes. These results are local and do not prove deployed cache
+state, live-user state, provider behavior or sibling-repository conformance.
+No commit, push or deployment was performed at this checkpoint.
+
+## Prior verified Numogram redesign checkpoint (2026-11-10)
 
 The locally verified, uncommitted Numogram redesign candidate starts from clean
 `master` at `9c380dd`. Its focused Numogram assertion script passes, the required
@@ -50,9 +84,9 @@ then cleared its own exact-diff follow-up with no stop-ship finding: its resting
 and selected apertures remain fully opaque and legible in both palette readings,
 and its proof binds the dedicated gate-ink token to the rendered numeral rule.
 
-The candidate's served content-key prefixes are `2de9f2e2f7617f84` for
+At that checkpoint, the candidate's served content-key prefixes were `2de9f2e2f7617f84` for
 `calc/numogram.js` and `b2a6d07afb651362` for `calc/numogram.css`, matching the
-current source hashes. These results were collected locally before release and
+source hashes at that time. These results were collected locally before release and
 do not by themselves prove deployed cache state, database state, or provider
 behavior. The two sibling repositories have not yet been reconciled or ported,
 so their status must not be inferred from this checkpoint.

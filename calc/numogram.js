@@ -1168,7 +1168,7 @@ function numogramDemonPanel() {
 	return o
 }
 
-// A card holds both of its zones, which is what draws the link between them.
+// A card holds both of its zones so the rail can read their netspan.
 function numogramHoldPair(a, b) {
 	var both = (numPicked.indexOf(a) !== -1 && numPicked.indexOf(b) !== -1)
 	numRelation = null
@@ -1681,13 +1681,6 @@ function numogramSvg() {
 
 	// Nothing cosmological is drawn here any more: the geocentric model has its
 	// own panel, so the canonical viewBox is the canonical viewBox in every mode.
-
-	// -- the single netspan link between exactly two held zones. Three or more
-	// zones resolve the figure's own currents and gates instead of inventing a
-	// route through selection order.
-	// Above the channels so the arc reads over them, below the zones so it
-	// runs behind the discs it joins.
-	o += '<g class="numLayer numLayerLink" id="numLinkLayer"></g>'
 
 	// -- zones, on top. Operators now share their keyboard grammar.
 	o += '<g class="numLayer numLayerZones">'
@@ -2299,7 +2292,7 @@ function numogramApply() {
 
 	var all = svg.querySelectorAll(".numZone, .numGate, .numChannel, .numCurrent")
 	for (var i = 0; i < all.length; i++) {
-		all[i].classList.remove("numOn", "numDerived", "numTwin", "numTrace")
+		all[i].classList.remove("numOn")
 		all[i].setAttribute("aria-pressed", "false")
 	}
 
@@ -2334,7 +2327,7 @@ function numogramApply() {
 	// the folded sections report their own state, and a zone click reaches
 	// here without going through numogramSyncControls()
 	numogramSectionNotes()
-	numogramLinks(svg)
+	numogramSelectionView(svg)
 
 	if (numRelation !== null) {
 		var relationZones = []
@@ -2353,76 +2346,26 @@ function numogramApply() {
 		}
 		for (var rz = 0; rz < relationZones.length; rz++) {
 			var rze = document.getElementById("numZone" + relationZones[rz])
-			if (rze !== null) rze.classList.add("numPick")
+			if (rze !== null) {
+				rze.classList.add("numPick")
+				rze.setAttribute("aria-pressed", "true")
+			}
 		}
 		svg.setAttribute("data-focus", "1")
 		numogramAnnotate()
 		return
 	}
 
-	if (numSelected === null) { numogramAnnotate(); return }
-
-	// A two-zone netspan keeps its Lemur reading, but when the pair is a syzygy
-	// the plate also performs the relation it resolves: its current and, when
-	// distinct from the held poles, its tractor zone. Three-plus selections
-	// continue to light every current and gate resolved by the held set.
-	if (numPicked.length >= 2) {
-		var resolved = numResolvedRelations(numPicked)
-		for (var rc = 0; rc < resolved.currents.length; rc++) {
-			var rcurEl = svg.querySelector('.numCurrent[data-syzygy="' + resolved.currents[rc].key + '"]')
-			if (rcurEl !== null) rcurEl.classList.add("numOn")
-			if (numPicked.length === 2) {
-				var tractor = numCurrent(resolved.currents[rc])
-				if (numPicked.indexOf(tractor) === -1) {
-					var tractorEl = document.getElementById("numZone" + tractor)
-					if (tractorEl !== null) tractorEl.classList.add("numTrace")
-				}
-			}
-		}
-		if (numPicked.length >= 3) {
-			for (var rgi = 0; rgi < resolved.gates.length; rgi++) {
-				var rgate = resolved.gates[rgi]
-				var rgEl = svg.querySelector('.numGate[data-zone="' + rgate.zone + '"]')
-				var rchEl = svg.querySelector('.numChannel[data-from="' + rgate.zone + '"]')
-				if (rgEl !== null) rgEl.classList.add("numOn")
-				if (rchEl !== null) rchEl.classList.add("numOn")
-			}
-		}
-		numogramAnnotate()
-		return
-	}
-
-	var n = numSelected, sz = numSyzygyOf(n), twin = (sz.a === n) ? sz.b : sz.a
-
-	var sel = document.getElementById("numZone" + n)
-	if (sel !== null) { sel.classList.add("numOn"); sel.setAttribute("aria-pressed", "true") }
-	var tw = document.getElementById("numZone" + twin)
-	if (tw !== null) tw.classList.add("numTwin")
-
-	// One zone supplies enough information to derive its gate, but selecting
-	// the zone does not select or enact the gate. Keep the channel readable as
-	// a consequence, without giving it the inverted aperture, heavy stroke,
-	// animation or endpoint illumination reserved for a direct gate gesture.
-	// A current needs both syzygetic poles, so one zone never ignites it.
-	var chEl = svg.querySelector('.numChannel[data-from="' + n + '"]')
-	var gEl = svg.querySelector('.numGate[data-zone="' + n + '"]')
-	if (numExplore < 0) {
-		if (chEl !== null) chEl.classList.add("numDerived")
-		if (gEl !== null) gEl.classList.add("numDerived")
-	} else if (numExplore === 3) {
-		if (chEl !== null) chEl.classList.add("numOn")
-		if (gEl !== null) gEl.classList.add("numOn")
-	}
-	if (numExplore === 0 && tw !== null) tw.classList.remove("numTwin")
-
+	// Held zones can resolve canonical relations for the reading rail, but the
+	// plate performs no inferred operation. Only a direct operator gesture sets
+	// numRelation and enters the branch above.
 	numogramAnnotate()
 }
 
 // Zones accumulate. Clicking one adds it to the picked set and clicking it
-// again takes it out, so two zones can be held side by side and the link
-// between them read directly off the figure - which is the question the
-// diagram exists to answer and could not be asked of it before, when a second
-// click simply replaced the first.
+// again takes it out, so two zones can be held side by side and their netspan
+// read in the rail. The plate keeps the picks literal; selecting the canonical
+// line itself is what illuminates a gate or current relation.
 //
 // numSelected stays as it was: the most recent pick, and the zone the reading
 // describes. Everything downstream of it is untouched.
@@ -2488,41 +2431,20 @@ function numogramSetPicked(n) {
 	numSelected = numPicked.length ? numPicked[0] : null
 }
 
-// The arc between held zones, and the dimming that lets it be seen.
-//
-// One picked zone puts the figure into focus: everything not picked drops
-// back, so the zone and its own traffic stand out of the field. A second pick
-// draws the link - a lit arc from each zone to the next, with a travelling
-// pulse on it so the join reads as live rather than as one more line in a
-// figure already full of them.
-//
-// The arc is struck between rims with the same numCubic the rest of the
-// drawing uses, so it sits on the figure's own geometry rather than floating
-// over it in a different idiom.
-function numogramLinks(svg) {
-	var layer = svg.getAttribute ? svg.querySelector("#numLinkLayer") : null
-	if (layer === null) return
-
+// Zone selection is literal: focus the plate and mark only zones the reader
+// actually picked. Derived relations remain available to the reading rail,
+// but do not manufacture a line, a pulse, or a second kind of plate selection.
+function numogramSelectionView(svg) {
 	svg.setAttribute("data-focus", (numPicked.length || numRelation !== null) ? "1" : "0")
-	// Keep selection cardinality visible to the presentation layer. A traced
-	// endpoint is contextual beside one picked zone, but becomes a resolved
-	// participant when an exact two-zone syzygy is held.
 	svg.setAttribute("data-picks", String(numPicked.length))
 	for (var p = 0; p < 10; p++) {
 		var pe = document.getElementById("numZone" + p)
-		if (pe !== null) pe.classList.toggle("numPick", numPicked.indexOf(p) !== -1)
+		if (pe !== null) {
+			var picked = numPicked.indexOf(p) !== -1
+			pe.classList.toggle("numPick", picked)
+			pe.setAttribute("aria-pressed", picked ? "true" : "false")
+		}
 	}
-
-	if (numPicked.length !== 2) { layer.innerHTML = ""; return }
-
-	var za = numZone(numPicked[0]), zb = numZone(numPicked[1]), o = ""
-	if (za !== null && zb !== null) {
-		var lp = numCubic(za.x, za.y, za.r, zb.x, zb.y, zb.r, 54)
-		o += '<path class="numLinkGlow" d="' + lp.d + '"/>'
-		o += '<path class="numLinkLine" d="' + lp.d + '"/>'
-		o += '<path class="numLinkPulse" d="' + lp.d + '"/>'
-	}
-	layer.innerHTML = o
 }
 
 // ZONE -> SYZYGY -> CURRENT -> GATE, followed on the diagram itself. No wizard,
