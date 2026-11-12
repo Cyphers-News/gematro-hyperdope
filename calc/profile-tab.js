@@ -1066,7 +1066,7 @@ function renderProfileNewBody(tok) {
 		var host = document.getElementById("profileLeaderboardBody")
 		if (host === null || tok !== profileRenderSeq) return
 		var o = ''
-		o += '<div class="profileNote">React with 🔥 💚 😂 or 📖 to nominate a phrase for the database. An admin makes the final decision.</div>'
+		o += '<div class="profileNote">A phrase reaches database review after reactions from 3 different people, or 2 when one marks it 📖 CCRU. The author\'s own reactions do not count; an admin makes the final decision.</div>'
 		if (rows.length === 0) {
 			o += '<div class="profileNote">Nobody has published a phrase yet. Be the first, over on Saved.</div>'
 			host.innerHTML = o; return

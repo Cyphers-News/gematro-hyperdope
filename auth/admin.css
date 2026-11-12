@@ -167,6 +167,51 @@
 	max-width: 280px;
 	min-width: 200px;
 }
+.adminPhraseTable .adminBtn,
+.adminPhraseBatch .adminBtn { min-height: 44px; }
+.adminPhraseTable tr.adminPhraseSelected { background-color: hsla(140 50% 40% / 0.13); }
+.adminPhraseTable tr.adminPhraseBusy { opacity: 0.62; }
+.adminPhraseSelectCell { min-width: 44px; padding: 0 !important; text-align: center; }
+.adminPhraseCheckLabel {
+	display: inline-flex;
+	width: 44px;
+	height: 44px;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+}
+.adminPhraseCheckLabel input[type="checkbox"] {
+	visibility: visible;
+	width: 20px;
+	height: 20px;
+	margin: 0;
+	accent-color: hsl(140 55% 55%);
+}
+.adminPhraseBatch {
+	border: 1px solid var(--border-dark-accent);
+	background-color: var(--menu-bg-accent);
+	padding: 0.55em;
+	margin-bottom: 0.8em;
+}
+.adminPhraseBatch:focus { outline: 2px solid var(--focus-outline); outline-offset: 2px; }
+.adminPhraseBatch.adminPhraseBatchBusy { opacity: 0.72; }
+.adminPhraseBatchStatus {
+	flex-basis: 100%;
+	color: hsl(5 75% 78%);
+	font-size: 84%;
+}
+.adminPhraseBatchStatus:empty { display: none; }
+.adminVisuallyHidden {
+	position: absolute !important;
+	width: 1px !important;
+	height: 1px !important;
+	padding: 0 !important;
+	margin: -1px !important;
+	overflow: hidden !important;
+	clip: rect(0, 0, 0, 0) !important;
+	white-space: nowrap !important;
+	border: 0 !important;
+}
 .adminActions { display: flex; gap: 0.25em; flex-wrap: wrap; }
 
 .adminBtn {

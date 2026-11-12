@@ -452,9 +452,10 @@ call simply do not exist yet. Nothing else on the page is affected.
   recreated, same reason as the last time this shape changed — `RETURNS
   TABLE` cannot be altered with `create or replace`.
 - **`public.phrase_db_queue`** — the review queue behind `/admin.html`'s
-  Phrase queue section. A phrase is enqueued automatically (a trigger on
-  `phrase_reactions`, on-conflict-do-nothing) the moment it earns its first
-  reaction. No RLS policies at all: every access goes through
+  Phrase queue section. This original migration enqueues a phrase the moment
+  it earns its first reaction; the later 2026-11-11 quorum migration replaces
+  that ingress rule without editing this historical file. No RLS policies at
+  all: every access goes through
   `admin_phrase_queue` / `admin_phrase_decide`, both `admin_require()`-gated,
   same pattern as Reports.
 - **`admin_stats`, extended** — adds `phrase_queue_pending`, shown as a
@@ -477,6 +478,55 @@ The admin dashboard reads the file's real size with a `HEAD` request (no
 migration involved — it's asking the file itself, not the database) and
 warns past 3.2MB, 80% of a 4MB working cap (`ADMIN_DB_SIZE_WARN` /
 `ADMIN_DB_SIZE_CAP`, `auth/admin.js`).
+
+---
+
+## Phrase nomination quorum and batch review
+
+`supabase/migrations/20261111000000_phrase_nomination_quorum_and_batch.sql` —
+run after the CCRU reaction and approval-notification migrations. In a fresh
+install its timestamp also places it after the function-grant hardening that
+removes default anonymous execution. Safe to re-run; it does not reclassify or
+delete existing queue rows.
+
+Until this migration is run, the site keeps the original first-reaction queue
+rule and the admin batch RPC does not exist. Updating the browser files without
+the migration therefore leaves batch actions unavailable; running only the
+migration changes queue ingress but does not publish any phrase to `db.txt`.
+
+### What it changes
+
+- **Nomination is person-counted.** A phrase reaches the queue after reactions
+  from three distinct non-author members, or two distinct non-author members
+  when at least one holds the CCRU/book reaction. Several reaction types from
+  one member still count as one supporter, and the phrase author's reactions
+  never contribute.
+- **Crossing is durable.** The trigger inserts at most one queue row. Removing
+  reactions later does not dequeue the phrase, reset its status, or disturb an
+  administrator's decision. Existing pending, approved, rejected and exported
+  rows are grandfathered unchanged.
+- **Simultaneous reactions serialize by submission.** A transaction-scoped
+  advisory lock makes the threshold recount happen in sequence; the existing
+  unique submission key remains the duplicate boundary.
+- **Single and batch decisions share the same text bound.** Edited final text
+  may be null; otherwise postgres `char_length` must be 1 through 500.
+- **Batch decisions are explicit and atomic.** An administrator may approve or
+  reject 1–100 selected rows that are still pending. The RPC validates the
+  complete payload, locks every target in stable order, then reuses the single
+  decision path so reviewer fields, approval notifications and per-row audit
+  entries stay aligned. One invalid or stale row rolls back the entire call.
+- **The browser asks for the existing 300-row ceiling.** Reaching it produces a
+  warning rather than claiming the visible list is the complete queue.
+
+### Before applying it anywhere live
+
+Repository tests can prove the client state contract and the migration's
+declared structure, but this repository has no disposable local Supabase
+harness. Apply the migration first to an isolated staging project with
+fictional accounts and submissions. In two concurrent sessions, cross each
+quorum boundary and confirm exactly one pending row appears; then compare
+single and batch approval notifications, audit entries and rollback behavior.
+Do not infer production migration state or grants from the checked-in file.
 
 ## Chat presence
 

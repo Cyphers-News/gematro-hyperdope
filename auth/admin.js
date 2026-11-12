@@ -26,9 +26,17 @@ function adminRpc(name, args) {
 	var c = adminClient()
 	if (c === null) return Promise.reject(new Error("Not signed in"))
 	return c.rpc(name, args || {}).then(function (res) {
-		if (res.error) throw adminErr(res.error)
+		if (res.error) {
+			var refused = adminErr(res.error)
+			refused.adminTransactionRefused = true
+			throw refused
+		}
 		return res.data
-	}, function (err) { throw adminErr(err) })
+	}, function (err) {
+		var uncertain = adminErr(err)
+		uncertain.adminOutcomeUncertain = true
+		throw uncertain
+	})
 }
 
 // ---- am I one? --------------------------------------------------------
@@ -92,7 +100,13 @@ function adminOnline(mins)         { return adminRpc("admin_online", { window_mi
 function adminReports(status, sort){ return adminRpc("admin_reports", { status_filter: status || null, sort: sort || "newest" }).then(rowsOr) }
 function adminReportContext(id)    { return adminRpc("admin_report_context", { report: id }).then(rowsOr) }
 function adminAudit(limit)         { return adminRpc("admin_audit_list", { lim: limit || 100 }).then(rowsOr) }
-function adminPhraseQueue(status, sort) { return adminRpc("admin_phrase_queue", { status_filter: status || "pending", sort: sort || "recent" }).then(rowsOr) }
+function adminPhraseQueue(status, sort, limit) {
+	return adminRpc("admin_phrase_queue", {
+		status_filter: status || "pending",
+		sort: sort || "recent",
+		lim: limit || 300
+	}).then(rowsOr)
+}
 
 function rowsOr(r) { return r || [] }
 
@@ -108,6 +122,9 @@ function adminReportStatus(id, s, note) {
 }
 function adminPhraseDecide(id, decision, text) {
 	return adminRpc("admin_phrase_decide", { target: id, decision: decision, edited_text: text || null })
+}
+function adminPhraseDecideBatch(items) {
+	return adminRpc("admin_phrase_decide_batch", { items: items }).then(rowsOr)
 }
 
 // Password resets, without the panel ever holding the address.

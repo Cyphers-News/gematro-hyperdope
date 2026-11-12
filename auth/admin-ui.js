@@ -22,6 +22,8 @@ var adminUserQuery = "", adminUserSort = "recent", adminUserStatus = "all"
 var adminReportStatusFilter = "open", adminReportSort = "newest"
 var adminOpenReport = null
 var adminPhraseStatusFilter = "pending", adminPhraseSort = "recent"
+var adminPhraseRows = [], adminPhraseRowsById = {}, adminPhraseSelected = {}
+var adminPhraseHasSelectable = false, adminPhraseBatchArmedPayload = null
 
 function adminEsc(s) { return authEsc(s) }
 
@@ -426,6 +428,7 @@ function adminDisarm() {
 		adminArmed.classList.remove("adminBtnArmed")
 	}
 	adminArmed = null
+	adminPhraseBatchArmedPayload = null
 	clearTimeout(adminArmedTimer)
 }
 
@@ -531,7 +534,15 @@ function adminSetPhraseSort(s)   { adminPhraseSort = s; adminRender() }
 
 function adminRenderPhraseQueue(host) {
 	var tok = adminSeq
-	adminPhraseQueue(adminPhraseStatusFilter, adminPhraseSort).then(function (rows) {
+	adminPhraseQueue(adminPhraseStatusFilter, adminPhraseSort, 300).then(function (rows) {
+		if (tok !== adminSeq) return
+		adminDisarm()
+		adminPhraseRows = rows.slice()
+		adminPhraseRowsById = {}
+		adminPhraseSelected = {}
+		adminPhraseHasSelectable = rows.some(function (r) { return r.status === "pending" })
+		rows.forEach(function (r) { adminPhraseRowsById[r.id] = r })
+
 		var o = '<div class="adminBar">'
 		o += '<span class="adminBarLab">Status</span>'
 		;["pending", "approved", "rejected", "exported", "all"].forEach(function (s) {
@@ -562,30 +573,61 @@ function adminRenderPhraseQueue(host) {
 		o += 'Once you have approved everything you want, switch to the <b>approved</b> tab above, '
 		o += 'Export the list, paste it into db.txt, commit and deploy, then mark them exported.</div>'
 
+		if (rows.length === 300) {
+			o += '<div class="adminNote adminNoteBad">Showing the first 300 rows, the server ceiling. '
+			o += 'Older matching rows may exist; decide or narrow this view, then refresh to reach them.</div>'
+		}
+
+		if (adminPhraseHasSelectable) o += adminPhraseBatchBar()
+
 		if (adminPhraseStatusFilter === "approved" && rows.length) {
 			o += '<div class="adminBar"><button class="adminBtn" onclick="adminExportApproved()">' +
-				'&#128203; Export all ' + rows.length + ' approved phrase' + (rows.length === 1 ? '' : 's') + '</button>' +
+				'&#128203; Export shown ' + rows.length + ' approved phrase' + (rows.length === 1 ? '' : 's') + '</button>' +
 				'<span class="adminDim">Paste into db.txt, commit, deploy - then mark them exported.</span></div>'
 			o += '<div id="adminExportBox"></div>'
 		}
 
 		if (!rows.length) { adminWrite(host, o + '<div class="adminNote">Nothing here.</div>', tok); return }
 
-		o += '<table class="adminTable"><thead><tr>'
+		o += '<table class="adminTable adminPhraseTable"><thead><tr>'
+		if (adminPhraseHasSelectable) o += '<th><span class="adminVisuallyHidden">Select</span></th>'
 		o += '<th>Phrase</th><th>By</th><th title="Loved / Trending News / Funny / CCRU / combined">💚 🔥 😂 📖 Σ</th>'
 		o += '<th>First / last reaction</th>'
 		o += '<th>Suggested / final text</th><th>Status</th><th></th>'
 		o += '</tr></thead><tbody>'
-		for (var i = 0; i < rows.length; i++) o += adminPhraseRow(rows[i])
+		for (var i = 0; i < rows.length; i++) o += adminPhraseRow(rows[i], adminPhraseHasSelectable)
 		o += '</tbody></table>'
 		adminWrite(host, o, tok)
 	}).catch(function (err) { adminWrite(host, adminError(err), tok) })
 }
 
-function adminPhraseRow(r) {
+function adminPhraseBatchBar() {
+	return '<div class="adminBar adminPhraseBatch" id="adminPhraseBatch" role="region" aria-label="Selected phrase decisions">' +
+		'<span class="adminBarLab" id="adminPhraseSelectedCount" aria-live="polite">0 selected</span>' +
+		'<button class="adminBtn" onclick="adminPhraseSelectVisible()">Select visible (max 100)</button>' +
+		'<button class="adminBtn" onclick="adminPhraseClearSelection()">Clear</button>' +
+		'<button class="adminBtn adminBtnGood" id="adminPhraseBatchApprove" disabled onclick="adminPhraseBatchAct(this,&quot;approved&quot;)">Approve selected</button>' +
+		'<button class="adminBtn adminBtnBad" id="adminPhraseBatchReject" disabled onclick="adminPhraseBatchAct(this,&quot;rejected&quot;)">Reject selected</button>' +
+		'<span class="adminPhraseBatchStatus" id="adminPhraseBatchStatus" aria-live="assertive"></span>' +
+		'<button class="adminBtn" id="adminPhraseRefresh" hidden onclick="adminRender()">Refresh queue</button>' +
+		'</div>'
+}
+
+function adminPhraseRow(r, showSelection) {
 	var fieldId = "adminPhraseText-" + r.id
 	var suggestion = r.final_text || adminSuggestCapitalization(r.phrase)
-	var o = '<tr>'
+	var selected = !!adminPhraseSelected[r.id]
+	var o = '<tr id="adminPhraseRow-' + adminEsc(r.id) + '" data-phrase-id="' + adminEsc(r.id) + '"' +
+		(selected ? ' class="adminPhraseSelected"' : '') + '>'
+	if (showSelection) {
+		o += '<td class="adminPhraseSelectCell">'
+		if (r.status === "pending") {
+			o += '<label class="adminPhraseCheckLabel"><span class="adminVisuallyHidden">Select ' + adminEsc(r.phrase) + '</span>' +
+				'<input type="checkbox" id="adminPhraseCheck-' + adminEsc(r.id) + '" ' + (selected ? 'checked ' : '') +
+				'onchange="adminPhraseToggle(&quot;' + r.id + '&quot;,this.checked)"></label>'
+		}
+		o += '</td>'
+	}
 	o += '<td class="adminPhraseCell">' + adminEsc(r.phrase)
 	if (r.cipher) o += '<div class="adminDim">' + adminEsc(r.cipher) + (r.value !== null ? ' = ' + r.value : '') + '</div>'
 	o += '</td>'
@@ -594,29 +636,301 @@ function adminPhraseRow(r) {
 	o += (r.heart_count || 0) + ' 💚&nbsp; ' + (r.like_count || 0) + ' 🔥&nbsp; ' + (r.laugh_count || 0) + ' 😂&nbsp; ' + (r.ccru_count || 0) + ' 📖&nbsp; &middot; Σ ' + (r.total_count || 0)
 	o += '</td>'
 	o += '<td class="adminDim">' + adminWhen(r.first_reaction_at) + ' &middot; ' + adminWhen(r.last_reaction_at) + '</td>'
-	o += '<td><input type="text" class="adminSearch" id="' + fieldId + '" value="' + adminEsc(suggestion) + '"' +
+	o += '<td><input type="text" class="adminSearch" id="' + fieldId + '" value="' + adminEsc(suggestion) + '" ' +
+		'oninput="adminPhraseEditChanged()"' +
 		(r.status === 'pending' || r.status === 'approved' ? '' : ' disabled') + '></td>'
 	o += '<td><span class="adminPill adminPill-' + adminEsc(r.status) + '">' + adminEsc(r.status) + '</span>'
 	if (r.reviewed_by_name) o += '<div class="adminDim">' + adminEsc(r.reviewed_by_name) + ' &middot; ' + adminWhen(r.reviewed_at) + '</div>'
 	o += '</td>'
 	o += '<td class="adminActions">'
 	if (r.status === 'pending' || r.status === 'rejected') {
-		o += '<button class="adminBtn adminBtnGood" onclick="adminPhraseAct(&quot;' + r.id + '&quot;,&quot;approved&quot;,&quot;' + fieldId + '&quot;)">Approve</button>'
+		o += '<button class="adminBtn adminBtnGood" onclick="adminPhraseAct(this,&quot;' + r.id + '&quot;,&quot;approved&quot;,&quot;' + fieldId + '&quot;)">Approve</button>'
 	}
 	if (r.status === 'pending' || r.status === 'approved') {
-		o += '<button class="adminBtn adminBtnBad" onclick="adminPhraseAct(&quot;' + r.id + '&quot;,&quot;rejected&quot;,&quot;' + fieldId + '&quot;)">Reject</button>'
+		o += '<button class="adminBtn adminBtnBad" onclick="adminPhraseAct(this,&quot;' + r.id + '&quot;,&quot;rejected&quot;,&quot;' + fieldId + '&quot;)">Reject</button>'
 	}
 	o += '</td></tr>'
 	return o
 }
 
-function adminPhraseAct(id, decision, fieldId) {
+function adminPhraseSelectionCount() {
+	return Object.keys(adminPhraseSelected).filter(function (id) { return adminPhraseSelected[id] }).length
+}
+
+function adminPhraseUpdateBatchBar() {
+	var n = adminPhraseSelectionCount()
+	var count = document.getElementById("adminPhraseSelectedCount")
+	if (count !== null) count.textContent = n + " selected"
+	;["adminPhraseBatchApprove", "adminPhraseBatchReject"].forEach(function (id) {
+		var btn = document.getElementById(id)
+		if (btn !== null) btn.disabled = n === 0
+	})
+}
+
+function adminPhraseToggle(id, on) {
+	adminDisarm()
+	if (!adminPhraseRowsById[id] || adminPhraseRowsById[id].status !== "pending") return
+	if (on && !adminPhraseSelected[id] && adminPhraseSelectionCount() >= 100) {
+		var box = document.getElementById("adminPhraseCheck-" + id)
+		if (box !== null) box.checked = false
+		adminNotify("A batch can contain at most 100 phrases.", true)
+		return
+	}
+	adminPhraseSelected[id] = !!on
+	var row = document.getElementById("adminPhraseRow-" + id)
+	if (row !== null) row.classList.toggle("adminPhraseSelected", !!on)
+	adminPhraseUpdateBatchBar()
+}
+
+function adminPhraseSelectVisible() {
+	adminDisarm()
+	adminPhraseSelected = {}
+	var picked = 0
+	adminPhraseRows.forEach(function (r) {
+		if (r.status !== "pending" || picked >= 100) return
+		adminPhraseSelected[r.id] = true
+		picked++
+	})
+	document.querySelectorAll(".adminPhraseSelectCell input[type=checkbox]").forEach(function (box) {
+		box.checked = !!adminPhraseSelected[box.id.replace("adminPhraseCheck-", "")]
+		var row = box.closest("tr")
+		if (row !== null) row.classList.toggle("adminPhraseSelected", box.checked)
+	})
+	adminPhraseUpdateBatchBar()
+}
+
+function adminPhraseClearSelection() {
+	adminDisarm()
+	adminPhraseSelected = {}
+	document.querySelectorAll(".adminPhraseSelectCell input[type=checkbox]").forEach(function (box) {
+		box.checked = false
+		var row = box.closest("tr")
+		if (row !== null) row.classList.remove("adminPhraseSelected")
+	})
+	adminPhraseUpdateBatchBar()
+}
+
+function adminPhraseEditChanged() {
+	if (adminArmed !== null) adminDisarm()
+}
+
+function adminPhraseClearRecovery() {
+	var status = document.getElementById("adminPhraseBatchStatus")
+	var refresh = document.getElementById("adminPhraseRefresh")
+	if (status !== null) status.textContent = ""
+	if (refresh !== null) refresh.hidden = true
+}
+
+function adminPhraseShowRecovery(message, toast) {
+	var status = document.getElementById("adminPhraseBatchStatus")
+	var refresh = document.getElementById("adminPhraseRefresh")
+	if (status !== null) status.textContent = message
+	if (refresh !== null) refresh.hidden = false
+	adminNotify(toast, true)
+}
+
+function adminPhraseShowBatchFailure(err) {
+	var detail = (err && err.message) ? err.message : "The batch request failed."
+	if (err && err.adminTransactionRefused === true) {
+		adminPhraseShowRecovery(
+			"Nothing changed. " + detail + " Refresh before trying again.",
+			"Nothing changed. Refresh queue before trying again."
+		)
+		return
+	}
+	adminPhraseShowRecovery(
+		"Outcome not confirmed. " + detail + " Refresh before continuing.",
+		"Outcome not confirmed. Refresh queue before continuing."
+	)
+}
+
+function adminPhraseText(id) {
+	var box = document.getElementById("adminPhraseText-" + id)
+	if (box === null) return null
+	var text = box.value.trim()
+	return text || null
+}
+
+function adminPhraseTextLength(text) {
+	return text === null ? 0 : Array.from(text).length
+}
+
+function adminPhraseBatchPayload(decision) {
+	var items = []
+	for (var i = 0; i < adminPhraseRows.length; i++) {
+		var r = adminPhraseRows[i]
+		if (!adminPhraseSelected[r.id]) continue
+		var text = adminPhraseText(r.id)
+		if (text !== null && (adminPhraseTextLength(text) < 1 || adminPhraseTextLength(text) > 500)) {
+			var box = document.getElementById("adminPhraseText-" + r.id)
+			if (box !== null) box.focus()
+			adminNotify("Final text must be between 1 and 500 characters.", true)
+			return null
+		}
+		items.push({ id: r.id, decision: decision, edited_text: text })
+	}
+	return items
+}
+
+function adminPhraseSetBusy(ids, on) {
+	ids.forEach(function (id) {
+		var row = document.getElementById("adminPhraseRow-" + id)
+		if (row === null) return
+		row.classList.toggle("adminPhraseBusy", on)
+		row.querySelectorAll("button,input").forEach(function (control) {
+			if (on) {
+				control.dataset.adminWasDisabled = control.disabled ? "1" : "0"
+				control.disabled = true
+			} else {
+				control.disabled = control.dataset.adminWasDisabled === "1"
+				delete control.dataset.adminWasDisabled
+			}
+		})
+	})
+}
+
+function adminPhraseSetBatchBusy(on) {
+	var bar = document.getElementById("adminPhraseBatch")
+	if (bar === null) return
+	bar.classList.toggle("adminPhraseBatchBusy", on)
+	bar.querySelectorAll("button").forEach(function (control) {
+		if (on) {
+			control.dataset.adminWasDisabled = control.disabled ? "1" : "0"
+			control.disabled = true
+		} else {
+			control.disabled = control.dataset.adminWasDisabled === "1"
+			delete control.dataset.adminWasDisabled
+		}
+	})
+}
+
+function adminPhraseNextRowId(id) {
+	var row = document.getElementById("adminPhraseRow-" + id)
+	if (row === null) return null
+	var next = row.nextElementSibling || row.previousElementSibling
+	return next && next.dataset ? (next.dataset.phraseId || null) : null
+}
+
+function adminPhraseFocusDecision(id) {
+	var row = id ? document.getElementById("adminPhraseRow-" + id) : null
+	var target = row ? row.querySelector(".adminActions .adminBtn:not(:disabled)") : null
+	if (target === null) target = document.getElementById("adminPhraseBatch")
+	if (target !== null) {
+		if (target.tabIndex < 0) target.tabIndex = -1
+		target.focus()
+	}
+}
+
+function adminPhraseReconcile(id, decision, finalText) {
+	var r = adminPhraseRowsById[id]
+	if (!r) return
+	r.status = decision
+	if (finalText !== null && finalText !== undefined) r.final_text = finalText
+	r.reviewed_at = new Date().toISOString()
+	r.reviewed_by_name = (typeof authDisplayName === "function") ? authDisplayName() : r.reviewed_by_name
+	delete adminPhraseSelected[id]
+
+	var row = document.getElementById("adminPhraseRow-" + id)
+	if (row === null) return
+	if (adminPhraseStatusFilter !== "all" && adminPhraseStatusFilter !== decision) {
+		row.remove()
+	} else {
+		row.outerHTML = adminPhraseRow(r, adminPhraseHasSelectable)
+	}
+	adminPhraseUpdateBatchBar()
+}
+
+function adminPhraseAct(btn, id, decision, fieldId) {
 	var box = document.getElementById(fieldId)
 	var text = box !== null ? box.value.trim() : null
+	text = text || null
+	if (text !== null && adminPhraseTextLength(text) > 500) {
+		adminNotify("Final text must be between 1 and 500 characters.", true)
+		box.focus()
+		return
+	}
+	var tok = adminSeq
+	var nextId = adminPhraseNextRowId(id)
+	adminPhraseSetBusy([id], true)
 	adminPhraseDecide(id, decision, text || null).then(function () {
+		if (tok !== adminSeq) return
+		adminPhraseReconcile(id, decision, text)
 		adminNotify("Marked " + decision + ".")
-		adminRender()
-	}).catch(function (err) { adminNotify(err.message || "That did not work", true) })
+		adminPhraseFocusDecision(nextId)
+	}).catch(function (err) {
+		if (tok === adminSeq) {
+			adminPhraseSetBusy([id], false)
+			if (btn && btn.focus) btn.focus()
+		}
+		adminNotify(err.message || "That did not work", true)
+	})
+}
+
+function adminPhraseValidatedBatchResult(rows, payload) {
+	if (!Array.isArray(rows) || rows.length !== payload.length) return null
+	var expected = {}
+	for (var i = 0; i < payload.length; i++) expected[payload[i].id] = payload[i]
+	var seen = {}
+	var confirmed = []
+	for (var j = 0; j < rows.length; j++) {
+		var row = rows[j] || {}
+		var id = typeof row.queue_id === "string" ? row.queue_id : ""
+		var item = expected[id]
+		if (!item || seen[id] || row.status !== item.decision) return null
+		seen[id] = true
+		confirmed.push({ id: id, decision: row.status, edited_text: item.edited_text })
+	}
+	return confirmed.length === payload.length ? confirmed : null
+}
+
+function adminPhraseBatchAct(btn, decision) {
+	adminPhraseClearRecovery()
+	var payload = adminPhraseBatchPayload(decision)
+	if (payload === null) return
+	if (!payload.length) { adminNotify("Select at least one pending phrase.", true); return }
+
+	var frozen = JSON.stringify(payload)
+	if (btn !== adminArmed) {
+		adminConfirm(btn, "Confirm " + decision + " " + payload.length + "?")
+		adminPhraseBatchArmedPayload = frozen
+		return
+	}
+	if (adminPhraseBatchArmedPayload !== frozen) {
+		adminDisarm()
+		adminNotify("The selection or final text changed. Review it, then confirm again.", true)
+		return
+	}
+	if (!adminConfirm(btn, "Confirm?")) return
+
+	var ids = payload.map(function (item) { return item.id })
+	var tok = adminSeq
+	adminPhraseSetBusy(ids, true)
+	adminPhraseSetBatchBusy(true)
+	adminPhraseDecideBatch(payload).then(function (rows) {
+		if (tok !== adminSeq) return
+		var confirmed = adminPhraseValidatedBatchResult(rows, payload)
+		if (confirmed === null) {
+			adminPhraseSetBusy(ids, false)
+			adminPhraseSetBatchBusy(false)
+			adminPhraseShowRecovery(
+				"The server response did not confirm every selected decision. Refresh before continuing.",
+				"Outcome not confirmed. Refresh queue before continuing."
+			)
+			return
+		}
+		adminPhraseSetBatchBusy(false)
+		confirmed.forEach(function (item) {
+			adminPhraseReconcile(item.id, item.decision, item.edited_text)
+		})
+		adminNotify("Marked " + ids.length + " phrase" + (ids.length === 1 ? "" : "s") + " " + decision + ".")
+		adminPhraseFocusDecision(null)
+	}).catch(function (err) {
+		if (tok === adminSeq) {
+			adminPhraseSetBusy(ids, false)
+			adminPhraseSetBatchBusy(false)
+			adminPhraseShowBatchFailure(err)
+		}
+	})
 }
 
 // Builds the list (one phrase per line, alphabetical, matching db.txt's own
