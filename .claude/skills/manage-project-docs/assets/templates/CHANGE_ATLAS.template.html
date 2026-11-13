@@ -1,0 +1,981 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
+  <meta name="generator" content="[[GENERATOR_ID]]">
+  <meta name="atlas-source" content="[[SOURCE_PATH_META]]">
+  <meta name="atlas-source-id" content="[[SOURCE_ID]]">
+  <meta name="atlas-source-sha256" content="[[SOURCE_SHA256]]">
+  <title>[[TITLE]] · change atlas</title>
+  <style>
+    :root {
+      --void: #070a0b;
+      --ink: #0c1112;
+      --iron: #11191a;
+      --plate: #172021;
+      --plate-high: #1d2929;
+      --bone: #e7dfcf;
+      --paper: #cfc6b4;
+      --ash: #98a49f;
+      --dim: #687572;
+      --line: #2c3d3b;
+      --line-hot: #52756e;
+      --verdigris: #7bd5bd;
+      --verdigris-deep: #2e7f70;
+      --copper: #d88a5f;
+      --amber: #e1ba62;
+      --red: #da796b;
+      --shadow: rgba(0, 0, 0, 0.46);
+      --serif: "Iowan Old Style", "Baskerville", "Times New Roman", serif;
+      --sans: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+      --mono: "IBM Plex Mono", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      --measure: 76rem;
+      --radius: 2px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      background: var(--void);
+      color: var(--bone);
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-width: 19rem;
+      min-height: 100vh;
+      font-family: var(--sans);
+      line-height: 1.55;
+      background:
+        radial-gradient(circle at 12% 2%, rgba(123, 213, 189, 0.10), transparent 25rem),
+        radial-gradient(circle at 94% 24%, rgba(216, 138, 95, 0.07), transparent 29rem),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 64px),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.014) 0 1px, transparent 1px 64px),
+        var(--void);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      opacity: 0.22;
+      background: repeating-linear-gradient(
+        118deg,
+        transparent 0 11px,
+        rgba(123, 213, 189, 0.035) 11px 12px
+      );
+      mask-image: linear-gradient(to bottom, black, transparent 72%);
+    }
+
+    ::selection {
+      color: var(--void);
+      background: var(--verdigris);
+    }
+
+    a.skip-link {
+      position: fixed;
+      top: 0.75rem;
+      left: 0.75rem;
+      z-index: 20;
+      padding: 0.65rem 0.85rem;
+      color: var(--void);
+      background: var(--verdigris);
+      font: 700 0.76rem/1 var(--mono);
+      transform: translateY(-180%);
+    }
+
+    a.skip-link:focus {
+      transform: translateY(0);
+      outline: 3px solid var(--bone);
+      outline-offset: 3px;
+    }
+
+    .shell {
+      width: min(calc(100% - 2rem), var(--measure));
+      margin: 0 auto;
+      padding: 1rem 0 5rem;
+    }
+
+    .instrument-header {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(17rem, 0.55fr);
+      min-height: 32rem;
+      border: 1px solid var(--line);
+      background: linear-gradient(145deg, rgba(23, 32, 33, 0.96), rgba(8, 12, 13, 0.98));
+      box-shadow: 0 2rem 5rem var(--shadow), inset 0 1px rgba(255, 255, 255, 0.035);
+      overflow: hidden;
+    }
+
+    .instrument-header::before,
+    .instrument-header::after,
+    .panel::before,
+    .panel::after {
+      content: "";
+      position: absolute;
+      width: 1.05rem;
+      height: 1.05rem;
+      pointer-events: none;
+    }
+
+    .instrument-header::before,
+    .panel::before {
+      top: 0.55rem;
+      left: 0.55rem;
+      border-top: 1px solid var(--verdigris);
+      border-left: 1px solid var(--verdigris);
+    }
+
+    .instrument-header::after,
+    .panel::after {
+      right: 0.55rem;
+      bottom: 0.55rem;
+      border-right: 1px solid var(--copper);
+      border-bottom: 1px solid var(--copper);
+    }
+
+    .hero-copy {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: clamp(2rem, 5vw, 5.5rem);
+      border-right: 1px solid var(--line);
+    }
+
+    .eyebrow,
+    .section-label,
+    .card-index,
+    .datum,
+    dt,
+    .shape-state,
+    .scope-title,
+    summary span,
+    .footer-mark {
+      margin: 0;
+      color: var(--verdigris);
+      font: 700 0.69rem/1.25 var(--mono);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before,
+    .section-label::before {
+      content: "// ";
+      color: var(--copper);
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 13ch;
+      margin: 1rem 0 1.3rem;
+      font: 500 clamp(3.2rem, 8.2vw, 7.8rem)/0.87 var(--serif);
+      letter-spacing: -0.055em;
+      text-wrap: balance;
+    }
+
+    h2 {
+      max-width: 18ch;
+      margin: 0.55rem 0 1.5rem;
+      font: 500 clamp(2rem, 4vw, 4rem)/0.95 var(--serif);
+      letter-spacing: -0.035em;
+      text-wrap: balance;
+    }
+
+    h3 {
+      margin-bottom: 0.75rem;
+      font: 600 1.08rem/1.2 var(--sans);
+      letter-spacing: -0.015em;
+    }
+
+    .hero-change {
+      max-width: 43rem;
+      margin: 0;
+      color: var(--paper);
+      font: 400 clamp(1.08rem, 2vw, 1.42rem)/1.55 var(--sans);
+    }
+
+    .hero-stratum {
+      margin-top: 4rem;
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      color: var(--dim);
+      font: 600 0.67rem/1.2 var(--mono);
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    .hero-stratum::before {
+      content: "";
+      width: 4.5rem;
+      height: 1px;
+      background: linear-gradient(to right, var(--verdigris), transparent);
+    }
+
+    .provenance {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 2rem;
+      background:
+        linear-gradient(rgba(123, 213, 189, 0.035), transparent),
+        repeating-linear-gradient(135deg, transparent 0 9px, rgba(255, 255, 255, 0.018) 9px 10px);
+    }
+
+    .status-seal {
+      width: fit-content;
+      padding: 0.55rem 0.7rem 0.48rem;
+      border: 1px solid var(--line-hot);
+      color: var(--verdigris);
+      font: 700 0.72rem/1 var(--mono);
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    .status-seal--draft {
+      color: var(--amber);
+      border-color: rgba(225, 186, 98, 0.55);
+    }
+
+    .status-seal--rejected {
+      color: var(--red);
+      border-color: rgba(218, 121, 107, 0.55);
+    }
+
+    .status-seal--retired {
+      color: var(--ash);
+      border-color: var(--line);
+    }
+
+    .provenance dl {
+      display: grid;
+      gap: 1.2rem;
+      margin: 3rem 0 0;
+    }
+
+    .provenance dl > div {
+      min-width: 0;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--line);
+    }
+
+    dt {
+      color: var(--dim);
+    }
+
+    dd {
+      margin: 0.35rem 0 0;
+      color: var(--paper);
+      font: 500 0.78rem/1.45 var(--mono);
+      overflow-wrap: anywhere;
+    }
+
+    .authority-note {
+      margin: 2rem 0 0;
+      padding: 1rem;
+      border-left: 2px solid var(--copper);
+      color: var(--paper);
+      background: rgba(216, 138, 95, 0.055);
+      font-size: 0.88rem;
+    }
+
+    main {
+      display: grid;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .panel {
+      position: relative;
+      padding: clamp(1.5rem, 4vw, 3.5rem);
+      border: 1px solid var(--line);
+      background: rgba(12, 17, 18, 0.94);
+      box-shadow: inset 0 1px rgba(255, 255, 255, 0.025);
+    }
+
+    .panel-heading {
+      display: grid;
+      grid-template-columns: 1fr minmax(13rem, 0.55fr);
+      gap: 2rem;
+      align-items: end;
+      margin-bottom: 2rem;
+    }
+
+    .panel-heading > p:last-child {
+      margin-bottom: 1.6rem;
+      color: var(--ash);
+      font-size: 0.9rem;
+    }
+
+    .transition-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 5rem minmax(0, 1fr);
+      align-items: stretch;
+    }
+
+    .state-card {
+      min-height: 16rem;
+      padding: clamp(1.5rem, 3vw, 2.5rem);
+      border: 1px solid var(--line);
+      background: linear-gradient(150deg, var(--plate), rgba(17, 25, 26, 0.55));
+    }
+
+    .state-card--after {
+      border-color: var(--line-hot);
+      background: linear-gradient(150deg, rgba(46, 127, 112, 0.19), var(--plate));
+    }
+
+    .state-card p:last-child {
+      margin-bottom: 0;
+      color: var(--paper);
+      font: 400 clamp(1.05rem, 2vw, 1.35rem)/1.55 var(--serif);
+    }
+
+    .transition-arrow {
+      position: relative;
+      display: grid;
+      place-items: center;
+      color: var(--verdigris);
+      font: 500 1.5rem/1 var(--mono);
+    }
+
+    .transition-arrow::before {
+      content: "";
+      position: absolute;
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(to right, var(--line), var(--verdigris), var(--line));
+    }
+
+    .transition-arrow span {
+      position: relative;
+      padding: 0.55rem;
+      border: 1px solid var(--line-hot);
+      background: var(--ink);
+    }
+
+    .transition-rail {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      margin-top: 1rem;
+      border: 1px solid var(--line);
+      background: var(--iron);
+    }
+
+    .rail-node {
+      position: relative;
+      min-height: 8.5rem;
+      padding: 1.35rem;
+      border-right: 1px solid var(--line);
+    }
+
+    .rail-node:last-child {
+      border-right: 0;
+    }
+
+    .rail-node::after {
+      content: "";
+      position: absolute;
+      right: -0.28rem;
+      top: 1.5rem;
+      z-index: 2;
+      width: 0.5rem;
+      height: 0.5rem;
+      border: 1px solid var(--verdigris);
+      background: var(--void);
+      transform: rotate(45deg);
+    }
+
+    .rail-node:last-child::after {
+      display: none;
+    }
+
+    .rail-node strong {
+      display: block;
+      margin-top: 0.7rem;
+      font: 600 0.95rem/1.25 var(--sans);
+    }
+
+    .rail-node p {
+      margin: 0.4rem 0 0;
+      color: var(--ash);
+      font-size: 0.79rem;
+    }
+
+    .decision-grid,
+    .shape-grid,
+    .visual-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+
+    .decision-card,
+    .shape-card {
+      min-width: 0;
+      padding: 1.4rem;
+      border: 1px solid var(--line);
+      background: var(--iron);
+    }
+
+    .decision-card h3 {
+      margin-top: 1.35rem;
+      font-family: var(--serif);
+      font-size: 1.6rem;
+      font-weight: 500;
+    }
+
+    .decision-card p:not(.card-index) {
+      display: grid;
+      grid-template-columns: minmax(6rem, 0.28fr) 1fr;
+      gap: 1rem;
+      margin: 0;
+      padding: 0.7rem 0;
+      border-top: 1px solid var(--line);
+      color: var(--paper);
+      font-size: 0.87rem;
+    }
+
+    .decision-card p span,
+    .shape-card p span {
+      color: var(--dim);
+      font: 700 0.65rem/1.45 var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .scope-grid,
+    .proof-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+
+    .scope-column,
+    .proof-column {
+      padding: clamp(1.5rem, 3vw, 2.5rem);
+      background: var(--ink);
+    }
+
+    .scope-column--out {
+      background: #111516;
+    }
+
+    .scope-title {
+      margin-bottom: 1.25rem;
+    }
+
+    .scope-title--out {
+      color: var(--copper);
+    }
+
+    .signal-list {
+      display: grid;
+      gap: 0.85rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .signal-list li {
+      position: relative;
+      padding-left: 1.4rem;
+      color: var(--paper);
+    }
+
+    .signal-list li::before {
+      content: "";
+      position: absolute;
+      top: 0.72em;
+      left: 0;
+      width: 0.45rem;
+      height: 1px;
+      background: var(--verdigris);
+      box-shadow: 0.28rem 0 var(--verdigris-deep);
+    }
+
+    .scope-column--out .signal-list li::before,
+    .proof-column--risk .signal-list li::before {
+      background: var(--copper);
+      box-shadow: 0.28rem 0 rgba(216, 138, 95, 0.45);
+    }
+
+    .shape-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .shape-card {
+      position: relative;
+      min-height: 13rem;
+    }
+
+    .shape-card h3 {
+      margin-top: 2.8rem;
+    }
+
+    .shape-state {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      padding: 0.3rem 0.42rem;
+      border: 1px solid var(--line);
+      color: var(--ash);
+    }
+
+    .shape-state--yes {
+      color: var(--verdigris);
+      border-color: var(--line-hot);
+    }
+
+    .shape-state--no {
+      color: var(--dim);
+    }
+
+    .shape-card p {
+      display: grid;
+      grid-template-columns: 3.8rem 1fr;
+      gap: 0.65rem;
+      margin: 0;
+      padding: 0.52rem 0;
+      border-top: 1px solid var(--line);
+      color: var(--ash);
+      font-size: 0.77rem;
+      overflow-wrap: anywhere;
+    }
+
+    .visual-grid {
+      align-items: start;
+    }
+
+    .review-visual {
+      margin: 0;
+      padding: 0.65rem;
+      border: 1px solid var(--line);
+      background: var(--iron);
+    }
+
+    .review-visual img {
+      display: block;
+      width: 100%;
+      max-height: 38rem;
+      object-fit: contain;
+      background: var(--void);
+    }
+
+    .review-visual figcaption {
+      padding: 0.8rem 0.3rem 0.2rem;
+      color: var(--ash);
+      font-size: 0.78rem;
+    }
+
+    .empty,
+    .legacy-note {
+      margin: 0;
+      padding: 1rem;
+      border: 1px dashed var(--line);
+      color: var(--dim);
+      font: 500 0.78rem/1.5 var(--mono);
+    }
+
+    .legacy-note {
+      margin-top: 1rem;
+      color: var(--amber);
+      border-color: rgba(225, 186, 98, 0.32);
+    }
+
+    details {
+      border: 1px solid var(--line);
+      background: var(--ink);
+    }
+
+    summary {
+      display: flex;
+      min-height: 4.5rem;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 1.4rem;
+      cursor: pointer;
+      color: var(--bone);
+      list-style: none;
+    }
+
+    summary::-webkit-details-marker {
+      display: none;
+    }
+
+    summary::after {
+      content: "+";
+      color: var(--verdigris);
+      font: 500 1.5rem/1 var(--mono);
+    }
+
+    details[open] summary::after {
+      content: "−";
+    }
+
+    summary:focus-visible {
+      outline: 2px solid var(--verdigris);
+      outline-offset: -4px;
+    }
+
+    .source-chamber {
+      margin: 0;
+      padding: clamp(1rem, 3vw, 2rem);
+      max-height: 70vh;
+      overflow: auto;
+      border-top: 1px solid var(--line);
+      color: #c8d0cc;
+      background: #080c0d;
+      font: 400 0.78rem/1.65 var(--mono);
+      tab-size: 2;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 2rem;
+      padding: 2rem 0 0;
+      color: var(--dim);
+      font: 500 0.68rem/1.4 var(--mono);
+    }
+
+    footer p {
+      margin: 0;
+    }
+
+    .footer-mark {
+      color: var(--copper);
+    }
+
+    @media (max-width: 980px) {
+      .instrument-header,
+      .panel-heading {
+        grid-template-columns: 1fr;
+      }
+
+      .instrument-header {
+        min-height: auto;
+      }
+
+      .hero-copy {
+        min-height: 31rem;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .shape-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .panel-heading > p:last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .shell {
+        width: min(calc(100% - 1rem), var(--measure));
+        padding-top: 0.5rem;
+      }
+
+      h1 {
+        font-size: clamp(3rem, 17vw, 5.2rem);
+      }
+
+      .hero-copy,
+      .provenance,
+      .panel {
+        padding: 1.35rem;
+      }
+
+      .hero-copy {
+        min-height: 29rem;
+      }
+
+      .transition-grid,
+      .scope-grid,
+      .proof-grid,
+      .decision-grid,
+      .shape-grid,
+      .visual-grid,
+      .transition-rail {
+        grid-template-columns: 1fr;
+      }
+
+      .transition-arrow {
+        min-height: 4rem;
+      }
+
+      .transition-arrow::before {
+        width: 1px;
+        height: 100%;
+        background: linear-gradient(to bottom, var(--line), var(--verdigris), var(--line));
+      }
+
+      .transition-arrow span {
+        transform: rotate(90deg);
+      }
+
+      .rail-node {
+        min-height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .rail-node:last-child {
+        border-bottom: 0;
+      }
+
+      .rail-node::after {
+        top: auto;
+        right: 1.5rem;
+        bottom: -0.28rem;
+      }
+
+      .decision-card p:not(.card-index) {
+        grid-template-columns: 1fr;
+        gap: 0.25rem;
+      }
+
+      footer {
+        flex-direction: column;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+    }
+
+    @media print {
+      :root {
+        --void: #ffffff;
+        --ink: #ffffff;
+        --iron: #f6f4ef;
+        --plate: #f2efe8;
+        --plate-high: #ece8df;
+        --bone: #111514;
+        --paper: #222827;
+        --ash: #48514f;
+        --dim: #626b69;
+        --line: #a9afad;
+        --line-hot: #52756e;
+        --shadow: transparent;
+      }
+
+      body {
+        background: white;
+      }
+
+      body::before,
+      a.skip-link {
+        display: none;
+      }
+
+      .shell {
+        width: 100%;
+        padding: 0;
+      }
+
+      .instrument-header,
+      .panel,
+      .state-card,
+      .transition-rail,
+      .decision-card,
+      .shape-card,
+      .scope-column,
+      .proof-column,
+      details {
+        box-shadow: none;
+        background: white;
+        break-inside: avoid;
+      }
+
+      details:not([open]) > :not(summary) {
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#atlas-main">skip to atlas</a>
+  <div class="shell">
+    <header class="instrument-header" aria-labelledby="atlas-title">
+      <div class="hero-copy">
+        <div>
+          <p class="eyebrow">change atlas / approval projection</p>
+          <h1 id="atlas-title">[[TITLE]]</h1>
+          <p class="hero-change">[[CHANGE]]</p>
+          [[LEGACY_NOTE]]
+        </div>
+        <p class="hero-stratum">one source · two readings · exact revision</p>
+      </div>
+      <aside class="provenance" aria-label="source provenance">
+        <div>
+          <div class="status-seal status-seal--[[STATUS_CLASS]]">[[STATUS]]</div>
+          <dl>
+            <div>
+              <dt>canonical source</dt>
+              <dd>[[SOURCE_PATH]]</dd>
+            </div>
+            <div>
+              <dt>source sha-256</dt>
+              <dd>[[SOURCE_SHA256]]</dd>
+            </div>
+            <div>
+              <dt>renderer</dt>
+              <dd>change atlas / v[[RENDERER_VERSION]]</dd>
+            </div>
+          </dl>
+        </div>
+        <p class="authority-note"><strong>authority:</strong> [[AUTHORITY]]. this page is generated and advisory.</p>
+      </aside>
+    </header>
+
+    <main id="atlas-main">
+      <section class="panel" aria-labelledby="transition-title">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">01 / transition</p>
+            <h2 id="transition-title">the state change</h2>
+          </div>
+          <p>the shortest honest account of the world before and after this transition.</p>
+        </div>
+        <div class="transition-grid">
+          <article class="state-card">
+            <p class="card-index">before</p>
+            <p>[[BEFORE]]</p>
+          </article>
+          <div class="transition-arrow" aria-hidden="true"><span>→</span></div>
+          <article class="state-card state-card--after">
+            <p class="card-index">after</p>
+            <p>[[AFTER]]</p>
+          </article>
+        </div>
+        <div class="transition-rail" aria-label="approval path">
+          <div class="rail-node"><span class="datum">01</span><strong>canonical spec</strong><p>complete transition and proof substrate</p></div>
+          <div class="rail-node"><span class="datum">02</span><strong>generated atlas</strong><p>decision-shaped projection of this revision</p></div>
+          <div class="rail-node"><span class="datum">03</span><strong>owner judgment</strong><p>inspect the changed world and its dangerous seams</p></div>
+          <div class="rail-node"><span class="datum">04</span><strong>explicit transition</strong><p>accept or reject the exact canonical source</p></div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="decisions-title">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">02 / judgment</p>
+            <h2 id="decisions-title">owner decisions</h2>
+          </div>
+          <p>only forks that materially change scope, behavior, proof, or consequence belong here.</p>
+        </div>
+        <div class="decision-grid">[[DECISIONS]]</div>
+      </section>
+
+      <section class="panel" aria-labelledby="scope-title">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">03 / boundary</p>
+            <h2 id="scope-title">what moves—and what does not</h2>
+          </div>
+          <p>scope becomes visible as a cut, not a paragraph-shaped fog bank.</p>
+        </div>
+        <div class="scope-grid">
+          <article class="scope-column">
+            <h3 class="scope-title">inside the transition</h3>
+            [[SCOPE_IN]]
+          </article>
+          <article class="scope-column scope-column--out">
+            <h3 class="scope-title scope-title--out">held outside</h3>
+            [[SCOPE_OUT]]
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="shape-title">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">04 / topology</p>
+            <h2 id="shape-title">change geometry</h2>
+          </div>
+          <p>each dimension names its owner and the proof expected to close it.</p>
+        </div>
+        <div class="shape-grid">[[CHANGE_SHAPE]]</div>
+      </section>
+
+      <section class="panel" aria-labelledby="visuals-title">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">05 / optical layer</p>
+            <h2 id="visuals-title">review visuals</h2>
+          </div>
+          <p>optional local raster evidence, embedded into this artifact without a remote fetch.</p>
+        </div>
+        <div class="visual-grid">[[VISUALS]]</div>
+      </section>
+
+      <section class="panel" aria-labelledby="proof-title">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">06 / consequence</p>
+            <h2 id="proof-title">risk and proof</h2>
+          </div>
+          <p>the teeth on the left; the evidence that cages them on the right.</p>
+        </div>
+        <div class="proof-grid">
+          <article class="proof-column proof-column--risk">
+            <h3 class="scope-title scope-title--out">risks / unknowns</h3>
+            [[RISKS]]
+          </article>
+          <article class="proof-column">
+            <h3 class="scope-title">done when</h3>
+            [[PROOF]]
+          </article>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="source-title">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">07 / bedrock</p>
+            <h2 id="source-title">complete canonical source</h2>
+          </div>
+          <p>nothing is summarized away. open the substrate whenever the projection feels too smooth.</p>
+        </div>
+        <details>
+          <summary><span>open full spec</span><code>[[SHORT_SHA]]</code></summary>
+          <pre class="source-chamber"><code>[[FULL_SPEC]]</code></pre>
+        </details>
+      </section>
+    </main>
+
+    <footer>
+      <p class="footer-mark">repository continuity / change atlas</p>
+      <p>generated from [[SOURCE_PATH]] · [[SHORT_SHA]] · no independent authority</p>
+    </footer>
+  </div>
+</body>
+</html>
