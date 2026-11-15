@@ -37,7 +37,7 @@ function fixture({ signedIn = true, inCalculator = true, syncLoaded = true, sync
 		adminIsAdmin: false,
 		onAuthReady() {},
 		resetCalcToDefaults() { resets++; },
-		phraseBoxKeypress(key) { if (key === 36) localHistoryClears++; },
+		clearHistoryTable() { localHistoryClears++; },
 		histSyncClearSaved() { savedHistoryClears++; return Promise.resolve(true); },
 		profileConfirmClick() { confirmationAttempts++; return confirmationAttempts > 1; },
 		displayCalcNotification() { notifications++; },

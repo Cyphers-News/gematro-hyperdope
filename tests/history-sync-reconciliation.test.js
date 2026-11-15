@@ -11,6 +11,9 @@ const sourcePath = path.join(root, 'auth', 'history-sync.js');
 const source = fs.readFileSync(sourcePath, 'utf8');
 const profileSource = fs.readFileSync(path.join(root, 'calc', 'profile-tab.js'), 'utf8');
 const calcSource = fs.readFileSync(path.join(root, 'calc', 'calc.js'), 'utf8');
+const exportSource = fs.readFileSync(path.join(root, 'calc', 'export.js'), 'utf8');
+const guideSource = fs.readFileSync(path.join(root, 'calc', 'quick-guide.js'), 'utf8');
+const authUiSource = fs.readFileSync(path.join(root, 'auth', 'auth-ui.js'), 'utf8');
 const settle = () => new Promise(resolve => setImmediate(resolve));
 
 function functionSource(source, name) {
@@ -135,11 +138,7 @@ test('an explicit saved-entry delete reaches filtered full history before reconc
   assert.deepEqual(Array.from(f.rpcCalls()[0].args.phrases), ['hidden by filter']);
 });
 
-test('clear all while filtered destroys the canonical history before reconciliation', async () => {
-  const f = historyFixture({
-    history: ['matching phrase'],
-    fullHistory: ['hidden by filter', 'matching phrase']
-  });
+function installHistoryClearFixture(f) {
   f.context.sVal = () => '';
   const phraseBox = { value: '' };
   const historyArea = { innerHTML: 'rendered history' };
@@ -149,9 +148,33 @@ test('clear all while filtered destroys the canonical history before reconciliat
     if (id === 'HistoryTableArea') return historyArea;
     return status;
   };
+  vm.runInContext(functionSource(calcSource, 'clearHistoryTable'), f.context, { filename: 'calc/calc.js' });
   vm.runInContext(functionSource(calcSource, 'phraseBoxKeypress'), f.context, { filename: 'calc/calc.js' });
+  return { phraseBox, historyArea };
+}
+
+test('home remains text navigation and cannot clear visible or filtered history', () => {
+  const f = historyFixture({
+    history: ['matching phrase'],
+    fullHistory: ['hidden by filter', 'matching phrase']
+  });
+  const ui = installHistoryClearFixture(f);
 
   f.context.phraseBoxKeypress(36);
+
+  assert.deepEqual(Array.from(f.context.sHistory), ['matching phrase']);
+  assert.deepEqual(Array.from(f.context.userHistory), ['hidden by filter', 'matching phrase']);
+  assert.equal(ui.historyArea.innerHTML, 'rendered history');
+});
+
+test('explicit clear all while filtered destroys the canonical history before reconciliation', async () => {
+  const f = historyFixture({
+    history: ['matching phrase'],
+    fullHistory: ['hidden by filter', 'matching phrase']
+  });
+  const ui = installHistoryClearFixture(f);
+
+  f.context.clearHistoryTable();
   f.context.histSyncLastHash = f.context.histHash([]); // saved clear completed
   for (let i = 0; i < 4; i++) {
     f.advance(1200);
@@ -161,8 +184,37 @@ test('clear all while filtered destroys the canonical history before reconciliat
 
   assert.deepEqual(Array.from(f.context.sHistory), []);
   assert.deepEqual(Array.from(f.context.userHistory), []);
-  assert.equal(historyArea.innerHTML, '');
+  assert.equal(ui.historyArea.innerHTML, '');
   assert.equal(f.rpcCalls().length, 0, 'the watcher must not resurrect hidden filtered history');
+});
+
+test('whole-table clear requires two deliberate activations', () => {
+  const f = historyFixture({
+    history: ['visible phrase'],
+    fullHistory: ['hidden phrase', 'visible phrase']
+  });
+  const ui = installHistoryClearFixture(f);
+  let attempts = 0;
+  f.context.profileConfirmClick = () => ++attempts > 1;
+  vm.runInContext(functionSource(calcSource, 'histClearAllBtnClick'), f.context, { filename: 'calc/calc.js' });
+
+  f.context.histClearAllBtnClick({});
+  assert.deepEqual(Array.from(f.context.sHistory), ['visible phrase']);
+  assert.equal(ui.historyArea.innerHTML, 'rendered history');
+
+  f.context.histClearAllBtnClick({});
+  assert.deepEqual(Array.from(f.context.sHistory), []);
+  assert.deepEqual(Array.from(f.context.userHistory), []);
+  assert.equal(ui.historyArea.innerHTML, '');
+});
+
+test('every clear-history surface uses the guarded explicit path', () => {
+  assert.doesNotMatch(calcSource, /phraseBoxKeypress\(36\)/);
+  assert.match(functionSource(calcSource, 'createFindMatchesMenu'), /onclick="histClearAllBtnClick\(this\)"/);
+  assert.match(exportSource, /label: "Clear History Table"[\s\S]*?confirm: "Clear\?"/);
+  assert.match(functionSource(exportSource, 'runExportContextItem'), /clearHistoryTable\(\)/);
+  assert.match(functionSource(authUiSource, 'authNavClearHistory'), /clearHistoryTable\(\)/);
+  assert.doesNotMatch(guideSource, /Home<\/span> - clear the history table/);
 });
 
 test('the calculator serves the current profile-tab content key', () => {

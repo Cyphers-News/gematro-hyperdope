@@ -206,7 +206,7 @@ function authNavClearHistory(el, e) {
 		return false
 	}
 
-	if (typeof phraseBoxKeypress === "function") phraseBoxKeypress(36)
+	if (typeof clearHistoryTable === "function") clearHistoryTable()
 	if (typeof histSyncClearSaved === "function") {
 		histSyncClearSaved().then(function () {
 			if (typeof displayCalcNotification === "function") displayCalcNotification("Saved history cleared", 2200)

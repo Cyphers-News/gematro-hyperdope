@@ -1224,7 +1224,7 @@ function createFindMatchesMenu() {
 
 	o += sep
 
-	o += '<input class="intBtn" type="button" value="Clear History" onclick="phraseBoxKeypress(36)">' // "Home" keystroke
+	o += '<button class="intBtn" type="button" onclick="histClearAllBtnClick(this)">Clear History</button>'
 	o += gap
 
 	o += '</div></div>'
@@ -2012,6 +2012,18 @@ function updateEnabledCipherTable() { // draws a table with phrase gematria for 
 
 // =================== Phrase Box - History Table ===================
 
+// The one local clear operation. Keyboard navigation never reaches this:
+// every user-facing caller must first pass its explicit two-step confirmation.
+// A Matches filter keeps the complete list in userHistory while sHistory is
+// only the visible projection, so both must be emptied together or the sync
+// watcher will faithfully upload the hidden copy again.
+function clearHistoryTable() {
+	sHistory = []
+	if (typeof userHistory !== "undefined" && Array.isArray(userHistory)) userHistory = []
+	var tArea = document.getElementById("HistoryTableArea")
+	if (tArea !== null) tArea.innerHTML = ""
+}
+
 function phraseBoxKeypress(e) { // run on each keystroke inside text box - onkeydown="navHistory(event.keyCode) - from index.html
 	var phrPos, pBox
 	phr = sVal() // get phrase from SearchField
@@ -2050,14 +2062,6 @@ function phraseBoxKeypress(e) { // run on each keystroke inside text box - onkey
 			pBox.value = "" // empty text box, so the old value is not added again
 			updateWordBreakdown() // update breakdown
 			updateTables() // update enabled cipher and history table
-			break
-		case 36: // Home - clear all history
-			sHistory = [] // reinitialize
-			// A Matches filter keeps the complete list here while sHistory is only
-			// the visible projection. Clearing everything must destroy both or the
-			// sync watcher will faithfully upload the hidden copy again.
-			if (typeof userHistory !== "undefined" && Array.isArray(userHistory)) userHistory = []
-			document.getElementById("HistoryTableArea").innerHTML = "" // clear history table
 			break
 		case 35: // End - parse sentence as separate words and phrases
 			phr = phr.replace(/\t/g, " ") // replace tab with spaces
@@ -2305,11 +2309,12 @@ function histDeleteBtnClick(btn, ind) {
 }
 
 // Whole-table equivalent of histDeleteBtnClick() - same far-right hover/focus
-// x, same arm-then-confirm, but on the header row (see updateHistoryTable())
-// and wired to the app's own "clear everything" path rather than removing one
-// phrase, so this behaves identically to the Home key or the right-click
-// menu's "Clear History Table", just reachable the same way the per-row x is.
+// x and the same arm-then-confirm contract. The Matches button also comes
+// through here, so no visible clear control bypasses confirmation.
 function histClearAllBtnClick(btn) {
-	if (typeof profileConfirmClick === "function" && !profileConfirmClick(btn, "Sure?")) return
-	phraseBoxKeypress(36) // "Home" keystroke - the app's own clear-history path
+	var confirmed = (typeof profileConfirmClick === "function")
+		? profileConfirmClick(btn, "Clear?")
+		: window.confirm("Clear the history table?")
+	if (!confirmed) return
+	clearHistoryTable()
 }

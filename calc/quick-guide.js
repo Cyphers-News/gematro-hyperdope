@@ -26,7 +26,7 @@ var quickGuideTopics = [
 	+ '<li><span class="qgBold">Enter</span> - add phrase to history table.<br><span class="qgBold">Query</span> - search the loaded database.</li>'
 	+ '<li><span class="qgBold">Up</span> &amp; <span class="qgBold">Down</span> arrow keys - scroll history table.<br>Press <span class="qgBold">Down</span> to select the previous phrase.</li>'
 	+ '<li><span class="qgBold">Delete</span> - delete the current phrase in the history table.</li>'
-	+ '<li><span class="qgBold">Home</span> - clear the history table.<br><span class="qgBold">End</span> - shortcut for <span class="qgBold">Enter As Words</span>.</li>'
+	+ '<li><span class="qgBold">End</span> - shortcut for <span class="qgBold">Enter As Words</span>.</li>'
 	+ '</ul>'
 
 	+ '<p class="qgMedium">History Table</p>'

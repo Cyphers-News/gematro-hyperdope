@@ -21,7 +21,8 @@ var ctxExportItems = [
 	{ label: "Export DB Query (CSV)",  btn: "#btn-export-db-query",             need: "#QueryTable" },
 	{ sep: true },
 	{ label: "Edit Table Caption",     action: "editTableCaption",              need: ".HistoryTable" },
-	{ label: "Clear History Table",    action: "clearHistoryTable",             need: ".HistoryTable", danger: true },
+	{ label: "Clear History Table",    action: "clearHistoryTable",             need: ".HistoryTable", danger: true,
+	  confirm: "Clear?" },
 	{ label: "Reset Settings to Default", action: "resetDefaults",              need: "#calcOptionsPanel", danger: true,
 	  confirm: "Sure? Clears the table too" }
 ]
@@ -63,10 +64,8 @@ function runExportContextItem(idx, el) {
 	if (!item || item.sep) return
 	if (item.need && $(item.need).length === 0) return
 
-	// Throwing away every cypher, colour and option is too much to do on a
-	// mis-click, so an item carrying `confirm` asks first and stays open to be
-	// clicked a second time. Nothing else in this menu loses anything that
-	// cannot be got back, which is why they still fire straight away.
+	// Destructive items carrying `confirm` ask first and stay open to be clicked
+	// a second time. Export and caption actions still fire straight away.
 	if (item.confirm && el) {
 		var $el = $(el)
 		if (!$el.hasClass("ctxExportArmed")) {
@@ -82,7 +81,7 @@ function runExportContextItem(idx, el) {
 		return
 	}
 	if (item.action === "clearHistoryTable") {
-		phraseBoxKeypress(36) // "Home" keystroke, the app's own clear-history path
+		clearHistoryTable()
 		return
 	}
 	if (item.action === "editTableCaption") {
