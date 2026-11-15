@@ -2053,6 +2053,10 @@ function phraseBoxKeypress(e) { // run on each keystroke inside text box - onkey
 			break
 		case 36: // Home - clear all history
 			sHistory = [] // reinitialize
+			// A Matches filter keeps the complete list here while sHistory is only
+			// the visible projection. Clearing everything must destroy both or the
+			// sync watcher will faithfully upload the hidden copy again.
+			if (typeof userHistory !== "undefined" && Array.isArray(userHistory)) userHistory = []
 			document.getElementById("HistoryTableArea").innerHTML = "" // clear history table
 			break
 		case 35: // End - parse sentence as separate words and phrases

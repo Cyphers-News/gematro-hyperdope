@@ -10,7 +10,44 @@ const root = path.join(__dirname, '..');
 const sourcePath = path.join(root, 'auth', 'history-sync.js');
 const source = fs.readFileSync(sourcePath, 'utf8');
 const profileSource = fs.readFileSync(path.join(root, 'calc', 'profile-tab.js'), 'utf8');
+const calcSource = fs.readFileSync(path.join(root, 'calc', 'calc.js'), 'utf8');
 const settle = () => new Promise(resolve => setImmediate(resolve));
+
+function functionSource(source, name) {
+  const start = source.indexOf(`function ${name}(`);
+  assert.notEqual(start, -1, `${name} exists`);
+  const open = source.indexOf('{', start);
+  let depth = 0;
+  let quote = null;
+  let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
+
+  for (let i = open; i < source.length; i++) {
+    const ch = source[i];
+    const next = source[i + 1];
+    if (lineComment) {
+      if (ch === '\n') lineComment = false;
+      continue;
+    }
+    if (blockComment) {
+      if (ch === '*' && next === '/') { blockComment = false; i++; }
+      continue;
+    }
+    if (quote !== null) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '/' && next === '/') { lineComment = true; i++; continue; }
+    if (ch === '/' && next === '*') { blockComment = true; i++; continue; }
+    if (ch === '"' || ch === "'" || ch === '`') { quote = ch; continue; }
+    if (ch === '{') depth++;
+    if (ch === '}' && --depth === 0) return source.slice(start, i + 1);
+  }
+  throw new Error(`unterminated function ${name}`);
+}
 
 function historyFixture({ history = [], fullHistory, reply = () => ({ data: null, error: null }) } = {}) {
   const calls = [], ready = [], authReady = [], intervals = [], events = {};
@@ -96,6 +133,36 @@ test('an explicit saved-entry delete reaches filtered full history before reconc
   assert.deepEqual(Array.from(f.context.sHistory), []);
   assert.deepEqual(Array.from(f.context.userHistory), ['hidden by filter']);
   assert.deepEqual(Array.from(f.rpcCalls()[0].args.phrases), ['hidden by filter']);
+});
+
+test('clear all while filtered destroys the canonical history before reconciliation', async () => {
+  const f = historyFixture({
+    history: ['matching phrase'],
+    fullHistory: ['hidden by filter', 'matching phrase']
+  });
+  f.context.sVal = () => '';
+  const phraseBox = { value: '' };
+  const historyArea = { innerHTML: 'rendered history' };
+  const status = f.context.document.getElementById('histSyncStatus');
+  f.context.document.getElementById = id => {
+    if (id === 'phraseBox') return phraseBox;
+    if (id === 'HistoryTableArea') return historyArea;
+    return status;
+  };
+  vm.runInContext(functionSource(calcSource, 'phraseBoxKeypress'), f.context, { filename: 'calc/calc.js' });
+
+  f.context.phraseBoxKeypress(36);
+  f.context.histSyncLastHash = f.context.histHash([]); // saved clear completed
+  for (let i = 0; i < 4; i++) {
+    f.advance(1200);
+    f.tick();
+    await settle();
+  }
+
+  assert.deepEqual(Array.from(f.context.sHistory), []);
+  assert.deepEqual(Array.from(f.context.userHistory), []);
+  assert.equal(historyArea.innerHTML, '');
+  assert.equal(f.rpcCalls().length, 0, 'the watcher must not resurrect hidden filtered history');
 });
 
 test('the calculator serves the current profile-tab content key', () => {
