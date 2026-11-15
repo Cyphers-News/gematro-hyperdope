@@ -1,7 +1,7 @@
 // ========================== Cipher Class ==========================
 
 class cipher { // cipher constructor class
-	constructor(ciphName, ciphCategory, col_H, col_S, col_L, ciphCharacterSet, ciphValues, diacriticsAsRegular = true, ciphEnabled = false, caseSensitive = false, derivation = null) {
+	constructor(ciphName, ciphCategory, col_H, col_S, col_L, ciphCharacterSet, ciphValues, diacriticsAsRegular = true, ciphEnabled = false, caseSensitive = false, derivation = null, ignoreDigits = false) {
 		this.cipherName = ciphName // cipher name
 		this.cipherCategory = ciphCategory // cipher category
 		this.H = col_H // hue
@@ -12,6 +12,10 @@ class cipher { // cipher constructor class
 		this.diacriticsAsRegular = diacriticsAsRegular // if true, characters with diactritic marks have the same value as regular ones
 		this.caseSensitive = caseSensitive // capital letters have different values
 		this.enabled = ciphEnabled // cipher state on/off
+		// Some tables define letters only and treat decimal digits as null input.
+		// This is distinct from mapped zeroes: ignored digits never appear in the
+		// breakdown and never split a word or take part in positional weighting.
+		this.ignoreDigits = ignoreDigits
 
 		// Optional. A cipher whose values were worked out from two other
 		// ciphers can say so here, and the breakdown box shows the sum being
@@ -110,6 +114,7 @@ class cipher { // cipher constructor class
 		if (optAllowPhraseComments == true) { gemPhrase = gemPhrase.replace(/\[.+\]/g, '').trim() } // remove [...], leading/trailing spaces
 		if (this.diacriticsAsRegular) gemPhrase = gemPhrase.normalize('NFD').replace(/[\u0300-\u036f]/g, "")
 		if (this.caseSensitive == false) gemPhrase = gemPhrase.toLowerCase()
+		if (this.ignoreDigits) gemPhrase = gemPhrase.replace(/[0-9]/g, "")
 
 		// substitution ciphers return text, so they bypass every numeric path
 		// below, including the digit handling at the end
@@ -200,6 +205,7 @@ class cipher { // cipher constructor class
 		for (i = 0; i < gemPhrase.length; i++) {
 
 			n = gemPhrase.charCodeAt(i); // get charcode for each character in phrase
+			if (this.ignoreDigits && n > 47 && n < 58) continue
 
 			if (this.diacriticsAsRegular) { // if characters with diacritic marks are treated as regular characters
 				nv = gemPhrase.substring(i,i+1).normalize('NFD').replace(/[\u0300-\u036f]/g, "")
@@ -357,7 +363,10 @@ function gemForMatching(ciph, phrase) {
 // numbers, two arrays and three booleans - all of which JSON expresses exactly.
 // So they are parsed as JSON and type-checked, and nothing is executed.
 
-var CIPHER_ARG_COUNT = 10 // name, category, H, S, L, cArr, vArr, diacritics, enabled, caseSensitive
+// The serialised shape follows the constructor. Derivation is deliberately
+// restored from shipped definitions rather than imported files, but its null
+// placeholder keeps the final ignoreDigits policy in the correct position.
+var CIPHER_ARG_COUNT = 12 // name..caseSensitive, derivation placeholder, ignoreDigits
 
 // Parses one serialised argument list into a real cipher, or returns null.
 //
@@ -394,6 +403,7 @@ function cipherFromArgString(argText) {
 	if (typeof args[0] !== "string" || typeof args[1] !== "string") return null
 	if (!isFinite(args[2]) || !isFinite(args[3]) || !isFinite(args[4])) return null
 	if (!Array.isArray(args[5]) || !Array.isArray(args[6])) return null
+	if (args[11] !== undefined && typeof args[11] !== "boolean") return null
 
 	// cArr is codepoints. vArr is numbers, or strings for a wheel cipher.
 	for (var i = 0; i < args[5].length; i++) {
@@ -427,7 +437,9 @@ function cipherFromArgString(argText) {
 		args[5], args[6],
 		args[7] === undefined ? true  : !!args[7],   // diacriticsAsRegular
 		args[8] === undefined ? false : !!args[8],   // enabled
-		args[9] === undefined ? false : !!args[9]    // caseSensitive
+		args[9] === undefined ? false : !!args[9],   // caseSensitive
+		null,                                        // derivation is shipped, not imported
+		args[11] === undefined ? false : args[11]    // ignoreDigits
 	)
 }
 

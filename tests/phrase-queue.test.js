@@ -366,12 +366,12 @@ test('busy state restores each control to its own prior state', () => {
   assert.equal(disabled.disabled, true);
 });
 
-test('member copy states the quorum and final human decision', () => {
+test('member copy describes nomination without publishing the quorum recipe', () => {
   const profile = read('calc/profile-tab.js');
-  assert.match(profile, /reactions from 3 different people/);
-  assert.match(profile, /2 when one marks it 📖 CCRU/);
+  assert.match(profile, /Community support can nominate a phrase for database review/);
   assert.match(profile, /author\\'s own reactions do not count/);
   assert.match(profile, /admin makes the final decision/);
+  assert.doesNotMatch(profile, /reactions from 3 different people|2 when one marks it 📖 CCRU/);
 });
 
 test('changed browser assets are served under their source hashes', () => {

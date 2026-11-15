@@ -484,7 +484,9 @@ function exportCiphers() {
 			'\t\t'+JSON.stringify(vArr_)+',\n'+
 			'\t\t'+cipherList[i].diacriticsAsRegular+',\n'+
 			'\t\t'+cipherList[i].enabled+',\n'+
-			'\t\t'+cipherList[i].caseSensitive+'\n'+
+			'\t\t'+cipherList[i].caseSensitive+',\n'+
+			'\t\tnull,\n'+ // derivation is restored from shipped definitions
+			'\t\t'+!!cipherList[i].ignoreDigits+'\n'+
 			'\t),\n'
 	}
 	out = out.substring(0, out.length-2) + '\n]' // remove last comma and new line, close array
@@ -531,7 +533,9 @@ function exportCiphersDB(expAllCiph = false) {
 				'\t\t'+JSON.stringify(vArr_)+',\n'+
 				'\t\t'+cipherList[i].diacriticsAsRegular+',\n'+
 				'\t\t'+cipherList[i].enabled+',\n'+
-				'\t\t'+cipherList[i].caseSensitive+'\n'+
+				'\t\t'+cipherList[i].caseSensitive+',\n'+
+				'\t\tnull,\n'+ // derivation is restored from shipped definitions
+				'\t\t'+!!cipherList[i].ignoreDigits+'\n'+
 				'\t),\n'
 		}
 	}

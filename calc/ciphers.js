@@ -50,7 +50,9 @@ cipherList = [
 		[1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100,200,300,400,500,600,700,800],
 		true,
 		false,
-		false
+		false,
+		null,
+		true // Standard has no 0-9 assignments; digits are null input
 	),
 
 	// Based Atlanteanism with the divide applied - Standard minus Alphanumeric
@@ -2234,7 +2236,8 @@ var builtinCipherArgs = cipherList.map(function (c) {
 		// carried through too, or a cipher re-added to a restored workspace
 		// comes back without its working shown - the values would be right
 		// and the breakdown box would quietly fall back to the letter grid
-		c.derivation
+		c.derivation,
+		c.ignoreDigits
 	]
 })
 
@@ -2329,6 +2332,28 @@ function refreshShippedDerivations() {
 	return changed
 }
 
+// Input policy is part of a built-in cipher's meaning, not a member setting.
+// Restored workspaces created before the policy existed have no field for it,
+// so adopt the shipped value only when the complete character/value table still
+// matches. A retuned or custom cipher is therefore left alone.
+function refreshShippedInputPolicies() {
+	if (typeof builtinCipherArgs === "undefined") return 0
+	var changed = 0
+	for (var i = 0; i < cipherList.length; i++) {
+		var c = cipherList[i]
+		var def = null
+		for (var d = 0; d < builtinCipherArgs.length; d++) {
+			if (builtinCipherArgs[d][0] === c.cipherName) { def = builtinCipherArgs[d]; break }
+		}
+		if (def === null || !sameCipherTable(c, def)) continue
+		var shipped = !!def[11]
+		if (!!c.ignoreDigits === shipped) continue
+		c.ignoreDigits = shipped
+		changed++
+	}
+	return changed
+}
+
 function refreshShippedColours() {
 	if (typeof builtinCipherArgs === "undefined") return 0
 	var changed = 0
@@ -2406,6 +2431,7 @@ function applyCipherRenames() {
 					c.cArr = def[5].slice()
 					c.vArr = def[6].slice()
 					c.derivation = def[10]
+					c.ignoreDigits = !!def[11]
 					break
 				}
 			}
@@ -2428,6 +2454,8 @@ function mergeBuiltinCiphers() {
 	// ...and re-attach the working shown under a derived cipher, which a
 	// stored workspace never carries
 	refreshShippedDerivations()
+	// ...then restore shipped input semantics for an otherwise untouched table
+	refreshShippedInputPolicies()
 
 	var byName = {}
 	for (var b = 0; b < builtinCipherArgs.length; b++) byName[builtinCipherArgs[b][0]] = builtinCipherArgs[b]
@@ -2454,7 +2482,7 @@ function mergeBuiltinCiphers() {
 	for (var j = 0; j < builtinCipherArgs.length; j++) {
 		var a = builtinCipherArgs[j]
 		if (have[a[0]]) continue
-		cipherList.push(new cipher(a[0], a[1], a[2], a[3], a[4], a[5].slice(), a[6].slice(), a[7], a[8], a[9], a[10]))
+		cipherList.push(new cipher(a[0], a[1], a[2], a[3], a[4], a[5].slice(), a[6].slice(), a[7], a[8], a[9], a[10], a[11]))
 		added++
 	}
 	return added
