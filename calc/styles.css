@@ -682,7 +682,9 @@ body {
 }
 
 /* ---- Find Matches tab flash ---- */
-.dropbtn.findMatchesTab.findMatchesFlash {
+/* the panel's Find Matches button calls the same findMatchesFlash(this) */
+.dropbtn.findMatchesTab.findMatchesFlash,
+.findMatchesContent .intBtn.findMatchesFlash {
 	animation: findMatchesBtnFlash 0.7s ease-out;
 }
 @keyframes findMatchesBtnFlash {
@@ -691,7 +693,8 @@ body {
 	100% { background-color: transparent; }
 }
 @media (prefers-reduced-motion: reduce) {
-	.dropbtn.findMatchesTab.findMatchesFlash { animation: none; background-color: hsla(140 85% 55% / 0.3); }
+	.dropbtn.findMatchesTab.findMatchesFlash,
+	.findMatchesContent .intBtn.findMatchesFlash { animation: none; background-color: hsla(140 85% 55% / 0.3); }
 }
 
 /* ---- Find Matches sweep ---- */
