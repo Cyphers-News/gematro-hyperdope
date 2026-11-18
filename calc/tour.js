@@ -63,7 +63,7 @@ var TOUR_SECTIONS = {
 			{
 				selector: ".findMatchesTab",
 				title: "Find matches",
-				body: "Matches searches everything already in your history for phrases sharing the same value as your current one.",
+				body: "Matches searches everything already in your history for phrases sharing the same value as your current one. Click the tab, or use Find Matches inside its menu.",
 				before: function () { closeAllOpenedMenus(); return tourWait(150) }
 			},
 			{

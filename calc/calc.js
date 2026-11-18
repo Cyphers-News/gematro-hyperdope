@@ -1002,15 +1002,13 @@ function create_NumCalc() { // Number Calculation
 	if (optNumCalcMethod == 1) { fullNumCalcState = 'checked' }
 	else if (optNumCalcMethod == 2) { redNumCalcState = 'checked' }
 	else if (optNumCalcMethod == 0) { offNumCalcState = 'checked' }
-	o += '<table class="optionElementTable"><tbody>'
-	o += '<tr><td colspan=3><span>Number Calculation</span></td></tr>'
-	o += '<tr><td><label class="chkLabel" style="display: initial; padding-left: 0;"><input type="checkbox" id="chkbox_fullNumCalc" onclick="conf_NumCalc(1)" '+fullNumCalcState+'><span class="custChkBox"></span></label>'
-	o += '<br><span class="optionTableLabel">Full</span></td>'
-	o += '<td><label class="chkLabel" style="display: initial; padding-left: 0;"><input type="checkbox" id="chkbox_redNumCalc" onclick="conf_NumCalc(2)" '+redNumCalcState+'><span class="custChkBox"></span></label>'
-	o += '<br><span class="optionTableLabel">Reduced</span></td>'
-	o += '<td><label class="chkLabel" style="display: initial; padding-left: 0;"><input type="checkbox" id="chkbox_offNumCalc" onclick="conf_NumCalc(0)" '+offNumCalcState+'><span class="custChkBox"></span></label>'
-	o += '<br><span class="optionTableLabel">Off</span></td></tr>'
-	o += '</tbody></table>'
+	// one labelled row rather than a three-column table, so the Matches panel
+	// stays short enough to fit a laptop screen; ids and handlers unchanged
+	o += '<div class="matchOptRow"><span class="matchOptRowLabel">Numbers</span><span class="matchOptRowChoices">'
+	o += '<label class="chkLabel matchOptChoice"><input type="checkbox" id="chkbox_fullNumCalc" onclick="conf_NumCalc(1)" '+fullNumCalcState+'><span class="custChkBox"></span>Full</label>'
+	o += '<label class="chkLabel matchOptChoice"><input type="checkbox" id="chkbox_redNumCalc" onclick="conf_NumCalc(2)" '+redNumCalcState+'><span class="custChkBox"></span>Reduced</label>'
+	o += '<label class="chkLabel matchOptChoice"><input type="checkbox" id="chkbox_offNumCalc" onclick="conf_NumCalc(0)" '+offNumCalcState+'><span class="custChkBox"></span>Off</label>'
+	o += '</span></div>'
 	return o
 }
 function conf_NumCalc(mode) { // Number Calculation
@@ -1038,15 +1036,12 @@ function create_GemCalc() { // Gematria Calculation method
 	if (optGemSubstitutionMode) { subGemCalcState = 'checked' }
 	else if (optGemMultCharPos) { multGemCalcState = 'checked' }
 	else if (optGemMultCharPosReverse) { multRevGemCalcState = 'checked' }
-	o += '<table class="optionElementTable" style="margin: 0em auto 1em auto; width: 210px;"><tbody>'
-	o += '<tr><td colspan=3><span>Gematria Calculation</span></td></tr>'
-	o += '<tr><td><label class="chkLabel" style="display: initial; padding-left: 0;"><input type="checkbox" id="chkbox_subGemCalc" onclick="conf_GemCalc(&quot;sub&quot;)" '+subGemCalcState+'><span class="custChkBox"></span></label>'
-	o += '<br><span class="optionTableLabel">Regular</span></td>'
-	o += '<td><label class="chkLabel" style="display: initial; padding-left: 0;"><input type="checkbox" id="chkbox_multGemCalc" onclick="conf_GemCalc(&quot;mult&quot;)" '+multGemCalcState+'><span class="custChkBox"></span></label>'
-	o += '<br><span class="optionTableLabel">Multiply</span></td>'
-	o += '<td><label class="chkLabel" style="display: initial; padding-left: 0;"><input type="checkbox" id="chkbox_multRevGemCalc" onclick="conf_GemCalc(&quot;multRev&quot;)" '+multRevGemCalcState+'><span class="custChkBox"></span></label>'
-	o += '<br><span class="optionTableLabel">Rev. Mult.</span></td></tr>'
-	o += '</tbody></table>'
+	// same compact row as create_NumCalc; ids and handlers unchanged
+	o += '<div class="matchOptRow"><span class="matchOptRowLabel">Gematria</span><span class="matchOptRowChoices">'
+	o += '<label class="chkLabel matchOptChoice"><input type="checkbox" id="chkbox_subGemCalc" onclick="conf_GemCalc(&quot;sub&quot;)" '+subGemCalcState+'><span class="custChkBox"></span>Regular</label>'
+	o += '<label class="chkLabel matchOptChoice"><input type="checkbox" id="chkbox_multGemCalc" onclick="conf_GemCalc(&quot;mult&quot;)" '+multGemCalcState+'><span class="custChkBox"></span>Multiply</label>'
+	o += '<label class="chkLabel matchOptChoice"><input type="checkbox" id="chkbox_multRevGemCalc" onclick="conf_GemCalc(&quot;multRev&quot;)" '+multRevGemCalcState+'><span class="custChkBox"></span>Rev. Mult.</label>'
+	o += '</span></div>'
 	return o
 }
 function conf_GemCalc(mode) { // Gematria Calculation
@@ -1153,8 +1148,9 @@ function exportImageScale() {
 // ========================= Color Functions ========================
 
 // Top-level Find Matches tab. Clicking the tab itself runs the search; hovering
-// opens the dropdown with Reset Order and the three match filters, which used to
-// sit in Options far away from the button that acts on them.
+// opens the dropdown. The panel is grouped (specs/matches-menu-cleanup.md):
+// actions first, then Match / Input / Calculate, then a collapsed
+// Files & Database section. Every control keeps its id and handler.
 function createFindMatchesMenu() {
 	var o = document.getElementById("calcOptionsPanel").innerHTML
 
@@ -1165,48 +1161,41 @@ function createFindMatchesMenu() {
 	if (optShowOnlyMatching) SOMstate = "checked"
 	if (optLoadUserHistCiphers) SWCstate = "checked"
 
-	var sep = '<hr style="background-color: var(--separator-accent2); height: 1px; border: none; margin: 0.75em 0.5em;">'
 	var gap = '<div style="margin: 0.5em;"></div>'
 
 	o += '<div class="dropdown">'
 	o += '<button class="dropbtn findMatchesTab" onclick="findMatchesFlash(this);updateHistoryTableAutoHlt()"><span class="labFull">Matches</span><span class="labShort">Matches</span></button>'
-	// Wider and taller than it was: the old Options tab folded into here, and
-	// the Gematria Calculation table alone is 210px, so the panel is sized to
-	// fit it and scrolls once the list outgrows the window.
 	o += '<div class="dropdown-content findMatchesContent" style="width: 250px; left: -75px;">'
 
-	// Hovering the tab is what opens this panel, which then sits right over
-	// where a CSS-only hover tooltip on the button itself would have appeared -
-	// so the instruction has to live in here instead, not on the button.
-	o += '<div class="findMatchesHint">Click to Find Matches &#8593;</div>'
-
-	// no Find Matches button here, the tab itself runs the search
+	// actions: the explicit button runs exactly what the tab runs
+	o += '<input class="intBtn" type="button" value="Find Matches" onclick="findMatchesFlash(this);updateHistoryTableAutoHlt()">'
+	o += gap
 	o += '<input class="intBtn" type="button" value="Reset Order" onclick="clearHistMatchSort()">'
+	// destructive, so set apart and tinted; handler and confirmation unchanged
+	o += '<div class="matchDangerGap"></div>'
+	o += '<button class="intBtn intBtnDanger" type="button" onclick="histClearAllBtnClick(this)">Clear History</button>'
 
-	o += '<hr style="background-color: var(--separator-accent2); height: 1px; border: none; margin: 0.75em;">'
-
-
+	o += '<div class="aboutGroupLabel">Match</div>'
 	o += '<div class="optionElement"><label class="chkLabel ciphCheckboxLabel2">Cross Cipher Match<input type="checkbox" id="chkbox_CCM" onclick="conf_CCM()" '+CCMstate+'><span class="custChkBox"></span></label></div>'
 	o += '<div class="optionElement"><label class="chkLabel ciphCheckboxLabel2">Same Cipher Match<input type="checkbox" id="chkbox_SCM" onclick="conf_SCM()" '+SCMstate+'><span class="custChkBox"></span></label></div>'
 	o += '<div class="optionElement"><label class="chkLabel ciphCheckboxLabel2">Show Only Matching<input type="checkbox" id="chkbox_SOM" onclick="conf_SOM()" '+SOMstate+'><span class="custChkBox"></span></label></div>'
 	o += '<div class="optionElement"><label class="chkLabel ciphCheckboxLabel2">Numerology Mode<input type="checkbox" id="chkbox_NMD" onclick="conf_NMD()" '+NMDstate+'><span class="custChkBox"></span></label></div>'
-	o += '<div style="margin: 0.5em;"></div>'
+
+	o += '<div class="aboutGroupLabel">Input</div>'
+	o += '<div class="enterAsWordsRow">'
 	o += '<input class="intBtn" type="button" value="Enter As Words" onclick="phraseBoxKeypress(35)">' // "End" keystroke
-	o += create_PL() // Word limit
-	o += '<div style="margin: 0.5em;"></div>'
+	o += create_PL() // word limit, same row
+	o += '</div>'
 
-	// --- everything below came from the old Options tab, which no longer
-	// exists. The display toggles went to the focus options panel (the sliders
-	// icon, top left); what is left is how the numbers are worked out and what
-	// the database does, both of which act on the matches this tab finds.
-
-	o += sep
-
+	o += '<div class="aboutGroupLabel">Calculate</div>'
 	o += create_NumCalc() // Number Calculation
 	o += create_GemCalc() // Gematria Calculation
 
-	o += sep
-
+	// closed every time the menu is drawn; the database buttons keep their ids
+	// so the code that un-hides them on a database load still finds them
+	o += '<details class="qgAcc matchFilesDb"><summary>Files &amp; Database</summary><div class="qgAccBody">'
+	o += '<div class="optionElement"><label class="chkLabel ciphCheckboxLabel2">Switch Ciphers (CSV)<input type="checkbox" id="chkbox_SWC" onclick="conf_SWC()" '+SWCstate+'><span class="custChkBox"></span></label></div>'
+	o += gap
 	o += '<div class="dbOptionsBox" style="border: 1px solid var(--border-accent) !important;">'
 	o += '<span class="optionTableLabel">Phrases on DB page</span><input id="dbPageItemsBox" onchange="conf_DPI()" type="text" value="'+dbPageItems+'">'
 	o += '</div>'
@@ -1217,15 +1206,7 @@ function createFindMatchesMenu() {
 	o += '<input id="clearDBqueryBtn" class="intBtn hideValue" type="button" value="Clear DB Query" onclick="clearDatabaseQueryTable()">'
 	o += gap
 	o += '<input id="unloadDBBtn" class="intBtn hideValue" type="button" value="Unload Database" onclick="unloadDatabase()">'
-
-	o += sep
-
-	o += '<div class="optionElement"><label class="chkLabel ciphCheckboxLabel2">Switch Ciphers (CSV)<input type="checkbox" id="chkbox_SWC" onclick="conf_SWC()" '+SWCstate+'><span class="custChkBox"></span></label></div>'
-
-	o += sep
-
-	o += '<button class="intBtn" type="button" onclick="histClearAllBtnClick(this)">Clear History</button>'
-	o += gap
+	o += '</div></details>'
 
 	o += '</div></div>'
 	document.getElementById("calcOptionsPanel").innerHTML = o
@@ -1302,9 +1283,9 @@ function createAuthNavArea() {
 
 function create_PL() { // Phrase Limit (End)
 	var o = ""
-	o += '<div class="enterAsWordsLimit">'
-	o += '<span class="optionTableLabel">Word limit:</span><input id="phrLimitBox" onchange="conf_PL()" type="text" value="'+optPhraseLimit+'">'
-	o += '</div>'
+	o += '<span class="enterAsWordsLimit">'
+	o += '<span class="optionTableLabel">limit</span><input id="phrLimitBox" onchange="conf_PL()" type="text" value="'+optPhraseLimit+'">'
+	o += '</span>'
 	return o
 }
 function conf_PL() {
