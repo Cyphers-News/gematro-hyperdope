@@ -30,7 +30,7 @@ var chkboxColors = [] // individual cipher color modifiers
 var globColors = [] // global color modifiers
 
 var sHistory = [] // user search history (history table)
-var optPhraseLimit = 5 // word limit to enter input as separate phrases, "End" key
+var optPhraseLimit = 5 // word limit for the explicit Enter As Words action
 
 var compactHistoryTable = false // compact mode - vertical cipher names
 var optNewPhrasesGoFirst = false // new phrases are inserted at the beginning of history table
@@ -1183,7 +1183,7 @@ function createFindMatchesMenu() {
 
 	o += '<div class="aboutGroupLabel">Input</div>'
 	o += '<div class="enterAsWordsRow">'
-	o += '<input class="intBtn" type="button" value="Enter As Words" onclick="phraseBoxKeypress(35)">' // "End" keystroke
+	o += '<input class="intBtn" type="button" value="Enter As Words" onclick="enterPhraseAsWords()">'
 	o += create_PL() // word limit, same row
 	o += '</div>'
 
@@ -1281,7 +1281,7 @@ function createAuthNavArea() {
 	if (typeof renderAuthNav === "function") renderAuthNav()
 }
 
-function create_PL() { // Phrase Limit (End)
+function create_PL() { // Enter As Words phrase limit
 	var o = ""
 	o += '<span class="enterAsWordsLimit">'
 	o += '<span class="optionTableLabel">limit</span><input id="phrLimitBox" onchange="conf_PL()" type="text" value="'+optPhraseLimit+'">'
@@ -2005,6 +2005,54 @@ function clearHistoryTable() {
 	if (tArea !== null) tArea.innerHTML = ""
 }
 
+// The phrase swarm is an explicit domain action. It used to occupy key code
+// 35 in phraseBoxKeypress(), which also made the native End key (and laptop
+// Fn + Right) mutate history. Keep the generator itself unchanged while
+// leaving browser text navigation alone.
+function enterPhraseAsWords() {
+	phr = sVal() // get phrase from SearchField
+	phr = phr.replace(/\t/g, " ") // replace tab with spaces
+	phr = phr.replace(/ +/g, " ") // remove double spaces
+	// phr = phr.replace(/(\.|,|:|;|\\|)/g, "") // remove special characters, last one is "|"
+
+	wordArr = phr.split(" ") // split string to array, space delimiter
+	phrLimit = optPhraseLimit // max phrase length
+	var phrase = ""; var k = 1;
+
+	// for (i = 0; i < wordArr.length; i++) { // phrases in normal order
+	// 	k = 1 // word count
+	// 	phrase = wordArr[i]
+	// 	addPhraseToHistory(phrase, false)
+	// 	while (k < phrLimit && i+k < wordArr.length) { // add words to a phrase, check it is within array size
+	// 		phrase += " "+wordArr[i+k]
+	// 		addPhraseToHistory(phrase, false)
+	// 		k++
+	// 	}
+	// }
+
+	var tArr = []; var phrasePos; // temporary history array
+	for (i = wordArr.length-1; i > -1; i--) { // add phrases in reverse order, so you don't have to read backwards
+		k = 1 // word count
+		phrase = wordArr[i]
+		if (isNaN(phrase)) { // add first word if not a number
+			phrasePos = tArr.indexOf(phrase);
+			if (phrasePos > -1) tArr.splice(phrasePos, 1) // remove existing phrase
+			tArr.unshift(phrase) // add new phrase in the beginning (since building is in reverse order)
+		}
+		while (k < phrLimit && i-k > -1) { // add words to a phrase, check it is within wordArr size
+			phrase = wordArr[i-k]+" "+phrase
+			if (isNaN(phrase)) {
+				phrasePos = tArr.indexOf(phrase);
+				if (phrasePos > -1) tArr.splice(phrasePos, 1) // remove existing phrase
+				tArr.unshift(phrase) // add new phrase in the beginning (since building is in reverse order)
+			}
+			k++
+		}
+	}
+	for (i = 0; i < tArr.length; i++) sHistory.push(tArr[i]) // add phrases to history table
+	updateHistoryTable() // update table only once after all phrases are added
+}
+
 function phraseBoxKeypress(e) { // run on each keystroke inside text box - onkeydown="navHistory(event.keyCode) - from index.html
 	var phrPos, pBox
 	phr = sVal() // get phrase from SearchField
@@ -2043,48 +2091,6 @@ function phraseBoxKeypress(e) { // run on each keystroke inside text box - onkey
 			pBox.value = "" // empty text box, so the old value is not added again
 			updateWordBreakdown() // update breakdown
 			updateTables() // update enabled cipher and history table
-			break
-		case 35: // End - parse sentence as separate words and phrases
-			phr = phr.replace(/\t/g, " ") // replace tab with spaces
-			phr = phr.replace(/ +/g, " ") // remove double spaces
-			// phr = phr.replace(/(\.|,|:|;|\\|)/g, "") // remove special characters, last one is "|"
-
-			wordArr = phr.split(" ") // split string to array, space delimiter
-			phrLimit = optPhraseLimit // max phrase length
-			var phrase = ""; var k = 1;
-
-			// for (i = 0; i < wordArr.length; i++) { // phrases in normal order
-			// 	k = 1 // word count
-			// 	phrase = wordArr[i]
-			// 	addPhraseToHistory(phrase, false)
-			// 	while (k < phrLimit && i+k < wordArr.length) { // add words to a phrase, check it is within array size
-			// 		phrase += " "+wordArr[i+k]
-			// 		addPhraseToHistory(phrase, false)
-			// 		k++
-			// 	}
-			// }
-
-			var tArr = []; var phrasePos; // temporary history array
-			for (i = wordArr.length-1; i > -1; i--) { // add phrases in reverse order, so you don't have to read backwards
-				k = 1 // word count
-				phrase = wordArr[i]
-				if (isNaN(phrase)) { // add first word if not a number
-					phrasePos = tArr.indexOf(phrase);
-					if (phrasePos > -1) tArr.splice(phrasePos, 1) // remove existing phrase
-					tArr.unshift(phrase) // add new phrase in the beginning (since building is in reverse order)
-				}
-				while (k < phrLimit && i-k > -1) { // add words to a phrase, check it is within wordArr size
-					phrase = wordArr[i-k]+" "+phrase
-					if (isNaN(phrase)) {
-						phrasePos = tArr.indexOf(phrase);
-						if (phrasePos > -1) tArr.splice(phrasePos, 1) // remove existing phrase
-						tArr.unshift(phrase) // add new phrase in the beginning (since building is in reverse order)
-					}
-					k++
-				}
-			}
-			for (i = 0; i < tArr.length; i++) sHistory.push(tArr[i]) // add phrases to history table
-			updateHistoryTable() // update table only once after all phrases are added
 			break
 	}
 }

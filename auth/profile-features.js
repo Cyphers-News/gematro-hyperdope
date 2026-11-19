@@ -16,14 +16,17 @@ function entriesSearch(term, limit) {
 	var client = getAuthClient()
 	if (client === null || authUser === null) return Promise.resolve([])
 
-	var q = client.from("history_entries").select("id, phrase, created_at")
+	var q = client.from("history_entries").select("id, phrase, position, created_at")
 	term = String(term || "").trim()
 	if (term !== "") {
 		// escape the LIKE wildcards so a literal % or _ searches for itself
 		var safe = term.replace(/[%_\\]/g, function (c) { return "\\" + c })
 		q = q.ilike("phrase", "%" + safe + "%")
 	}
-	return q.order("created_at", { ascending: false }).limit(limit || 100)
+	return q.order("created_at", { ascending: false })
+		.order("position", { ascending: true })
+		.order("id", { ascending: true })
+		.limit(limit || 100)
 		.then(function (res) {
 			if (res.error) throw res.error
 			return res.data || []

@@ -81,7 +81,7 @@ const EXPECTED = {
   chkbox_multRevGemCalc: 'conf_GemCalc(&quot;multRev&quot;)',
   phrLimitBox: 'conf_PL()', dbPageItemsBox: 'conf_DPI()', dbScrollItemsBox: 'conf_DSI()',
   clearDBqueryBtn: 'clearDatabaseQueryTable()', unloadDBBtn: 'unloadDatabase()',
-  'Reset Order': 'clearHistMatchSort()', 'Enter As Words': 'phraseBoxKeypress(35)',
+  'Reset Order': 'clearHistMatchSort()', 'Enter As Words': 'enterPhraseAsWords()',
   'Clear History': 'histClearAllBtnClick(this)'
 };
 
