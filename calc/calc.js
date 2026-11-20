@@ -319,7 +319,7 @@ function createCiphersMenu() { // create menu with all cipher categories
         // branches" into the alphabetised group, and then into the
         // language group - a fixed pair of category names is simpler and
         // less fragile than trying to infer the boundary from list position.
-        if (category === "Elizabethan" || category === "Alphanumeric" || category === "Languages") {
+        if (category === "Alphanumeric" || category === "Alchemology" || category === "Languages") {
             o += '<div class="ciphCatDivider"></div>'
         }
         // Apply 'gematriaClub' class only to the 'Gematria Club' category
@@ -436,7 +436,7 @@ function ciphSearchMark(name, q) {
 // render pass instead of growing another curCat === "X" branch per category
 // that wants this treatment.
 var cipherCatSpecial = {
-	"Elizabethan": {
+	"Archaic": {
 		note: "Archaic English from the 15-1600s:",
 		subNote: "Cyphers attributed to Francis Bacon:",
 		pinned: ["Bacon Kaye", "Modern Kaye"]

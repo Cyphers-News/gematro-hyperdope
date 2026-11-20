@@ -333,9 +333,10 @@ var quickGuideTopics = [
 var cipherCategoryIntro = {
 	"Base-4": "🎯 The four most common modern English cyphers: Ordinal, Reduction, and their Z-to-A reverses.",
 	"CCRU": "💾 Alphanumeric and keyboard-based cyphers associated with the Cybernetic Culture Research Unit and the y2k computing era.",
+	"CCRU Extra": "💾 More alphanumeric, keyboard-order and divisor-based cyphers in the spirit of the CCRU category.",
 	"Gematria": "📐 Numerology systems built on the modern English alphabet, from simple sequences to a handful of named historical variants.",
 	"Reverse": "🔁 Z-to-A counterparts of cyphers found elsewhere in the calculator.",
-	"Elizabethan": "🏰 Used with the Elizabethan English alphabet with 24 letters, in which I=J and U=V.",
+	"Archaic": "🏰 Used with the Elizabethan English alphabet with 24 letters, in which I=J and U=V.",
 	"Illuminati": "🔺 Cyphers historically associated with the Bavarian Order of the Illuminati.",
 	"Latin": "🏛️ Used with the Classical Latin alphabet with 23 letters.",
 	"Maths": "🔢 Cyphers built directly from a mathematical sequence or constant - primes, squares, the digits of &pi;, and the like.",
@@ -352,6 +353,17 @@ var cipherCategoryIntro = {
 }
 
 var cipherInfoText = {
+	// ---- added 2026-11 (specs/cipher-additions.md) ----
+	"Futhark Old": "🌍 Ordinal for the 24 runes of the Elder Futhark, in traditional order: ᚠ = 1, ᚢ = 2 &hellip; ᛟ = 24.",
+	"Nullinnix": "🔢 Gives the 36 alphanumeric characters 0-Z both negative and positive values (from A = -23 up to Y = 24), arranged so the whole sequence adds up to exactly 0.",
+	"Still Plex": "🔢 Almost flat: every digit is 5 and nearly every letter is 22, except F, N and Y (24) and L and S (25).",
+	"Still Cycle": "⌨️ Follows the keyboard order 1-0 then QWERTY&hellip;M. The digits count up from 0 (1 = 0 &hellip; 0 = 9); the letters take values between 18 and 30.",
+	"Vaxen": "🔢 Letter values climb steeply from A = 4 to Z = 1225, while the digits stay small (1-3).",
+	"Unun": "🔢 Built on Vaxen: each letter is Vaxen&rsquo;s value plus 20 plus twice its distance from A (A + 20 &hellip; Z + 70), and each digit is Vaxen&rsquo;s value plus twice the digit (0 + 0 &hellip; 9 + 18).",
+	"Divisors of 5184": "🔢 Like Synx, but with 5184 (2<sup>6</sup> &times; 3<sup>4</sup>): 0 = 0, then each following character 1-Z takes the next of its 35 divisors, so Z = 5184.",
+	"Divisors of 1296": "🔢 Letters only: A = 0, then B-Z take the 25 divisors of 1296 (6<sup>4</sup>) in order, so Z = 1296. Digits count at face value.",
+	"Alphanumeric Reverse": "🔁 Alphanumeric Qabbala backwards: 0 = 35 &hellip; Z = 0.",
+	"Alphanumeric Sumerian": "🔢 Alphanumeric Qabbala &times; 6, the way English Sumerian is Ordinal &times; 6: 0 = 0, 1 = 6 &hellip; Z = 210.",
 	"Standard": "📜 Follows the numerical sequence of units, tens and hundreds.<br><br>This is the traditional system of numerical equivalences for the letters as it is used in Hebrew Gematria, Greek Isopsephia, and the Arabic Abjad system.",
 	"Ordinal": "🔢 Follows the sequence of natural numbers, starting at 1.",
 	"Reduction": "➗ Reduces the ordinal value of letters to a single digit.",
@@ -427,7 +439,7 @@ var cipherInfoText = {
 	"Reverse Squares": "🔁 The Z-to-A reversal of Squares: Z=1, Y=4, X=9&hellip; back to A=676.",
 	"Reverse Trigonal": "🔁 The Z-to-A reversal of Trigonal: Z=1, Y=3, X=6&hellip; back to A=351.",
 
-	// ---- Elizabethan (Archaic) ----
+	// ---- Archaic (formerly Elizabethan) ----
 	"Archaic Ordinal": "🏰 Ordinal (1, 2, 3&hellip;) counted across the 24-letter Elizabethan alphabet, where I=J and U=V share a value instead of counting separately.",
 	"Archaic Reverse": "🏰 The Z-to-A reversal of Archaic Ordinal, run across the 24-letter Elizabethan alphabet.",
 	"Archaic Reduction": "🏰 Digit-sums Archaic Ordinal&rsquo;s value down to one digit.",

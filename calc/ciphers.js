@@ -671,7 +671,7 @@ cipherList = [
 
 	new cipher(
 		"Modern Kaye",
-		"Elizabethan",
+		"Archaic",
 		352, 61, 78,
 		[97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
 		[27,28,29,30,31,32,33,34,35,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26],
@@ -684,7 +684,7 @@ cipherList = [
 
 	new cipher(
 		"Elizabethan 360",
-		"Elizabethan",
+		"Archaic",
 		41, 100, 49,
 		[97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
 		[1,2,3,4,5,6,8,9,10,10,12,15,18,20,24,30,36,40,45,60,72,72,90,120,180,360],
@@ -824,7 +824,7 @@ cipherList = [
 
 	new cipher(
 		"Archaic Ordinal",
-		"Elizabethan",
+		"Archaic",
 		120, 65, 62,
 		[97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
 		[1,2,3,4,5,6,7,8,9,9,10,11,12,13,14,15,16,17,18,19,20,20,21,22,23,24],
@@ -835,7 +835,7 @@ cipherList = [
 
 	new cipher(
 		"Archaic Reverse",
-		"Elizabethan",
+		"Archaic",
 		146, 74, 50,
 		[97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
 		[24,23,22,21,20,19,18,17,16,16,15,14,13,12,11,10,9,8,7,6,5,5,4,3,2,1],
@@ -846,7 +846,7 @@ cipherList = [
 
 	new cipher(
 		"Archaic Reduction",
-		"Elizabethan",
+		"Archaic",
 		180, 60, 69,
 		[97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
 		[1,2,3,4,5,6,7,8,9,9,1,2,3,4,5,6,7,8,9,1,2,2,3,4,5,6],
@@ -857,7 +857,7 @@ cipherList = [
 
 	new cipher(
 		"Archaic R Reverse",
-		"Elizabethan",
+		"Archaic",
 		207, 77, 64,
 		[97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
 		[6,5,4,3,2,1,9,8,7,7,6,5,4,3,2,1,9,8,7,6,5,5,4,3,2,1],
@@ -872,7 +872,7 @@ cipherList = [
 	// the steps are spent twice.
 	new cipher(
 		"Archaic Standard",
-		"Elizabethan",
+		"Archaic",
 		48, 49, 72,
 		[97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
 		[1,2,3,4,5,6,7,8,9,9,10,20,30,40,50,60,70,80,90,100,200,200,300,400,500,600],
@@ -887,7 +887,7 @@ cipherList = [
 	// this way the shared pairs stay visible as pairs (v/u at 5, j/i at 70).
 	new cipher(
 		"Archaic R Standard",
-		"Elizabethan",
+		"Archaic",
 		50, 78, 63,
 		[122,121,120,119,118,117,116,115,114,113,112,111,110,109,108,107,106,105,104,103,102,101,100,99,98,97],
 		[1,2,3,4,5,5,6,7,8,9,10,20,30,40,50,60,70,70,80,90,100,200,300,400,500,600],
@@ -899,7 +899,7 @@ cipherList = [
 
 	new cipher(
 		"Bacon Kaye",
-		"Elizabethan",
+		"Archaic",
 		0, 65, 66,
 		[97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
 		[27,28,29,30,31,32,33,34,35,35,10,11,12,13,14,15,16,17,18,19,20,20,21,22,23,24],
@@ -2086,6 +2086,107 @@ cipherList = [
 		false,
 		false
 	),
+	// ---- added 2026-11 (specs/cipher-additions.md) ----
+	new cipher(
+		"Futhark Old",
+		"Languages",
+		170, 35, 65,
+		[5792,5794,5798,5800,5809,5810,5815,5817,5818,5822,5825,5827,5831,5832,5833,5834,5839,5842,5846,5847,5850,5852,5854,5855], // Elder Futhark runes, traditional order
+		[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24],
+		true,
+		false,
+		false
+	),
+	new cipher(
+		"Nullinnix",
+		"CCRU Extra",
+		30, 35, 68,
+		[48,49,50,51,52,53,54,55,56,57,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
+		[-9,-3,-2,-1,0,1,2,3,4,5,-23,-20,-18,-18,-19,-19,-10,-13,-7,-5,-7,-4,-3,-3,8,3,5,12,10,16,17,15,22,14,24,23],
+		true,
+		false,
+		false
+	),
+	new cipher(
+		"Still Plex",
+		"CCRU Extra",
+		265, 45, 72,
+		[48,49,50,51,52,53,54,55,56,57,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
+		[5,5,5,5,5,5,5,5,5,5,22,22,22,22,22,24,22,22,22,22,22,25,22,24,22,22,22,22,25,22,22,22,22,22,24,22],
+		true,
+		false,
+		false
+	),
+	new cipher(
+		"Still Cycle",
+		"CCRU Extra",
+		205, 50, 68,
+		[49,50,51,52,53,54,55,56,57,48,113,119,101,114,116,121,117,105,111,112,97,115,100,102,103,104,106,107,108,122,120,99,118,98,110,109], // 1234567890qwertyuiopasdfghjklzxcvbnm
+		[0,1,2,3,4,5,6,7,8,9,25,20,25,20,20,20,21,21,18,25,21,21,22,25,20,25,21,25,21,25,30,20,25,20,25,25],
+		true,
+		false,
+		false
+	),
+	new cipher(
+		"Vaxen",
+		"CCRU Extra",
+		240, 60, 65,
+		[97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,48,49,50,51,52,53,54,55,56,57], // a-z then 0-9
+		[4,4,6,7,7,13,14,18,18,23,25,39,41,47,60,65,79,99,112,151,180,221,283,387,596,1225,1,1,1,1,1,1,1,2,2,3],
+		true,
+		false,
+		false
+	),
+	new cipher(
+		"Unun",
+		"CCRU Extra",
+		0, 55, 62,
+		[97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,48,49,50,51,52,53,54,55,56,57], // a-z then 0-9
+		[24,26,30,33,35,43,46,52,54,61,65,81,85,93,108,115,131,153,168,209,240,283,347,453,664,1295,1,3,5,7,9,11,13,16,18,21],
+		true,
+		false,
+		false
+	),
+	new cipher(
+		"Divisors of 5184",
+		"CCRU Extra",
+		35, 25, 70,
+		[48,49,50,51,52,53,54,55,56,57,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122], // 0-9 then a-z
+		[0,1,2,3,4,6,8,9,12,16,18,24,27,32,36,48,54,64,72,81,96,108,144,162,192,216,288,324,432,576,648,864,1296,1728,2592,5184],
+		true,
+		false,
+		false
+	),
+	new cipher(
+		"Divisors of 1296",
+		"CCRU Extra",
+		30, 60, 68,
+		[97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122], // a-z only
+		[0,1,2,3,4,6,8,9,12,16,18,24,27,36,48,54,72,81,108,144,162,216,324,432,648,1296],
+		true,
+		false,
+		false
+	),
+	new cipher(
+		"Alphanumeric Reverse",
+		"Alphanumeric",
+		146, 50, 62,
+		[48,49,50,51,52,53,54,55,56,57,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
+		[35,34,33,32,31,30,29,28,27,26,25,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0],
+		true,
+		false,
+		false
+	),
+	new cipher(
+		"Alphanumeric Sumerian",
+		"Alphanumeric",
+		80, 45, 66,
+		[48,49,50,51,52,53,54,55,56,57,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122],
+		[0,6,12,18,24,30,36,42,48,54,60,66,72,78,84,90,96,102,108,114,120,126,132,138,144,150,156,162,168,174,180,186,192,198,204,210],
+		true,
+		false,
+		false
+	)
 
 
 ]
@@ -2100,10 +2201,16 @@ cipherList = [
 
 // Edit Ciphers lets a custom cipher be saved with no category, which then
 // renders as a nameless tab in the Cyphers menu. Anything blank goes to Extra.
+// Renamed categories are mapped too, so an edited or custom cipher saved under
+// an old name joins the renamed tab instead of reviving the old one (untouched
+// built-ins already adopt the shipped category in mergeBuiltinCiphers()).
+var renamedCipherCategories = { "Elizabethan": "Archaic" }
+
 function normaliseCipherCategories() {
 	for (var i = 0; i < cipherList.length; i++) {
 		var cat = cipherList[i].cipherCategory
 		if (typeof cat !== "string" || cat.trim() === "") cipherList[i].cipherCategory = "Extra"
+		else if (Object.prototype.hasOwnProperty.call(renamedCipherCategories, cat)) cipherList[i].cipherCategory = renamedCipherCategories[cat]
 	}
 }
 
@@ -2114,14 +2221,14 @@ function normaliseCipherCategories() {
 // Three groups: the named "main branches" in the order given, then everything
 // else alphabetised, then the language group in the order given. See the
 // blank-gap markers in createCiphersMenu() (calc.js), which key off
-// "Alphanumeric" and "Languages" being the first entries of the second and
-// third groups here.
+// "Alphanumeric", "Alchemology" and "Languages" being the first entries of the
+// second, third and fourth groups here.
 var cipherCategoryOrder = [
-	"Base-4", "CCRU", "Gematria", "Reverse",
+	"Base-4", "CCRU", "CCRU Extra", "Gematria", "Reverse",
 
-	"Elizabethan", "Extra", "Illuminati", "Latin", "Maths", "Thelemic",
+	"Alphanumeric", "Archaic", "Extra", "Illuminati", "Latin", "Maths", "Thelemic",
 
-	"Alphanumeric", "Alchemology", "Cryptography", "Experimental", "Polygonal",
+	"Alchemology", "Cryptography", "Experimental", "Polygonal",
 
 	"Languages", "Hebrew", "Greek"
 ]
@@ -2140,7 +2247,7 @@ function orderCipherCategories() {
 // These categories are grab-bags with no meaningful structural order, so they
 // read better alphabetically. Runs after the grouping, so each one's slots are
 // contiguous.
-var alphabeticalCipherCategories = ["Languages", "Extra", "Experimental", "Maths", "Polygonal", "Elizabethan", "Cryptography", "Alphanumeric", "Alchemology"]
+var alphabeticalCipherCategories = ["Languages", "Extra", "Experimental", "Maths", "Polygonal", "Archaic", "Cryptography", "Alphanumeric", "Alchemology", "CCRU Extra"]
 
 function sortCipherCategoriesAlphabetically() {
 	alphabeticalCipherCategories.forEach(function (cat) {

@@ -160,7 +160,7 @@ for (const caption of ['My [saved] table', String.raw`My [saved] "quoted" \\ tab
     f.context.calcOptionsArr = ["'optHistTableCaption'+' = '+JSON.stringify(optHistTableCaption)"];
     f.context.optHistTableCaption = caption;
     const savedCiphers = JSON.stringify(f.context.cipherList);
-    assert.equal(f.context.cipherList.length, 173, 'exercise every shipped cipher');
+    assert.equal(f.context.cipherList.length, 183, 'exercise every shipped cipher');
     const blob = f.context.exportCiphersDB(true);
     f.context.optHistTableCaption = 'local caption';
     f.context.cipherList = [];
