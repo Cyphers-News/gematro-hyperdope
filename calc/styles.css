@@ -1552,6 +1552,103 @@ body {
 	padding: 0em 0.5em 0em 0.5em;
 	font-size: 110%;
 }
+
+/* History curation is latent until the small checklist control is pressed.
+   The action rail lives outside the table so it can wrap on a phone without
+   changing column geometry or turning every ordinary history view into a
+   checkbox forest. */
+.histBatchBar {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 0.45em;
+	flex-wrap: wrap;
+	max-width: calc(100% - 2em);
+	margin: 0.5em 1em -0.1em auto;
+	padding: 0.4em 0;
+}
+.histSelectedCount {
+	color: var(--font-white-2);
+	font-size: 88%;
+	margin-right: 0.2em;
+}
+.histBatchBtn {
+	box-sizing: border-box;
+	min-height: 44px;
+	padding: 0.45em 0.8em;
+	border: 1px solid var(--border-accent);
+	border-radius: 3px;
+	background: var(--menu-bg-accent2);
+	color: var(--font-white-2);
+	font: inherit;
+	cursor: pointer;
+}
+.histBatchBtn:hover:not(:disabled) { background: var(--btn-hover-accent); }
+.histBatchBtn:active:not(:disabled) { background: var(--btn-active-accent); }
+.histBatchBtn:disabled { opacity: 0.45; cursor: default; }
+.histBatchRemove:not(:disabled) { border-color: hsl(5 55% 52%); color: hsl(5 75% 80%); }
+.histBatchBtn.profileArmed {
+	background: hsl(5 60% 42%);
+	border-color: hsl(5 65% 60%);
+	color: #fff;
+	font-weight: 600;
+}
+.histBatchBtn:focus-visible,
+.histSelectModeBtn:focus-visible,
+.histSelectCheck:focus-visible + .histSelectGlyph {
+	outline: 2px solid var(--focus-outline);
+	outline-offset: 2px;
+}
+
+/* The real checkbox occupies the full 44px hit area but yields the drawing to
+   a compact project-coloured mark. Screen readers and keyboard users still
+   receive an ordinary checkbox, not a simulated div. */
+.histSelectMark {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	height: 44px;
+	margin: -0.2em 0.35em -0.2em -0.35em;
+	vertical-align: middle;
+}
+.histSelectCheck {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	opacity: 0;
+	cursor: pointer;
+}
+.histSelectGlyph {
+	box-sizing: border-box;
+	width: 18px;
+	height: 18px;
+	border: 1px solid var(--font-white-2);
+	background: hsla(220 15% 10% / 0.72);
+	pointer-events: none;
+}
+.histSelectCheck:checked + .histSelectGlyph {
+	border-color: var(--focus-outline);
+	background:
+		linear-gradient(135deg, transparent 43%, var(--focus-outline) 43% 53%, transparent 53%) 1px 1px / 9px 9px no-repeat,
+		linear-gradient(45deg, transparent 47%, var(--focus-outline) 47% 57%, transparent 57%) 7px 0 / 10px 13px no-repeat,
+		hsla(120 55% 22% / 0.55);
+}
+.histPhraseText { display: inline; }
+.histRowSelected td {
+	box-shadow: inset 0 1px 0 var(--focus-outline), inset 0 -1px 0 var(--focus-outline);
+}
+.histPhraseSelected {
+	font-weight: 600;
+	text-decoration: underline;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 0.18em;
+}
+.histSelectionMode .hP { cursor: pointer; }
+.histSelectionMode .histDelX { display: none; }
 @media (min-width: 911px) { /* desktop */
 	.hP { /* single line history phrase */
 		white-space: nowrap; /* affects table performance */
@@ -1640,6 +1737,43 @@ body {
 	line-height: 1.25;
 	overflow-wrap: anywhere;
 	cursor: text;
+}
+.histSelectModeBtn {
+	box-sizing: border-box;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	height: 44px;
+	margin: -0.25em 0.25em -0.25em -0.35em;
+	padding: 0;
+	vertical-align: middle;
+	border: 1px solid transparent;
+	background: transparent;
+	color: var(--font-white-2);
+	opacity: 0.72;
+	cursor: pointer;
+}
+.histSelectModeBtn svg { width: 22px; height: 22px; }
+.histSelectModeBtn:hover,
+.histSelectModeBtnOn { opacity: 1; color: var(--focus-outline); border-color: var(--border-accent); }
+.histCaptionText { vertical-align: middle; }
+
+@media (max-width: 420px) {
+	.histBatchBar {
+		justify-content: flex-start;
+		max-width: calc(100% - 1em);
+		margin-left: 0.5em;
+		margin-right: 0.5em;
+	}
+	.histSelectedCount { flex-basis: 100%; }
+	.histBatchBtn { flex: 1 1 auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.histBatchBtn,
+	.histSelectModeBtn,
+	.histSelectGlyph { transition: none !important; }
 }
 /* While editing, the cell grows with what is typed rather than forcing the
    text to wrap inside the old corner width - the field is sized in JS from its
@@ -3012,13 +3146,14 @@ input[type=checkbox] {
    underneath it is hidden. toggleFocusMode() (calc.js) just flips one class
    on <body> - nothing here deletes or resets anything, so turning it back
    off restores the page exactly as it was. */
-.focusModeBtn {
+.focusModeBtn,
+.shareResultBtn {
 	position: fixed;
 	top: 0.6em;
-	right: 0.6em;
 	z-index: 600;
-	width: 2.2em;
-	height: 2.2em;
+	box-sizing: border-box;
+	width: 44px;
+	height: 44px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -3030,11 +3165,216 @@ input[type=checkbox] {
 	transition: opacity 0.2s ease, color 0.2s ease;
 	filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6)); /* keeps the glyph readable over light rain/backdrops, background stays transparent */
 }
-.focusModeBtn svg { width: 65%; height: 65%; }
-.focusModeBtn:hover { opacity: 1; }
+.focusModeBtn { right: calc(0.6em + 50px); }
+.shareResultBtn { right: 0.6em; }
+.focusModeBtn svg,
+.shareResultBtn svg { width: 24px; height: 24px; }
+.focusModeBtn:hover,
+.shareResultBtn:hover { opacity: 1; }
+.focusModeBtn:focus-visible,
+.shareResultBtn:focus-visible {
+	opacity: 1;
+	outline: 2px solid var(--focus-outline);
+	outline-offset: 2px;
+}
 body.focusMode .focusModeBtn {
 	opacity: 0.85;
 	color: var(--focus-outline);
+}
+
+/* The generated share object. It exists offscreen only while html2canvas is
+   rasterising it; the preview below shows pixels, never a second live copy of
+   the calculation. */
+.shareCardStage {
+	position: fixed;
+	left: -100000px;
+	top: 0;
+	z-index: -1;
+	pointer-events: none;
+}
+.cyphersShareCard {
+	--share-accent: hsl(120 65% 60%);
+	position: relative;
+	box-sizing: border-box;
+	min-width: 760px;
+	width: 900px;
+	padding: 54px 58px 42px;
+	overflow: hidden;
+	background: #090d0b;
+	border: 1px solid hsl(130 20% 28%);
+	color: hsl(0 0% 91%);
+	font-family: var(--font-family), "Arial", sans-serif;
+}
+.shareCardMatrix {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	opacity: 0.52;
+}
+.shareCardVeil {
+	position: absolute;
+	inset: 0;
+	background:
+		linear-gradient(180deg, hsla(150 25% 3% / 0.58), hsla(150 18% 5% / 0.88)),
+		radial-gradient(circle at 50% 35%, hsla(120 60% 30% / 0.13), transparent 58%);
+}
+.shareCardContent { position: relative; z-index: 1; }
+.shareCardKicker {
+	color: hsl(120 30% 68%);
+	font-family: var(--font-family-mono), monospace;
+	font-size: 14px;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	text-align: center;
+}
+.shareCardPhrase {
+	max-width: 30em;
+	margin: 15px auto 5px;
+	color: hsl(0 0% 96%);
+	font-size: 32px;
+	font-weight: 600;
+	line-height: 1.24;
+	overflow-wrap: anywhere;
+	text-align: center;
+}
+.shareCardResult {
+	display: flex;
+	align-items: baseline;
+	justify-content: center;
+	gap: 14px;
+	margin-bottom: 4px;
+}
+.shareCardTotal { color: hsl(0 0% 96%); font-size: 40px; font-weight: 650; }
+.shareCardCipher { color: var(--share-accent); font-size: 23px; font-weight: 550; }
+.shareCardCounts {
+	min-height: 1.4em;
+	margin-bottom: 18px;
+	color: hsl(0 0% 76%);
+	font-size: 17px;
+	text-align: center;
+}
+.shareCardBreakdown {
+	display: flex;
+	justify-content: center;
+	min-width: 0;
+}
+.shareCardBreakdown #BreakTableContainer {
+	background: hsla(145 30% 11% / 0.9) !important;
+	border: 1px solid hsl(130 17% 43%) !important;
+	cursor: default;
+	padding: 18px 20px;
+}
+.shareCardBreakdown .BreakChar,
+.shareCardBreakdown .BreakPhraseSum,
+.shareCardBreakdown .BreakDerivNum,
+.shareCardBreakdown .BreakCipherName,
+.shareCardBreakdown .breakCipher { color: var(--share-accent) !important; }
+.shareCardBreakdown .BreakVal,
+.shareCardBreakdown .BreakValDark { color: hsl(0 0% 82%) !important; }
+.shareCardBreakdown .BreakWordSum,
+.shareCardBreakdown .breakSumDark,
+.shareCardBreakdown .BreakDerivResult { color: hsl(0 0% 96%) !important; }
+.shareCardSignature {
+	margin-top: 24px;
+	color: hsl(120 32% 66%);
+	font-family: var(--font-family-mono), monospace;
+	font-size: 15px;
+	letter-spacing: 0.12em;
+	text-align: right;
+}
+
+.sharePreviewOverlay {
+	position: fixed;
+	inset: 0;
+	z-index: 1001;
+	display: grid;
+	place-items: center;
+	padding: 1em;
+	background: hsla(0 0% 0% / 0.78);
+}
+.sharePreviewDialog {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	box-sizing: border-box;
+	width: min(72rem, calc(100vw - 2em));
+	max-height: calc(100vh - 2em);
+	background: var(--menu-bg-accent2);
+	border: 1px solid var(--border-dark-accent);
+	color: var(--font-white-2);
+	box-shadow: 0 18px 55px rgba(0, 0, 0, 0.58);
+}
+.sharePreviewClose {
+	position: absolute;
+	top: 0;
+	right: 0;
+	z-index: 2;
+	width: 44px;
+	height: 44px;
+	padding: 0;
+	border: 0;
+	border-left: 1px solid var(--border-dark-accent);
+	border-bottom: 1px solid var(--border-dark-accent);
+	background: var(--menu-bg-accent);
+	color: var(--font-white-1);
+	font-size: 24px;
+	cursor: pointer;
+}
+.sharePreviewActions {
+	display: flex;
+	gap: 0.45em;
+	flex-wrap: wrap;
+	padding: 0.65em 3.4em 0.65em 0.65em;
+	border-bottom: 1px solid var(--border-dark-accent);
+}
+.sharePreviewAction {
+	min-height: 44px;
+	padding: 0.5em 1em;
+	border: 1px solid var(--border-accent);
+	background: var(--menu-bg-accent);
+	color: var(--font-white-2);
+	font: inherit;
+	cursor: pointer;
+}
+.sharePreviewAction:hover { background: var(--btn-hover-accent); }
+.sharePreviewAction:active { background: var(--btn-active-accent); }
+.sharePreviewAction:disabled { opacity: 0.48; cursor: wait; }
+.sharePreviewAction:focus-visible,
+.sharePreviewClose:focus-visible {
+	outline: 2px solid var(--focus-outline);
+	outline-offset: -3px;
+}
+.sharePreviewImageArea {
+	display: grid;
+	place-items: start center;
+	min-height: 0;
+	padding: 1.2em;
+	overflow: auto;
+	overscroll-behavior: contain;
+}
+.sharePreviewImage {
+	display: block;
+	max-width: 100%;
+	height: auto;
+	border: 1px solid var(--border-dark-accent);
+}
+
+@media (max-width: 520px) {
+	.sharePreviewOverlay { padding: 0.35em; }
+	.sharePreviewDialog {
+		width: calc(100vw - 0.7em);
+		max-height: calc(100vh - 0.7em);
+	}
+	.sharePreviewActions { padding-left: 0.4em; gap: 0.35em; }
+	.sharePreviewAction { flex: 1 1 auto; }
+	.sharePreviewImageArea { padding: 0.55em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.focusModeBtn,
+	.shareResultBtn,
+	.sharePreviewAction { transition: none !important; }
 }
 
 /* Mirrors .focusModeBtn on the opposite corner - opens #focusOptionsPanel,
@@ -3127,20 +3467,23 @@ body.focusMode #BreakdownDetails {
    Defaults match what Focus Mode always showed before this panel existed
    (word sums shown, breakdown hidden), so nobody sees a change until they
    open it. */
-body.focusMode #enabledCiphTable,
-body.focusMode .LetterCounts {
+body.focusMode #calcMain #enabledCiphTable,
+body.focusMode #calcMain .LetterCounts {
 	display: none !important;
 }
-body.focusMode #BreakTableContainer {
+/* Keep focus mode's live-calculator projection inside #calcMain. Share cards
+   are staged beside it and must preserve the complete calculation even while
+   the operator has hidden the on-page breakdown. */
+body.focusMode #calcMain #BreakTableContainer {
 	border: none;
 	box-shadow: none;
 	background: none;
 	padding: 0;
 	cursor: default;
 }
-body.focusMode.focusHideWordSums #SimpleBreak,
-body.focusMode.focusHideWordSums .SimpleBreakChart,
-body.focusMode.focusHideWordSums .SimpleBreakChartLong {
+body.focusMode.focusHideWordSums #calcMain #SimpleBreak,
+body.focusMode.focusHideWordSums #calcMain .SimpleBreakChart,
+body.focusMode.focusHideWordSums #calcMain .SimpleBreakChartLong {
 	display: none !important;
 }
 /* #BreakSumLong (the grid's own total, long phrases) and .BreakCipherName (the
@@ -3148,13 +3491,13 @@ body.focusMode.focusHideWordSums .SimpleBreakChartLong {
    Breakdown's job, not Word sums' - so they hide with the rest of the grid.
    Left out of this list before, a long phrase with Breakdown off still showed
    its total and cypher name sitting there with nothing above it. */
-body.focusMode.focusHideBreakdown #BreakTableContainer .BreakChar,
-body.focusMode.focusHideBreakdown #BreakTableContainer .BreakVal,
-body.focusMode.focusHideBreakdown #BreakTableContainer .BreakValDark,
-body.focusMode.focusHideBreakdown #BreakTableContainer .BreakWordSum,
-body.focusMode.focusHideBreakdown #BreakTableContainer .BreakPhraseSum,
-body.focusMode.focusHideBreakdown #BreakSumLong,
-body.focusMode.focusHideBreakdown .BreakCipherName {
+body.focusMode.focusHideBreakdown #calcMain #BreakTableContainer .BreakChar,
+body.focusMode.focusHideBreakdown #calcMain #BreakTableContainer .BreakVal,
+body.focusMode.focusHideBreakdown #calcMain #BreakTableContainer .BreakValDark,
+body.focusMode.focusHideBreakdown #calcMain #BreakTableContainer .BreakWordSum,
+body.focusMode.focusHideBreakdown #calcMain #BreakTableContainer .BreakPhraseSum,
+body.focusMode.focusHideBreakdown #calcMain #BreakSumLong,
+body.focusMode.focusHideBreakdown #calcMain .BreakCipherName {
 	display: none !important;
 }
 body.focusMode.focusHideCipherChart #ChartSpotScroll {

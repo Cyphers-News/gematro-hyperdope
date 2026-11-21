@@ -32,6 +32,14 @@ var globColors = [] // global color modifiers
 var sHistory = [] // user search history (history table)
 var optPhraseLimit = 5 // word limit for the explicit Enter As Words action
 
+// History curation is deliberately a mode rather than permanent table chrome.
+// The Set is keyed by exact phrase text, not row position: Find Matches can
+// reorder the rendered rows, filters can replace sHistory with a projection,
+// and account storage is unique by phrase. An index would become the wrong
+// phrase after the first redraw; exact text is the domain identity here.
+var histSelectionMode = false
+var histSelectedPhrases = new Set()
+
 var compactHistoryTable = false // compact mode - vertical cipher names
 var optNewPhrasesGoFirst = false // new phrases are inserted at the beginning of history table
 var optCompactCiphCount = 8 // compact mode threshold
@@ -989,7 +997,12 @@ function captionStartEdit(cell) {
 }
 
 $(document).ready(function () {
-	$("body").on("click", ".mP", function () { captionStartEdit(this) })
+	$("body").on("click", ".mP", function (e) {
+		// The first corner cell also carries the history-selection launcher.
+		// Clicking the launcher is not an attempt to rename the caption.
+		if ($(e.target).closest(".histSelectModeBtn").length) return
+		captionStartEdit(this)
+	})
 })
 
 function conf_CFC() { // Rain Follows Cipher
@@ -1999,6 +2012,7 @@ function updateEnabledCipherTable() { // draws a table with phrase gematria for 
 // only the visible projection, so both must be emptied together or the sync
 // watcher will faithfully upload the hidden copy again.
 function clearHistoryTable() {
+	if (typeof histSelectionReset === "function") histSelectionReset(false)
 	sHistory = []
 	if (typeof userHistory !== "undefined" && Array.isArray(userHistory)) userHistory = []
 	var tArea = document.getElementById("HistoryTableArea")
@@ -2119,15 +2133,211 @@ function addPhraseToHistoryUnshift(phr, upd) { // add new phrase to the beginnin
 	if (upd) updateHistoryTable() // table update condition
 }
 
+// ======================== History selection ========================
+
+function historyUniquePhrases(phrases) {
+	var out = []
+	var seen = new Set()
+	for (var i = 0; i < phrases.length; i++) {
+		var phrase = phrases[i]
+		if (typeof phrase !== "string" || seen.has(phrase)) continue
+		seen.add(phrase)
+		out.push(phrase)
+	}
+	return out
+}
+
+function historyWithoutPhrases(history, phrases) {
+	var remove = (phrases instanceof Set) ? phrases : new Set(phrases)
+	return history.filter(function (phrase) { return !remove.has(phrase) })
+}
+
+function histSelectionReset(redraw) {
+	histSelectionMode = false
+	histSelectedPhrases.clear()
+	if (typeof profileDisarm === "function") profileDisarm()
+	if (redraw && typeof updateHistoryTable === "function") updateHistoryTable()
+}
+
+function histSelectionPruneToVisible(visiblePhrases) {
+	if (!histSelectionMode || histSelectedPhrases.size === 0) return false
+	var visible = new Set(visiblePhrases)
+	var changed = false
+	histSelectedPhrases.forEach(function (phrase) {
+		if (visible.has(phrase)) return
+		histSelectedPhrases.delete(phrase)
+		changed = true
+	})
+	if (changed && typeof profileDisarm === "function") profileDisarm()
+	return changed
+}
+
+function histSelectionRowCount() {
+	var rows = 0
+	for (var i = 0; i < sHistory.length; i++) {
+		if (histSelectedPhrases.has(sHistory[i])) rows++
+	}
+	return rows
+}
+
+function histSelectionCountLabel() {
+	var phrases = histSelectedPhrases.size
+	var rows = histSelectionRowCount()
+	var label = phrases + (phrases === 1 ? " phrase selected" : " phrases selected")
+	if (rows > phrases) label += " · " + rows + " rows"
+	return label
+}
+
+function histSelectionRefreshDom() {
+	var cells = document.querySelectorAll(".HistoryTable .hP[data-ind]")
+	for (var i = 0; i < cells.length; i++) {
+		var ind = Number(cells[i].getAttribute("data-ind"))
+		var phrase = sHistory[ind]
+		var selected = histSelectedPhrases.has(phrase)
+		cells[i].classList.toggle("histPhraseSelected", selected)
+		if (cells[i].parentElement !== null) cells[i].parentElement.classList.toggle("histRowSelected", selected)
+		var box = cells[i].querySelector(".histSelectCheck")
+		if (box !== null) box.checked = selected
+	}
+
+	var count = document.getElementById("histSelectedCount")
+	if (count !== null) count.textContent = histSelectionCountLabel()
+	var remove = document.getElementById("histRemoveSelectedBtn")
+	if (remove !== null) {
+		remove.disabled = histSelectedPhrases.size === 0
+		var removeLabel = "Remove selected phrases from history"
+		if (histSelectedPhrases.size > 0) {
+			removeLabel = "Remove " + histSelectedPhrases.size
+				+ (histSelectedPhrases.size === 1 ? " selected phrase" : " selected phrases")
+				+ " from history"
+			if (histSelectionRowCount() > histSelectedPhrases.size) {
+				removeLabel += "; this will remove all " + histSelectionRowCount() + " matching rows"
+			}
+		}
+		remove.setAttribute("aria-label", removeLabel)
+	}
+}
+
+function histSelectionToggleMode(e) {
+	if (e && typeof e.stopPropagation === "function") e.stopPropagation()
+	if (typeof profileDisarm === "function") profileDisarm()
+	histSelectionMode = !histSelectionMode
+	histSelectedPhrases.clear()
+	updateHistoryTable()
+	var target = histSelectionMode
+		? document.querySelector(".histSelectCheck")
+		: document.querySelector(".histSelectModeBtn")
+	if (target !== null) target.focus()
+}
+
+function histSelectionCancel() {
+	if (!histSelectionMode) return
+	histSelectionReset(true)
+	var target = document.querySelector(".histSelectModeBtn")
+	if (target !== null) target.focus()
+}
+
+function histSelectionToggleIndex(ind) {
+	if (!histSelectionMode || ind < 0 || ind >= sHistory.length) return
+	var phrase = sHistory[ind]
+	if (typeof profileDisarm === "function") profileDisarm()
+	if (histSelectedPhrases.has(phrase)) histSelectedPhrases.delete(phrase)
+	else histSelectedPhrases.add(phrase)
+	histSelectionRefreshDom()
+}
+
+function histSelectionSelectVisible() {
+	if (!histSelectionMode) return
+	if (typeof profileDisarm === "function") profileDisarm()
+	var cells = document.querySelectorAll(".HistoryTable .hP[data-ind]")
+	for (var i = 0; i < cells.length; i++) {
+		var ind = Number(cells[i].getAttribute("data-ind"))
+		if (ind >= 0 && ind < sHistory.length) histSelectedPhrases.add(sHistory[ind])
+	}
+	histSelectionRefreshDom()
+}
+
+// One explicit phrase-removal contract for the history table. A filter keeps
+// the complete list in userHistory and puts only the visible projection in
+// sHistory, so both arrays must lose the exact phrase before sync takes its
+// snapshot. Filtering instead of splicing also removes duplicate local rows,
+// matching the database's unique (user_id, phrase) identity.
+function historyRemovePhrases(phrases, flush) {
+	var exact = historyUniquePhrases(Array.isArray(phrases) ? phrases : [])
+	if (exact.length === 0) return 0
+	var remove = new Set(exact)
+	var visibleNext = historyWithoutPhrases(sHistory, remove)
+	var fullNext = null
+	if (typeof userHistory !== "undefined" && Array.isArray(userHistory) && userHistory.length > 0) {
+		fullNext = historyWithoutPhrases(userHistory, remove)
+	}
+	var changed = visibleNext.length !== sHistory.length || (fullNext !== null && fullNext.length !== userHistory.length)
+	if (!changed) return 0
+
+	sHistory = visibleNext
+	if (fullNext !== null) userHistory = fullNext
+	if (typeof histDisplayOrder !== "undefined") histDisplayOrder = null
+	histSelectionReset(false)
+
+	// updateHistoryTable() deliberately returns on an empty array; empty the old
+	// markup before updateTables() so the just-removed rows cannot linger.
+	if (sHistory.length === 0) {
+		var area = document.getElementById("HistoryTableArea")
+		if (area !== null) area.innerHTML = ""
+	}
+	updateTables()
+	if (flush !== false && typeof histSyncFlush === "function") histSyncFlush()
+	return exact.length
+}
+
+function histRemoveSelectedClick(btn) {
+	var count = histSelectedPhrases.size
+	if (!histSelectionMode || count === 0) return
+	var rows = histSelectionRowCount()
+	var label = "Remove " + count + (count === 1 ? " phrase" : " phrases")
+	if (rows > count) label += " / " + rows + " rows"
+	label += "?"
+	if (typeof profileConfirmClick !== "function" || !profileConfirmClick(btn, label)) return
+	var phrases = Array.from(histSelectedPhrases)
+	var removed = historyRemovePhrases(phrases, true)
+	if (removed > 0 && typeof displayCalcNotification === "function") {
+		displayCalcNotification("Removed " + removed + (removed === 1 ? " phrase" : " phrases") + " from history", 2200)
+	}
+}
+
+function histSelectionModeButtonHtml() {
+	var pressed = histSelectionMode ? "true" : "false"
+	return '<button type="button" class="histSelectModeBtn'+(histSelectionMode ? ' histSelectModeBtnOn' : '')+'"'
+		+' aria-label="Select history phrases" title="Select history phrases" aria-pressed="'+pressed+'" onclick="histSelectionToggleMode(event)">'
+		+'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+		+'<rect x="3" y="4" width="4" height="4"></rect><path d="M4 6l1 1 2-3"></path>'
+		+'<line x1="10" y1="6" x2="21" y2="6"></line><rect x="3" y="14" width="4" height="4"></rect><line x1="10" y1="16" x2="21" y2="16"></line>'
+		+'</svg></button>'
+}
+
+function histSelectionToolbarHtml() {
+	if (!histSelectionMode) return ""
+	return '<div class="histBatchBar" role="toolbar" aria-label="History selection">'
+		+'<span id="histSelectedCount" class="histSelectedCount" aria-live="polite">'+escHtml(histSelectionCountLabel())+'</span>'
+		+'<button type="button" class="histBatchBtn" onclick="histSelectionSelectVisible()">Select visible</button>'
+		+'<button type="button" id="histRemoveSelectedBtn" class="histBatchBtn histBatchRemove" onclick="histRemoveSelectedClick(this)" disabled>Remove</button>'
+		+'<button type="button" class="histBatchBtn" onclick="histSelectionCancel()">Cancel</button>'
+		+'</div>'
+}
+
 function updateHistoryTable(hltBoolArr) {
 	var ms, i, x, y, z, curCiph, curCiphCol, gemVal
 	var ciphCount = 0 // count enabled ciphers (for hltBoolArr)
 	histTable = document.getElementById("HistoryTableArea")
 	
-	if (sHistory.length == 0) { return }
+	if (sHistory.length == 0) {
+		histTable.innerHTML = ""
+		histSelectionReset(false)
+		return
+	}
 
 	prevPhrID = -1 // reset phrase selection
-	ms = '<table class="HistoryTable"><tbody>'
+	ms = ''
 
 	highlt = document.getElementById("highlightBox").value.replace(/ +/g," ") // get value of Highlight textbox, remove double spaces
 	
@@ -2150,6 +2360,14 @@ function updateHistoryTable(hltBoolArr) {
 	// after Find Matches the order holds only the phrases that matched, so the
 	// row count comes from the order rather than from sHistory
 	var rowCount = (dispOrder !== null) ? dispOrder.length : sHistory.length
+	var visiblePhrases = []
+	for (var visibleIndex = 0; visibleIndex < rowCount; visibleIndex++) {
+		var sourceIndex = (dispOrder !== null) ? dispOrder[visibleIndex] : visibleIndex
+		if (sourceIndex >= 0 && sourceIndex < sHistory.length) visiblePhrases.push(sHistory[sourceIndex])
+	}
+	histSelectionPruneToVisible(visiblePhrases)
+	ms += histSelectionToolbarHtml()
+	ms += '<table class="HistoryTable'+(histSelectionMode ? ' histSelectionMode' : '')+'"><tbody>'
 
 	// ...and the ciphers that carried none of those matches are dropped too, so
 	// the result is not padded out with columns of misses. null the rest of the
@@ -2160,7 +2378,7 @@ function updateHistoryTable(hltBoolArr) {
 	for (var xi = 0; xi < rowCount; xi++) {
 		x = (dispOrder !== null) ? dispOrder[xi] : xi
 
-		if (xi % 25 == 0 && enabledCiphCount !== 0) { // show header after each 25 phrases
+		if (xi % 25 == 0) { // show header after each 25 phrases
 			// Left empty when unnamed. The corner cell is part of the table's
 			// shape, not a place for instructions - the right-click menu is where
 			// the feature is announced.
@@ -2174,7 +2392,8 @@ function updateHistoryTable(hltBoolArr) {
 			// header cell instead, not the corner.
 			var showClearAll = (xi === 0)
 			var clearAllDone = false
-			ms += '<tr class="cH histRow"><td class="mP" title="Click to name this table">'+escHtml(optHistTableCaption)+'</td>'
+			var selectModeBtn = (xi === 0) ? histSelectionModeButtonHtml() : ""
+			ms += '<tr class="cH histRow"><td class="mP" title="Click to name this table">'+selectModeBtn+'<span class="histCaptionText">'+escHtml(optHistTableCaption)+'</span></td>'
 			for (z = 0; z < cipherList.length; z++) {
 				if (cipherList[z].enabled && ciphShown(cipherList[z].cipherName)) {
 					curCiphCol = (optColoredCiphers) ? 'color: hsl('+cipherList[z].H+' '+cipherList[z].S+'% '+cipherList[z].L+'% / 1);' : ''
@@ -2219,7 +2438,13 @@ function updateHistoryTable(hltBoolArr) {
 		// hover, so :focus-within is what reveals the × there - tapping the
 		// entry focuses it, tapping elsewhere moves focus off and hides it
 		// again. The same tabindex is what lets a keyboard Tab to it too.
-		ms += '<tr class="histRow"><td class="hP" data-ind="'+x+'" tabindex="0">' + dispPhrase
+		var phraseSelected = histSelectionMode && histSelectedPhrases.has(sHistory[x])
+		ms += '<tr class="histRow'+(phraseSelected ? ' histRowSelected' : '')+'"><td class="hP'+(phraseSelected ? ' histPhraseSelected' : '')+'" data-ind="'+x+'" tabindex="'+(histSelectionMode ? '-1' : '0')+'">'
+		if (histSelectionMode) {
+			ms += '<span class="histSelectMark"><input class="histSelectCheck" type="checkbox" data-ind="'+x+'"'
+				+(phraseSelected ? ' checked' : '')+' aria-label="Select phrase: '+escHtml(sHistory[x])+'"><span class="histSelectGlyph" aria-hidden="true"></span></span>'
+		}
+		ms += '<span class="histPhraseText">'+dispPhrase+'</span>'
 		ms += '<button type="button" class="histDelX" aria-label="Delete this phrase" title="Delete this phrase" onclick="histDeleteBtnClick(this, '+x+')">&times;</button>'
 		ms += '</td>' // hP - history phrase, add data index
 		var col = "" // value color
@@ -2284,15 +2509,8 @@ function updateHistoryTable(hltBoolArr) {
 // by accident.
 function histDeleteBtnClick(btn, ind) {
 	if (typeof profileConfirmClick === "function" && !profileConfirmClick(btn, "Sure?")) return
-	if (sHistory.length == 1) {
-		sHistory = [] // reinitialize array if there is only one entry
-		var tArea = document.getElementById("HistoryTableArea")
-		if (tArea !== null) tArea.innerHTML = "" // clear table
-		updateTables()
-		return
-	}
-	sHistory.splice(ind, 1)
-	updateTables()
+	if (ind < 0 || ind >= sHistory.length) return
+	historyRemovePhrases([sHistory[ind]], true)
 }
 
 // Whole-table equivalent of histDeleteBtnClick() - same far-right hover/focus

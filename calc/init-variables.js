@@ -645,19 +645,17 @@ $(document).ready(function(){
 
 	// Click on phrase in history table
 	$("body").on("click", ".hP", function (e) {
+		// Selection mode owns the whole phrase cell. This branch comes before
+		// modifier gestures so a held Shift or Ctrl cannot delete, load or
+		// reorder a phrase while the visible checkbox contract is active.
+		if (typeof histSelectionMode !== "undefined" && histSelectionMode) {
+			var selectIndex = Number($(this).data("ind"))
+			histSelectionToggleIndex(selectIndex)
+			return
+		}
 		if(shiftIsPressed) { // Shift + Left Click - remove phrase from history table
-			//var val = $(this).html(); // get gematria value from element
-			var ii = $(this).data("ind") // get phrase index
-			if (sHistory.length == 1) {
-				sHistory = [] // reinitialize array if there is only one entry
-				tArea = document.getElementById("HistoryTableArea")
-				tArea.innerHTML = "" // clear table
-				updateTables()
-				return
-			}
-			//sHistory.splice(sHistory.indexOf(val),1)
-			sHistory.splice(ii,1)
-			updateTables()
+			var ii = Number($(this).data("ind")) // get phrase index
+			if (ii >= 0 && ii < sHistory.length) historyRemovePhrases([sHistory[ii]], true)
 		} else if (ctrlIsPressed) { // Ctrl + Left Click - select phrase and load into phrase box
 			//console.log($(this).html()); // inner html of "this"
 			//var val = $(this).html(); // get gematria value from element
@@ -672,6 +670,10 @@ $(document).ready(function(){
 
 	// Ctrl + Right click on phrase in history table
 	$("body").on("contextmenu", ".hP", function (e) { // tC - history table cell
+		// Selection mode has one plainly visible interaction model. Suppress
+		// legacy Ctrl+right-click ordering and the page export menu until it is
+		// left, so the checkbox state cannot be mistaken for a reorder handle.
+		if (typeof histSelectionMode !== "undefined" && histSelectionMode) return false
 		if (ctrlIsPressed) {
 			var curPhrID = $(this).data("ind") // get phrase index
 			if (prevPhrID == -1) { // no previous selection
@@ -692,6 +694,16 @@ $(document).ready(function(){
 			return false; // don't show menu
 		}
 	});
+
+	// Escape is the non-destructive exit promised by the selection toolbar.
+	// Other Escape listeners may still close their own transient surfaces;
+	// none of them receive or mutate the selected history identities.
+	$(document).on("keydown.histSelection", function (e) {
+		if ((e.key === "Escape" || e.keyCode === 27) && typeof histSelectionMode !== "undefined" && histSelectionMode) {
+			e.preventDefault()
+			histSelectionCancel()
+		}
+	})
 
 	// Ctrl + Click on phrase in query table
 	$("body").on("click", ".hPQ", function (e) {

@@ -767,6 +767,13 @@ var profileArmedTimer = null
 function profileDisarm() {
 	if (profileArmedBtn !== null) {
 		profileArmedBtn.innerHTML = profileArmedBtn.dataset.idleLabel || "&#215;"
+		if (profileArmedBtn.dataset.idleAriaLabelPresent === "true") {
+			profileArmedBtn.setAttribute("aria-label", profileArmedBtn.dataset.idleAriaLabel || "")
+		} else {
+			profileArmedBtn.removeAttribute("aria-label")
+		}
+		delete profileArmedBtn.dataset.idleAriaLabel
+		delete profileArmedBtn.dataset.idleAriaLabelPresent
 		profileArmedBtn.classList.remove("profileArmed")
 		profileArmedBtn = null
 	}
@@ -779,7 +786,11 @@ function profileConfirmClick(btn, label) {
 	profileDisarm()
 	profileArmedBtn = btn
 	btn.dataset.idleLabel = btn.innerHTML
-	btn.textContent = label || "Sure?"
+	btn.dataset.idleAriaLabelPresent = btn.hasAttribute("aria-label") ? "true" : "false"
+	btn.dataset.idleAriaLabel = btn.getAttribute("aria-label") || ""
+	var confirmLabel = label || "Sure?"
+	btn.textContent = confirmLabel
+	btn.setAttribute("aria-label", confirmLabel)
 	btn.classList.add("profileArmed")
 	// disarms itself, so a stray click is never left primed
 	profileArmedTimer = setTimeout(profileDisarm, 4000)
