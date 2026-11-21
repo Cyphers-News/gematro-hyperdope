@@ -103,6 +103,8 @@ function importFileAction(file, hasLocalFile) {
 			// note above ciphersFromListBody() in gematria.js — this is the path an
 			// imported file takes, and it used to execute that file as code.
 			cipherList = ciphersFromListBody(file)
+			// an older file can carry a renamed category; settle it before the menu is built
+			if (typeof normaliseCipherCategories === "function") normaliseCipherCategories()
 			document.getElementById("calcOptionsPanel").innerHTML = "" // clear menu panel
 			
 			initCalc(false, true) // reinit, keeping the imported cipher selection
@@ -154,6 +156,8 @@ function importFileAction(file, hasLocalFile) {
 			// note above ciphersFromListBody() in gematria.js — this is the path an
 			// imported file takes, and it used to execute that file as code.
 			cipherList = ciphersFromListBody(file)
+			// an older file can carry a renamed category; settle it before the menu is built
+			if (typeof normaliseCipherCategories === "function") normaliseCipherCategories()
 			document.getElementById("calcOptionsPanel").innerHTML = "" // clear menu panel
 			initCalc(false, true) // reinit, keeping the imported cipher selection
 			updateTables() // update tables

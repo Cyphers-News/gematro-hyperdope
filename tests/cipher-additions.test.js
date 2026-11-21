@@ -153,3 +153,71 @@ test('the quick guide describes the new category and ciphers', () => {
     assert.match(info, new RegExp(`"${name}": "`), `${name} has a description`);
   }
 });
+
+// Extracts one top-level function from a source file: from its declaration
+// to the next top-level declaration (edit-ciphers.js has regex literals with
+// quotes in them, which a brace matcher would misread as strings).
+function functionSource(source, name) {
+  const start = source.indexOf(`\nfunction ${name}(`);
+  assert.notEqual(start, -1, `${name} exists`);
+  const end = source.indexOf('\nfunction ', start + 1);
+  return source.slice(start, end === -1 ? undefined : end);
+}
+
+function editCiphersFixture() {
+  const context = fixture();
+  const fields = {};
+  Object.assign(context, {
+    document: { getElementById: (id) => fields[id] || null },
+    resetColorControls() {}, initCalcCustCiph() {}, ignoreDiarciticsCustom: true, caseSensitiveCustom: false,
+    rndCol: { H: [10], S: [50], L: [60] }, getRndIndex: (a) => a[0],
+  });
+  vm.runInContext('var cCat = []; cipherList.forEach(function (c) { if (cCat.indexOf(c.cipherCategory) == -1) cCat.push(c.cipherCategory) })', context);
+  vm.runInContext(functionSource(read('calc/edit-ciphers.js'), 'addNewCipherAction'), context, { filename: 'calc/edit-ciphers.js' });
+  const submit = (name, category) => {
+    fields.custCipherNameInput = { value: name };
+    fields.custCipherCatInput = { value: category };
+    fields.custCipherAlphabet = { value: 'ab' };
+    fields.custCipherGlobVals = { value: '1,2' };
+    context.addNewCipherAction(false);
+  };
+  return { context, submit };
+}
+
+test('Edit Ciphers files a cipher typed as Elizabethan under Archaic immediately', () => {
+  const { context, submit } = editCiphersFixture();
+  submit('My New Cipher', 'Elizabethan');
+  let list = vm.runInContext('cipherList', context);
+  const created = list.findIndex((c) => c.cipherName === 'My New Cipher');
+  assert.equal(list[created].cipherCategory, 'Archaic');
+  assert.equal(list[created - 1].cipherCategory, 'Archaic', 'placed with the other Archaic ciphers, not at the end');
+  assert.equal(list.filter((c) => c.cipherCategory === 'Elizabethan').length, 0);
+
+  // editing an existing cipher into "Elizabethan" behaves the same way
+  submit('Nullinnix', 'Elizabethan');
+  list = vm.runInContext('cipherList', context);
+  assert.equal(list.find((c) => c.cipherName === 'Nullinnix').cipherCategory, 'Archaic');
+  assert.equal(list.filter((c) => c.cipherCategory === 'Elizabethan').length, 0);
+
+  // any other category name is left exactly as typed
+  submit('Another Cipher', 'My Own Tab');
+  assert.equal(vm.runInContext('cipherList', context).find((c) => c.cipherName === 'Another Cipher').cipherCategory, 'My Own Tab');
+});
+
+test('both cipher-file imports settle renamed categories before the menu is built', () => {
+  const source = read('calc/export-csv.js');
+  const parses = [...source.matchAll(/cipherList = ciphersFromListBody\(file\)/g)].map((m) => m.index);
+  assert.equal(parses.length, 2, 'the ciphers.js and GEMATRO_DB import paths');
+  for (const at of parses) {
+    const rebuild = source.indexOf('initCalc(', at);
+    const normalise = source.indexOf('normaliseCipherCategories()', at);
+    assert.ok(normalise > at && normalise < rebuild, 'normalised after parsing and before initCalc()');
+  }
+  // and the normaliser itself maps the parsed list
+  const context = fixture();
+  vm.runInContext(`
+    cipherList = ciphersFromListBody('("Old File Cipher","Elizabethan",1,50,50,[97],[1],true,true,false)')
+    normaliseCipherCategories()
+  `, context);
+  assert.equal(vm.runInContext('cipherList[0].cipherCategory', context), 'Archaic');
+});

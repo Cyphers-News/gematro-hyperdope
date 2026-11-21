@@ -2206,11 +2206,18 @@ cipherList = [
 // built-ins already adopt the shipped category in mergeBuiltinCiphers()).
 var renamedCipherCategories = { "Elizabethan": "Archaic" }
 
+// The current name for a category, so every path that files a cipher (restore,
+// file import, Edit Ciphers) lands it under the renamed tab immediately rather
+// than reviving the old one until the next reload.
+function canonicalCipherCategory(cat) {
+	return Object.prototype.hasOwnProperty.call(renamedCipherCategories, cat) ? renamedCipherCategories[cat] : cat
+}
+
 function normaliseCipherCategories() {
 	for (var i = 0; i < cipherList.length; i++) {
 		var cat = cipherList[i].cipherCategory
 		if (typeof cat !== "string" || cat.trim() === "") cipherList[i].cipherCategory = "Extra"
-		else if (Object.prototype.hasOwnProperty.call(renamedCipherCategories, cat)) cipherList[i].cipherCategory = renamedCipherCategories[cat]
+		else cipherList[i].cipherCategory = canonicalCipherCategory(cat)
 	}
 }
 

@@ -69,8 +69,9 @@ Languages to ahead of Alphanumeric/Alchemology/Languages.)
 
 ## evidence (2026-11-21)
 
-- vm tests `tests/cipher-additions.test.js` (4): pass on this branch, all 4
-  fail on `2d4a988`. safety 55/55, full 132/132.
+- vm tests `tests/cipher-additions.test.js` (6): pass on this branch; the
+  first 4 fail on `2d4a988`, the last 2 on `ba417ba`. safety 55/55,
+  full 134/134.
 - all 173 existing ciphers unchanged (values, names, colours, defaults);
   only category change is Elizabethan → Archaic.
 - browser (headless chromium): menu order and dividers as specified, no
@@ -78,11 +79,17 @@ Languages to ahead of Alphanumeric/Alchemology/Languages.)
   cipher search labels Archaic, Nullinnix displays negative totals.
 - restore paths: settings and cloud workspace both pass through
   `applyCalcSettingsString` → `mergeBuiltinCiphers` + `applyCipherOrdering`,
-  so the mapping applies. the ciphers.js / GEMATRO_DB file import crashes
-  on the removed `chkbox_SEC` before touching categories (pre-existing);
-  with that crash bypassed, importing an old export replaces the list
-  wholesale and shows an "Elizabethan" tab until reload — pre-existing
-  import behaviour (no merge, no ordering), filed as a follow-up.
+  so the mapping applies.
+- immediate rebuild paths (found in colette's PR review, 2026-11-21): Edit
+  Ciphers with category "Elizabethan", and both cipher-file imports, showed a
+  live "Elizabethan" tab until reload. fixed: Edit Ciphers files the typed
+  category through `canonicalCipherCategory`; both imports call
+  `normaliseCipherCategories()` after parsing and before `initCalc()`. two
+  tests cover them (both fail on `ba417ba`); a browser run through the real
+  Edit Ciphers panel and an import of an old export (pre-existing
+  `chkbox_SEC` crash stubbed) shows Archaic and no Elizabethan tab.
+- the cipher-file imports still crash on the removed `chkbox_SEC` before
+  parsing (pre-existing, filed separately); the fix above holds once they run.
 
 ## change shape
 

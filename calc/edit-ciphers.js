@@ -167,7 +167,9 @@ function addNewCipherAction(updCiphCol = false) { // update existing cipher if I
 	var custName = document.getElementById("custCipherNameInput").value.trim()
 	// console.log(custName)
 	var custCat = document.getElementById("custCipherCatInput").value
-	// console.log(custCat)
+	// a renamed category (e.g. "Elizabethan") files under its current name now,
+	// not as a revived tab that only moves on the next reload
+	if (typeof canonicalCipherCategory === "function") custCat = canonicalCipherCategory(custCat)
 
 	var alphabet = document.getElementById("custCipherAlphabet").value
 	var charsArr = []; var tmp = 0 // array with charcodes
