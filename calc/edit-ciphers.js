@@ -187,6 +187,13 @@ function addNewCipherAction(updCiphCol = false) { // update existing cipher if I
 	valArr = valArr.splice(0, charsArr.length) // use assigned values only (remove all extra)
 	// console.log(valArr)
 
+	// a newly shipped name always means the shipped cipher: saving different
+	// values under it makes the member's own "<name> (custom)" instead
+	if (typeof isCanonicalCipherName === "function" && isCanonicalCipherName(custName)) {
+		var shippedDef = builtinCipherDef(custName)
+		if (shippedDef !== null && !sameCipherTable({ cArr: charsArr, vArr: valArr }, shippedDef)) custName = customCipherName(custName)
+	}
+
 	// check if cipher has to be replaced/updated
 	var replaceID = -1
 	for (i = 0; i < cipherList.length; i++) {

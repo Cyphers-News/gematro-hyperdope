@@ -194,9 +194,9 @@ test('Edit Ciphers files a cipher typed as Elizabethan under Archaic immediately
   assert.equal(list.filter((c) => c.cipherCategory === 'Elizabethan').length, 0);
 
   // editing an existing cipher into "Elizabethan" behaves the same way
-  submit('Nullinnix', 'Elizabethan');
+  submit('Synx', 'Elizabethan'); // an older built-in, edited in place
   list = vm.runInContext('cipherList', context);
-  assert.equal(list.find((c) => c.cipherName === 'Nullinnix').cipherCategory, 'Archaic');
+  assert.equal(list.find((c) => c.cipherName === 'Synx').cipherCategory, 'Archaic');
   assert.equal(list.filter((c) => c.cipherCategory === 'Elizabethan').length, 0);
 
   // any other category name is left exactly as typed

@@ -43,6 +43,23 @@ separate explicit "approved to build".
    names and descriptions that mention the elizabethan alphabet
    (e.g. "Elizabethan 360", "Bacon Kaye") are unchanged.
 
+4. **canonical names (owner decision, colette, 2026-11-21, added in PR
+   review; option B).** "for these ten newly shipped ciphers, the canonical
+   name must always identify the shipped definition. if an existing same-name
+   cipher has the identical character/value mapping, reconcile it into the
+   canonical cipher and preserve its user-facing state. if its mapping
+   differs, preserve it exactly as a custom cipher under a deterministic
+   collision-safe name such as vaxen (custom), then add the canonical vaxen
+   alongside it. the migration must be idempotent." implementation choices
+   (daskala, for review): "user-facing state" = on/off and colour; category
+   and input settings come from the shipped definition. the same rule holds
+   on the immediate paths: cipher-file import reconciles after parsing, and
+   Edit Ciphers saving a different mapping under one of the ten names saves
+   "<name> (custom)" instead of replacing the shipped cipher. the canonical
+   cipher added alongside a differing copy starts with its shipped on/off
+   state (off). older built-ins are not covered: Edit Ciphers edits those in
+   place by name.
+
 ## new menu order and dividers
 
 Base-4, CCRU, CCRU Extra, Gematria, Reverse ‖ Alphanumeric, Archaic, Extra,
@@ -70,8 +87,18 @@ Languages to ahead of Alphanumeric/Alchemology/Languages.)
 ## evidence (2026-11-21)
 
 - vm tests `tests/cipher-additions.test.js` (6): pass on this branch; the
-  first 4 fail on `2d4a988`, the last 2 on `ba417ba`. safety 55/55,
-  full 134/134.
+  first 4 fail on `2d4a988`, the last 2 on `ba417ba`.
+- `tests/canonical-ciphers.test.js` (7): no collision, identical collision,
+  differing collision (right values, wrong character order), occupied
+  "(custom)" name, three collisions at once plus a second and third load,
+  Edit Ciphers, import order. all 7 fail on `e730b23` (the no-collision case
+  only because it uses the new `builtinCipherDef` helper).
+- browser round trip through `saveCalcSettingsLocalStorage` and two reloads
+  with three collisions: Vaxen (wrong order) -> "Vaxen (custom)" kept on,
+  z = 3, shipped Vaxen added, z = 1225; Unun (identical) merged, on and
+  colour kept; Still Plex (one value differs) -> "Still Plex (custom)" plus
+  shipped. identical after the second load; no page errors.
+- safety 55/55, full 141/141.
 - all 173 existing ciphers unchanged (values, names, colours, defaults);
   only category change is Elizabethan → Archaic.
 - browser (headless chromium): menu order and dividers as specified, no
@@ -118,6 +145,9 @@ limited to that mapping (owner to confirm).
 4. no existing cipher's values, name or default state change.
 5. quick-guide text exists for CCRU Extra and each new cipher; cache keys are
    refreshed; shipped count 183.
+6. each of the ten names identifies the shipped definition after restore,
+   import and Edit Ciphers; a differing same-name copy survives exactly as
+   "<name> (custom)" (next free "(custom N)" if taken); re-running is a no-op.
 
 ## done when
 

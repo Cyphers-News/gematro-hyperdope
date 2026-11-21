@@ -2555,11 +2555,91 @@ function applyCipherRenames() {
 	return renamed
 }
 
+// ---- canonical names for newly shipped ciphers ---------------------------
+//
+// These names were in circulation as members' own custom ciphers before they
+// shipped (specs/cipher-additions.md, decision 4). For them the name must
+// always mean the shipped definition, so a stored same-name cipher is settled
+// here rather than shadowing the built-in for good:
+// - identical character/value mapping: it IS the shipped cipher; it takes the
+//   shipped category and input settings and keeps its on/off state and colour;
+// - any other mapping (including the right values in a different character
+//   order): kept exactly as the member had it, under a collision-safe name
+//   such as "Vaxen (custom)", and the shipped cipher is added alongside it.
+// Re-running is a no-op: the second time, the only cipher with the name is the
+// shipped one, and the renamed copy no longer matches any name in this list.
+// Not applied to older built-ins, which Edit Ciphers edits in place by name.
+var canonicalCipherNames = [
+	"Futhark Old", "Nullinnix", "Still Plex", "Still Cycle", "Vaxen", "Unun",
+	"Divisors of 5184", "Divisors of 1296", "Alphanumeric Reverse", "Alphanumeric Sumerian"
+]
+
+function builtinCipherDef(name) {
+	if (typeof builtinCipherArgs === "undefined") return null
+	for (var b = 0; b < builtinCipherArgs.length; b++) if (builtinCipherArgs[b][0] === name) return builtinCipherArgs[b]
+	return null
+}
+
+function isCanonicalCipherName(name) {
+	return canonicalCipherNames.indexOf(name) !== -1
+}
+
+// "Vaxen (custom)", then "Vaxen (custom 2)", ... - whichever is not already a
+// cipher in the list or a shipped name.
+function customCipherName(name) {
+	var taken = function (n) {
+		if (builtinCipherDef(n) !== null) return true
+		for (var i = 0; i < cipherList.length; i++) if (cipherList[i].cipherName === n) return true
+		return false
+	}
+	var candidate = name + " (custom)"
+	for (var k = 2; taken(candidate); k++) candidate = name + " (custom " + k + ")"
+	return candidate
+}
+
+function shippedCipherFrom(def) {
+	return new cipher(def[0], def[1], def[2], def[3], def[4], def[5].slice(), def[6].slice(), def[7], def[8], def[9], def[10], def[11])
+}
+
+function reconcileCanonicalCiphers() {
+	var changed = 0
+	for (var n = 0; n < canonicalCipherNames.length; n++) {
+		var name = canonicalCipherNames[n]
+		var def = builtinCipherDef(name)
+		if (def === null) continue
+		var canonicalAt = -1, renamedAny = false
+		for (var i = 0; i < cipherList.length; i++) {
+			var c = cipherList[i]
+			if (c.cipherName !== name) continue
+			if (canonicalAt === -1 && sameCipherTable(c, def)) {
+				// the shipped cipher: shipped filing and input semantics, the
+				// member's on/off state and colour
+				var shipped = shippedCipherFrom(def)
+				shipped.enabled = c.enabled
+				shipped.H = c.H; shipped.S = c.S; shipped.L = c.L
+				cipherList[i] = shipped
+				canonicalAt = i
+				changed++
+			} else {
+				// the member's own cipher: untouched apart from its name
+				c.cipherName = customCipherName(name)
+				renamedAny = true
+				changed++
+			}
+		}
+		// a renamed copy must never leave the name pointing at nothing
+		if (canonicalAt === -1 && renamedAny) cipherList.push(shippedCipherFrom(def))
+	}
+	return changed
+}
+
 function mergeBuiltinCiphers() {
 	if (typeof builtinCipherArgs === "undefined") return 0
 
 	// before anything is matched by name, settle any names that moved
 	applyCipherRenames()
+	// ...then make sure each newly shipped name means the shipped cipher
+	reconcileCanonicalCiphers()
 	// ...then bring a stale shipped colour up to date, where it is clear the
 	// member never picked one themselves
 	refreshShippedColours()
