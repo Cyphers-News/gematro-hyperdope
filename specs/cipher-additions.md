@@ -67,6 +67,23 @@ Languages to ahead of Alphanumeric/Alchemology/Languages.)
 - Divisors of 1296 maps a–z only; typed digits keep the ordinary number
   fallback, as in Ordinal.
 
+## evidence (2026-11-21)
+
+- vm tests `tests/cipher-additions.test.js` (4): pass on this branch, all 4
+  fail on `2d4a988`. safety 55/55, full 132/132.
+- all 173 existing ciphers unchanged (values, names, colours, defaults);
+  only category change is Elizabethan → Archaic.
+- browser (headless chromium): menu order and dividers as specified, no
+  clipped category button, Archaic note and pinned Bacon ciphers intact,
+  cipher search labels Archaic, Nullinnix displays negative totals.
+- restore paths: settings and cloud workspace both pass through
+  `applyCalcSettingsString` → `mergeBuiltinCiphers` + `applyCipherOrdering`,
+  so the mapping applies. the ciphers.js / GEMATRO_DB file import crashes
+  on the removed `chkbox_SEC` before touching categories (pre-existing);
+  with that crash bypassed, importing an old export replaces the list
+  wholesale and shows an "Elizabethan" tab until reload — pre-existing
+  import behaviour (no merge, no ordering), filed as a follow-up.
+
 ## change shape
 
 | dimension | changed? | proof |
@@ -132,7 +149,8 @@ limited to that mapping (owner to confirm).
   each following character 1–Z takes the next of its 35 divisors, so
   Z = 5184.
 - **Divisors of 1296:** 🔢 Letters only: A = 0, then B–Z take the 25
-  divisors of 1296 (6⁴) in order, so Z = 1296. Digits count at face value.
+  divisors of 1296 (6⁴) in order, so Z = 1296. Typed digits follow the
+  Numbers setting, as in Ordinal.
 - **Alphanumeric Reverse:** 🔁 Alphanumeric Qabbala backwards: 0 = 35 …
   Z = 0.
 - **Alphanumeric Sumerian:** 🔢 Alphanumeric Qabbala × 6, the way English

@@ -361,7 +361,7 @@ var cipherInfoText = {
 	"Vaxen": "🔢 Letter values climb steeply from A = 4 to Z = 1225, while the digits stay small (1-3).",
 	"Unun": "🔢 Built on Vaxen: each letter is Vaxen&rsquo;s value plus 20 plus twice its distance from A (A + 20 &hellip; Z + 70), and each digit is Vaxen&rsquo;s value plus twice the digit (0 + 0 &hellip; 9 + 18).",
 	"Divisors of 5184": "🔢 Like Synx, but with 5184 (2<sup>6</sup> &times; 3<sup>4</sup>): 0 = 0, then each following character 1-Z takes the next of its 35 divisors, so Z = 5184.",
-	"Divisors of 1296": "🔢 Letters only: A = 0, then B-Z take the 25 divisors of 1296 (6<sup>4</sup>) in order, so Z = 1296. Digits count at face value.",
+	"Divisors of 1296": "🔢 Letters only: A = 0, then B-Z take the 25 divisors of 1296 (6<sup>4</sup>) in order, so Z = 1296. Typed digits follow the Numbers setting, as in Ordinal.",
 	"Alphanumeric Reverse": "🔁 Alphanumeric Qabbala backwards: 0 = 35 &hellip; Z = 0.",
 	"Alphanumeric Sumerian": "🔢 Alphanumeric Qabbala &times; 6, the way English Sumerian is Ordinal &times; 6: 0 = 0, 1 = 6 &hellip; Z = 210.",
 	"Standard": "📜 Follows the numerical sequence of units, tens and hundreds.<br><br>This is the traditional system of numerical equivalences for the letters as it is used in Hebrew Gematria, Greek Isopsephia, and the Arabic Abjad system.",
