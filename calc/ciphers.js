@@ -50,9 +50,7 @@ cipherList = [
 		[1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100,200,300,400,500,600,700,800],
 		true,
 		false,
-		false,
-		null,
-		true // Standard has no 0-9 assignments; digits are null input
+		false
 	),
 
 	// Based Atlanteanism with the divide applied - Standard minus Alphanumeric

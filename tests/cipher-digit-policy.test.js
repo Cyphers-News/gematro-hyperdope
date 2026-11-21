@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
@@ -22,29 +23,31 @@ function fixture() {
   return context;
 }
 
-test('standard ignores digits in totals and breakdowns', () => {
+test('standard follows the shared Numbers setting in totals and breakdowns', () => {
   const context = fixture();
   const standard = vm.runInContext('cipherList.find((c) => c.cipherName === "Standard")', context);
 
-  assert.equal(standard.ignoreDigits, true);
-  assert.equal(standard.calcGematria('32 names of god'), 333);
-  assert.equal(standard.calcGematria('32'), 0);
+  assert.equal(standard.ignoreDigits, false);
+  assert.equal(standard.calcGematria('32 names of god'), 365);
+  assert.equal(standard.calcGematria('32'), 32);
 
   standard.calcBreakdown('32 names of god');
-  assert.deepEqual(Array.from(standard.sumArr), [196, 66, 71]);
-  assert.equal(standard.WordCount, 3);
+  assert.deepEqual(Array.from(standard.sumArr), [32, 196, 66, 71]);
+  assert.equal(standard.WordCount, 4);
   assert.equal(standard.LetterCount, 10);
-  assert.ok(!standard.cp.some((part) => typeof part === 'string' && part.startsWith('num')));
-
-  standard.calcBreakdown('a1b');
-  assert.deepEqual(Array.from(standard.sumArr), [3]);
-  assert.equal(standard.WordCount, 1, 'an ignored digit does not split a word');
+  assert.ok(standard.cp.some((part) => part === 'num32'));
 
   context.optNumCalcMethod = 2;
+  assert.equal(standard.calcGematria('32 names of god'), 338);
+  standard.calcBreakdown('32 names of god');
+  assert.deepEqual(Array.from(standard.sumArr), [5, 196, 66, 71]);
+
+  context.optNumCalcMethod = 0;
   assert.equal(standard.calcGematria('32 names of god'), 333);
+  assert.equal(standard.calcGematria('32'), 0);
 });
 
-test('digit policy is narrow and survives import and old workspace restore', () => {
+test('explicit custom digit policy survives import while shipped Standard clears the stale override', () => {
   const context = fixture();
   const ordinal = vm.runInContext('cipherList.find((c) => c.cipherName === "Ordinal")', context);
   assert.equal(ordinal.calcGematria('32'), 32, 'ordinary ciphers retain full-number fallback');
@@ -65,13 +68,14 @@ test('digit policy is narrow and survives import and old workspace restore', () 
       shippedStandard.H, shippedStandard.S, shippedStandard.L,
       shippedStandard.cArr.slice(), shippedStandard.vArr.slice(),
       shippedStandard.diacriticsAsRegular, shippedStandard.enabled,
-      shippedStandard.caseSensitive
+      shippedStandard.caseSensitive, null, true
     )]
     mergeBuiltinCiphers()
   `, context);
   const restored = vm.runInContext('cipherList.find((c) => c.cipherName === "Standard")', context);
-  assert.equal(restored.ignoreDigits, true, 'an untouched stored Standard adopts shipped input policy');
-  assert.equal(restored.calcGematria('32 names of god'), 333);
+  assert.equal(restored.ignoreDigits, false, 'an untouched stored Standard adopts the corrected shipped input policy');
+  context.optNumCalcMethod = 1;
+  assert.equal(restored.calcGematria('32 names of god'), 365);
 
   const exportSource = read('calc/export.js');
   const exportStart = exportSource.indexOf('function exportCiphersDB(');
@@ -85,12 +89,22 @@ test('digit policy is narrow and survives import and old workspace restore', () 
   const argsStart = exported.indexOf('new cipher(') + 'new cipher('.length;
   const argsEnd = exported.lastIndexOf('\n\t)\n]');
   const roundTripped = context.cipherFromArgString(exported.slice(argsStart, argsEnd));
-  assert.equal(roundTripped.ignoreDigits, true, 'export/import preserves the input policy');
-  assert.equal(roundTripped.calcGematria('32 names of god'), 333);
+  assert.equal(roundTripped.ignoreDigits, false, 'export/import preserves the corrected input policy');
+  assert.equal(roundTripped.calcGematria('32 names of god'), 365);
 });
 
-test('changed cipher assets are served under their source hashes', () => {
+test('the guide tells new users exactly how typed numbers enter a calculation', () => {
+  const guide = read('calc/quick-guide.js');
+  assert.match(guide, /Reduced \(<span class="qgBold">default<\/span>\) adds their digits/);
+  assert.match(guide, /Full adds the whole number \(2026\), and Off ignores them/);
+  assert.match(guide, /Cyphers with their own digit values[\s\S]*always use those/);
+});
+
+test('changed cipher and guide assets are served under their source hashes', () => {
   const html = read('index.html');
-  assert.match(html, /calc\/gematria\.js\?v=15114877ebed/);
-  assert.match(html, /calc\/ciphers\.js\?v=7b41dd90dd5a/);
+  const assets = { 'calc/ciphers.js': 12, 'calc/quick-guide.js': 16 };
+  for (const [file, keyLength] of Object.entries(assets)) {
+    const key = crypto.createHash('sha256').update(read(file)).digest('hex').slice(0, keyLength);
+    assert.match(html, new RegExp(`${file.replace(/[./-]/g, '\\$&')}\\?v=${key}(?:"|&)`));
+  }
 });
