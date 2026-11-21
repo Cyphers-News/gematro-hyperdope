@@ -188,10 +188,16 @@ function addNewCipherAction(updCiphCol = false) { // update existing cipher if I
 	// console.log(valArr)
 
 	// a newly shipped name always means the shipped cipher: saving different
-	// values under it makes the member's own "<name> (custom)" instead
+	// values under it makes the member's own "<name> (custom)" instead, and
+	// saving the shipped table itself builds the shipped cipher, so a typed
+	// category or input setting can't ride along under the canonical name
+	var canonicalDef = null
 	if (typeof isCanonicalCipherName === "function" && isCanonicalCipherName(custName)) {
 		var shippedDef = builtinCipherDef(custName)
-		if (shippedDef !== null && !sameCipherTable({ cArr: charsArr, vArr: valArr }, shippedDef)) custName = customCipherName(custName)
+		if (shippedDef !== null) {
+			if (!sameCipherTable({ cArr: charsArr, vArr: valArr }, shippedDef)) custName = customCipherName(custName)
+			else { canonicalDef = shippedDef; custCat = shippedDef[1] }
+		}
 	}
 
 	// check if cipher has to be replaced/updated
@@ -205,6 +211,8 @@ function addNewCipherAction(updCiphCol = false) { // update existing cipher if I
 	if (replaceID > -1) { // cipher needs to be updated (retain colors)
 		if (!updCiphCol) { custCipher = new cipher(custName, custCat, cipherList[replaceID].H, cipherList[replaceID].S, cipherList[replaceID].L, charsArr, valArr, ignoreDiarciticsCustom, true, caseSensitiveCustom) }
 		else { custCipher = new cipher(custName, custCat, getRndIndex(rndCol.H), getRndIndex(rndCol.S), getRndIndex(rndCol.L), charsArr, valArr, ignoreDiarciticsCustom, true, caseSensitiveCustom) }
+		// shipped cipher: keep only the colour chosen above and its on/off state
+		if (canonicalDef !== null) custCipher = shippedCipherWithState(canonicalDef, custCipher.H, custCipher.S, custCipher.L, cipherList[replaceID].enabled)
 		if (cipherList[replaceID].cipherCategory == custCat) { // same category
 			cipherList[replaceID] = custCipher // replace existing cipher
 		} else if (cCat.indexOf(custCat) > -1) { // other existing category
@@ -220,6 +228,7 @@ function addNewCipherAction(updCiphCol = false) { // update existing cipher if I
 	} else { // use random colors
 		// custCipher = new cipher(custName, custCat, rndInt(0, 360), rndInt(0, 68), rndInt(53, 67), charsArr, valArr, ignoreDiarciticsCustom, true, caseSensitiveCustom)
 		custCipher = new cipher(custName, custCat, getRndIndex(rndCol.H), getRndIndex(rndCol.S), getRndIndex(rndCol.L), charsArr, valArr, ignoreDiarciticsCustom, true, caseSensitiveCustom)
+		if (canonicalDef !== null) custCipher = shippedCipherWithState(canonicalDef, custCipher.H, custCipher.S, custCipher.L, custCipher.enabled)
 		if (cCat.indexOf(custCat) > -1) { // existing category
 			for (i = cipherList.length-1; i > -1; i--) { // go in reverse order
 				// insert after last cipher in that category

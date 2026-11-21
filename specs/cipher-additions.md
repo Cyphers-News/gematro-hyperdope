@@ -8,6 +8,9 @@ status: accepted
 > **drafted by:** daskala, with net
 > **created:** 2026-11-19
 > **grounded against:** `2d4a988a6417e3390753f1083c61f9a235767e6d` (origin/master)
+> **rebased onto:** `244d7a1` (master, 2026-11-21) at colette's request;
+> master's standard-number correction, numbers guide copy and history/share
+> work preserved; cache keys recomputed from the combined files.
 > **accepted:** 2026-11-19 by net (designated approver): "I approve the spec";
 > build approved separately: "approve to build". draft sha256
 > `65e449849f2f9c31ace2e446df84d349013670cde0ba9573b920dbd2280f5cc3`.
@@ -55,7 +58,10 @@ separate explicit "approved to build".
    and input settings come from the shipped definition. the same rule holds
    on the immediate paths: cipher-file import reconciles after parsing, and
    Edit Ciphers saving a different mapping under one of the ten names saves
-   "<name> (custom)" instead of replacing the shipped cipher. the canonical
+   "<name> (custom)" instead of replacing the shipped cipher, and saving the
+   identical table under one of the ten names builds the shipped cipher
+   (category, diacritics, case sensitivity, derivation and digit policy from
+   the shipped definition; only colour and on/off kept). the canonical
    cipher added alongside a differing copy starts with its shipped on/off
    state (off). older built-ins are not covered: Edit Ciphers edits those in
    place by name.
@@ -98,7 +104,8 @@ Languages to ahead of Alphanumeric/Alchemology/Languages.)
   z = 3, shipped Vaxen added, z = 1225; Unun (identical) merged, on and
   colour kept; Still Plex (one value differs) -> "Still Plex (custom)" plus
   shipped. identical after the second load; no page errors.
-- safety 55/55, full 141/141.
+- after rebasing onto `244d7a1`: safety 55/55, full 165/165 (every
+  rebased commit passed the full suite on its own).
 - all 173 existing ciphers unchanged (values, names, colours, defaults);
   only category change is Elizabethan → Archaic.
 - browser (headless chromium): menu order and dividers as specified, no
@@ -124,7 +131,7 @@ Languages to ahead of Alphanumeric/Alchemology/Languages.)
 |---|---:|---|
 | user-visible behavior | yes: menu order, one renamed and one new category, ten ciphers, quick-guide text | tests below; menu screenshots; net's check |
 | persisted state | yes: stored category "Elizabethan" is mapped to "Archaic" on restore | test with an old saved blob (built-in, edited and custom cipher) |
-| identifiers | category name only; no cipher renamed | diff review |
+| identifiers | yes: category "Elizabethan" → "Archaic"; a stored cipher whose name is one of the ten and whose mapping differs is deliberately renamed "<name> (custom)" (next free "(custom N)"); no shipped cipher is renamed | `tests/canonical-ciphers.test.js`; diff review |
 | other repos | no | changed-file list |
 
 risk: amber. the stored-category mapping is a persistence touch, so a

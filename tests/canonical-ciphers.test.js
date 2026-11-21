@@ -178,11 +178,47 @@ test('Edit Ciphers saving different values under a shipped name makes a custom c
   assert.deepEqual(Array.from(named(context, 'Vaxen (custom)')[0].vArr), [1, 2]);
   assert.equal(named(context, 'Vaxen')[0].calcGematria('z'), 1225, 'shipped Vaxen untouched');
 
-  // saving the shipped mapping itself stays the shipped cipher
+  // saving the shipped mapping itself builds the shipped cipher, whatever was
+  // typed or ticked in the editor: only colour and on/off are the member's
   const def = shipped(context, 'Unun');
-  submit('Unun', String.fromCharCode(...def[5]), Array.from(def[6]).join(','));
-  assert.equal(named(context, 'Unun').length, 1);
+  vm.runInContext(`(function () { var u = cipherList.find(function (c) { return c.cipherName === "Unun" }); u.enabled = true; u.H = 7; u.S = 8; u.L = 9 })()`, context);
+  context.ignoreDiarciticsCustom = false; // opposite of the shipped diacritics setting
+  context.caseSensitiveCustom = true;     // opposite of the shipped case setting
+  fields.custCipherCatInput = { value: 'Typed Category' };
+  fields.custCipherNameInput = { value: 'Unun' };
+  fields.custCipherAlphabet = { value: String.fromCharCode(...def[5]) };
+  fields.custCipherGlobVals = { value: Array.from(def[6]).join(',') };
+  context.addNewCipherAction(false);
+  let unun = named(context, 'Unun');
+  assert.equal(unun.length, 1);
   assert.equal(named(context, 'Unun (custom)').length, 0);
+  assert.equal(list(context).filter((c) => c.cipherCategory === 'Typed Category').length, 0, 'no typed tab');
+  const expectShipped = (c, label) => {
+    assert.equal(c.cipherCategory, def[1], `${label}: shipped category`);
+    assert.equal(c.diacriticsAsRegular, def[7], `${label}: shipped diacritics`);
+    assert.equal(c.caseSensitive, def[9], `${label}: shipped case sensitivity`);
+    assert.equal(c.derivation, def[10], `${label}: shipped derivation`);
+    assert.equal(c.ignoreDigits, def[11], `${label}: shipped digit policy`);
+    assert.deepEqual(Array.from(c.cArr), Array.from(def[5]));
+    assert.deepEqual(Array.from(c.vArr), Array.from(def[6]));
+  };
+  expectShipped(unun[0], 'edited in place');
+  assert.deepEqual([unun[0].H, unun[0].S, unun[0].L, unun[0].enabled], [7, 8, 9, true], 'member colour and on/off kept');
+
+  // with "new random colour", only the colour changes
+  context.addNewCipherAction(true);
+  unun = named(context, 'Unun');
+  expectShipped(unun[0], 'random colour');
+  assert.deepEqual([unun[0].H, unun[0].S, unun[0].L, unun[0].enabled], [10, 50, 60, true]);
+
+  // and adding it fresh after deleting it builds the shipped cipher too
+  vm.runInContext('cipherList = cipherList.filter(function (c) { return c.cipherName !== "Unun" })', context);
+  context.addNewCipherAction(false);
+  unun = named(context, 'Unun');
+  assert.equal(unun.length, 1);
+  expectShipped(unun[0], 'added fresh');
+  const at = list(context).indexOf(unun[0]);
+  assert.equal(list(context)[at - 1].cipherCategory, def[1], 'placed in its shipped category');
 });
 
 test('both cipher-file imports reconcile shipped names before the menu is built', () => {

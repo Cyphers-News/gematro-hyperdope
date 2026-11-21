@@ -2601,6 +2601,16 @@ function shippedCipherFrom(def) {
 	return new cipher(def[0], def[1], def[2], def[3], def[4], def[5].slice(), def[6].slice(), def[7], def[8], def[9], def[10], def[11])
 }
 
+// The shipped cipher for `def`, carrying only the member's colour and on/off
+// state; name, characters, values, category, diacritics, case sensitivity,
+// derivation and digit policy all come from the shipped definition.
+function shippedCipherWithState(def, H, S, L, enabled) {
+	var shipped = shippedCipherFrom(def)
+	shipped.H = H; shipped.S = S; shipped.L = L
+	shipped.enabled = enabled
+	return shipped
+}
+
 function reconcileCanonicalCiphers() {
 	var changed = 0
 	for (var n = 0; n < canonicalCipherNames.length; n++) {
@@ -2614,10 +2624,7 @@ function reconcileCanonicalCiphers() {
 			if (canonicalAt === -1 && sameCipherTable(c, def)) {
 				// the shipped cipher: shipped filing and input semantics, the
 				// member's on/off state and colour
-				var shipped = shippedCipherFrom(def)
-				shipped.enabled = c.enabled
-				shipped.H = c.H; shipped.S = c.S; shipped.L = c.L
-				cipherList[i] = shipped
+				cipherList[i] = shippedCipherWithState(def, c.H, c.S, c.L, c.enabled)
 				canonicalAt = i
 				changed++
 			} else {
