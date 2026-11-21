@@ -78,6 +78,17 @@ document.addEventListener('DOMContentLoaded', function () {
      stays reachable even once focus mode has hidden that whole row. -->
 <button id="focusModeBtn" class="focusModeBtn" type="button" title="Focus mode: hide the menu and phrase box for a clean screenshot (tap again to restore)" aria-label="Toggle focus mode" aria-pressed="false" onclick="toggleFocusMode()">
 	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<path d="M9 4H4v5"></path>
+		<path d="M15 4h5v5"></path>
+		<path d="M20 15v5h-5"></path>
+		<path d="M9 20H4v-5"></path>
+	</svg>
+</button>
+
+<!-- Share is separate from screenshot focus: this creates a local card and
+     opens a preview before any browser/OS action can occur. -->
+<button id="shareResultBtn" class="shareResultBtn" type="button" title="Share current calculation" aria-label="Share current calculation" onclick="openShareCardPreview()">
+	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 		<path d="M12 15V3"></path>
 		<path d="M7.5 7.5L12 3l4.5 4.5"></path>
 		<path d="M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"></path>
@@ -150,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function () {
 <script src="calc/breakdown.js?v=6dc26544613831aa" defer></script>
 
 <script src="calc/highlighter.js?v=20260821q" defer></script>
-<script src="calc/export.js?v=69dd6720d9ac3dad" defer></script>
+<script src="calc/export.js?v=3a51c0390bf456d0" defer></script>
 <script src="calc/export-csv.js?v=635972d22cb5284b" defer></script>
 <script src="calc/num-prop.js?v=20260821q" defer></script>
 <script src="calc/edit-ciphers.js?v=20260821q" defer></script>

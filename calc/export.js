@@ -133,7 +133,10 @@ $(document).ready(function () {
 		if ($(e.target).closest("#ctxExportMenu").length === 0) closeExportContextMenu()
 	})
 	$(document).on("keydown", function (e) {
-		if (e.key === "Escape" || e.keyCode === 27) closeExportContextMenu()
+		if (e.key === "Escape" || e.keyCode === 27) {
+			closeExportContextMenu()
+			if (document.querySelector(".sharePreviewOverlay") !== null) closeShareCardPreview(true)
+		}
 	})
 	$(window).on("scroll resize", closeExportContextMenu)
 })
@@ -200,6 +203,395 @@ function ensureHtml2Canvas() {
 		})
 	}
 	return html2canvasPromise
+}
+
+// ---- Share card ------------------------------------------------------
+//
+// This is a new local export surface, not a page screenshot. The model is
+// bounded to the active word breakdown; the card is staged offscreen, turned
+// into one PNG blob, then removed before the preview opens. No account state,
+// history rows, remote image service or live matrix animation participates.
+
+var sharePreviewState = null
+var sharePreviewRestoreFocus = null
+var shareCardOpening = false
+var sharePreviewGeneration = 0
+
+function shareActiveCipher() {
+	if (typeof cipherList === "undefined" || typeof breakCipher === "undefined") return null
+	for (var i = 0; i < cipherList.length; i++) {
+		if (cipherList[i].cipherName === breakCipher) return cipherList[i]
+	}
+	return null
+}
+
+function shareCountText(curCipher) {
+	if (!curCipher) return ""
+	var letters = Number(curCipher.LetterCount)
+	var words = Number(curCipher.WordCount)
+	if (!Number.isFinite(letters) || !Number.isFinite(words)) return ""
+	return letters + (letters === 1 ? " letter, " : " letters, ")
+		+ words + (words === 1 ? " word" : " words")
+}
+
+function shareCardModel() {
+	var source = document.getElementById("BreakdownSpot")
+	var curCipher = shareActiveCipher()
+	var phrase = (typeof breakPhraseText === "string") ? breakPhraseText.trim() : ""
+	var detailed = source !== null ? source.querySelector("#BreakTableContainer") : null
+	if (source === null || curCipher === null || phrase === "" || detailed === null) return null
+
+	var hue = Number(curCipher.H)
+	var saturation = Number(curCipher.S)
+	var lightness = Number(curCipher.L)
+	if (!Number.isFinite(hue)) hue = 120
+	if (!Number.isFinite(saturation)) saturation = 60
+	if (!Number.isFinite(lightness)) lightness = 60
+
+	return {
+		phrase: phrase,
+		total: String(breakPhraseTotal),
+		cipher: curCipher.cipherName,
+		mode: (typeof gemCalcModeLabel === "function") ? gemCalcModeLabel(curCipher) : "",
+		counts: shareCountText(curCipher),
+		hue: ((hue % 360) + 360) % 360,
+		saturation: Math.max(42, Math.min(70, saturation)),
+		lightness: Math.max(55, Math.min(72, lightness)),
+		derived: detailed.querySelector(".BreakDerivation") !== null,
+		breakdown: detailed
+	}
+}
+
+function shareCloneBreakdown(source) {
+	var clone = source.cloneNode(true)
+	clone.removeAttribute("onclick")
+	clone.classList.add("breakdownTinted")
+	var repeatedSummary = clone.querySelectorAll(".SimpleBreakChart, .SimpleBreakChartLong, .BreakPhraseSum, .BreakCipherName, #BreakSumLong")
+	for (var i = 0; i < repeatedSummary.length; i++) repeatedSummary[i].remove()
+
+	// The rendered breakdown is trusted only as pixels. Strip every event
+	// attribute and focus hook from the temporary clone so phrase-derived DOM
+	// can never become an interactive surface while html2canvas is reading it.
+	var nodes = clone.querySelectorAll("*")
+	for (var n = 0; n < nodes.length; n++) {
+		var attrs = Array.from(nodes[n].attributes)
+		for (var a = 0; a < attrs.length; a++) {
+			if (/^on/i.test(attrs[a].name)) nodes[n].removeAttribute(attrs[a].name)
+		}
+		nodes[n].removeAttribute("tabindex")
+	}
+	return clone
+}
+
+function shareHash(text) {
+	var hash = 2166136261
+	for (var i = 0; i < text.length; i++) {
+		hash ^= text.charCodeAt(i)
+		hash = Math.imul(hash, 16777619)
+	}
+	return hash >>> 0
+}
+
+function shareRandom(seed) {
+	var state = seed >>> 0
+	return function () {
+		state += 0x6D2B79F5
+		var t = state
+		t = Math.imul(t ^ (t >>> 15), t | 1)
+		t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+		return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+	}
+}
+
+function drawShareMatrix(canvas, model, width, height) {
+	var scale = 2
+	canvas.width = Math.ceil(width * scale)
+	canvas.height = Math.ceil(height * scale)
+	var ctx = canvas.getContext("2d")
+	ctx.scale(scale, scale)
+	ctx.clearRect(0, 0, width, height)
+	ctx.font = '15px "Roboto Mono", monospace'
+	ctx.textAlign = "center"
+	var glyphs = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZｱｶｻﾀﾅﾊﾏﾔﾗﾜ"
+	var random = shareRandom(shareHash(model.phrase + "|" + model.cipher + "|" + model.total))
+	var step = 22
+	for (var x = 11; x < width; x += step) {
+		var offset = -Math.floor(random() * 9) * step
+		var skip = 1 + Math.floor(random() * 3)
+		for (var y = offset; y < height; y += step * skip) {
+			var alpha = 0.035 + random() * 0.055
+			ctx.fillStyle = "hsla(" + model.hue + " 72% 57% / " + alpha.toFixed(3) + ")"
+			ctx.fillText(glyphs.charAt(Math.floor(random() * glyphs.length)), x, y)
+		}
+	}
+}
+
+function buildShareCard(model) {
+	var stage = document.createElement("div")
+	stage.className = "shareCardStage"
+	var card = document.createElement("article")
+	card.className = "cyphersShareCard"
+	card.setAttribute("aria-label", "Cyphers share card")
+	card.style.setProperty("--share-accent", "hsl(" + model.hue + " " + model.saturation + "% " + model.lightness + "%)")
+
+	var matrix = document.createElement("canvas")
+	matrix.className = "shareCardMatrix"
+	matrix.setAttribute("aria-hidden", "true")
+	var veil = document.createElement("div")
+	veil.className = "shareCardVeil"
+	veil.setAttribute("aria-hidden", "true")
+	var content = document.createElement("div")
+	content.className = "shareCardContent"
+
+	var kicker = document.createElement("div")
+	kicker.className = "shareCardKicker"
+	kicker.textContent = "cyphers calculation"
+	var phrase = document.createElement("div")
+	phrase.className = "shareCardPhrase"
+	phrase.textContent = model.phrase
+	var result = document.createElement("div")
+	result.className = "shareCardResult"
+	var total = document.createElement("span")
+	total.className = "shareCardTotal"
+	total.textContent = model.total
+	var cipher = document.createElement("span")
+	cipher.className = "shareCardCipher"
+	cipher.textContent = model.cipher + model.mode
+	// A derived cipher's result is the terminus of its visible equation, so it
+	// stays in that equation. Ordinary grids have their total removed below and
+	// receive it here instead. Either way the number appears exactly once.
+	if (!model.derived) result.appendChild(total)
+	result.appendChild(cipher)
+	var counts = document.createElement("div")
+	counts.className = "shareCardCounts"
+	counts.textContent = model.counts
+	var breakdown = document.createElement("div")
+	breakdown.className = "shareCardBreakdown"
+	breakdown.appendChild(shareCloneBreakdown(model.breakdown))
+	var signature = document.createElement("div")
+	signature.className = "shareCardSignature"
+	signature.textContent = "cyphers.news"
+
+	content.appendChild(kicker)
+	content.appendChild(phrase)
+	content.appendChild(result)
+	content.appendChild(counts)
+	content.appendChild(breakdown)
+	content.appendChild(signature)
+	card.appendChild(matrix)
+	card.appendChild(veil)
+	card.appendChild(content)
+	stage.appendChild(card)
+	document.body.appendChild(stage)
+
+	// Most long phrases are already split into several tables by breakdown.js.
+	// A single exceptionally long word is the remaining wide case: let the card
+	// grow to contain it instead of clipping the right edge to a social preset.
+	var wantedWidth = Math.max(760, breakdown.scrollWidth + 116)
+	if (wantedWidth > card.clientWidth) card.style.width = Math.ceil(wantedWidth) + "px"
+	drawShareMatrix(matrix, model, card.scrollWidth, card.scrollHeight)
+	return { stage: stage, card: card }
+}
+
+function shareCanvasBlob(canvas) {
+	return new Promise(function (resolve, reject) {
+		canvas.toBlob(function (blob) {
+			if (blob && blob.size > 0) resolve(blob)
+			else reject(new Error("empty png"))
+		}, "image/png")
+	})
+}
+
+function renderShareCardPng() {
+	var model = shareCardModel()
+	if (model === null) return Promise.reject(Object.assign(new Error("no active word breakdown"), { code: "NO_BREAKDOWN" }))
+	var built = null
+	return ensureHtml2Canvas().then(function () {
+		built = buildShareCard(model)
+		return html2canvas(built.card, {
+			allowTaint: false,
+			backgroundColor: null,
+			logging: false,
+			width: built.card.scrollWidth,
+			height: built.card.scrollHeight,
+			scale: Math.max(2, Math.min(3, Number(window.devicePixelRatio) || 1))
+		})
+	}).then(function (canvas) {
+		return shareCanvasBlob(canvas)
+	}).then(function (blob) {
+		return {
+			blob: blob,
+			fileName: "cyphers_" + getTimestamp() + ".png",
+			phrase: model.phrase,
+			cipher: model.cipher,
+			total: model.total
+		}
+	}).finally(function () {
+		if (built !== null && built.stage.parentNode !== null) built.stage.remove()
+	})
+}
+
+function shareResultFile(result) {
+	return new File([result.blob], result.fileName, { type: "image/png" })
+}
+
+function shareCanNativeFile(result) {
+	if (!navigator.share || !navigator.canShare || typeof File === "undefined") return false
+	try { return navigator.canShare({ files: [shareResultFile(result)] }) === true }
+	catch (err) { return false }
+}
+
+function shareCanCopyImage() {
+	return window.isSecureContext === true
+		&& navigator.clipboard && typeof navigator.clipboard.write === "function"
+		&& typeof ClipboardItem !== "undefined"
+}
+
+function sharePreviewButton(label, handler) {
+	var button = document.createElement("button")
+	button.type = "button"
+	button.className = "sharePreviewAction"
+	button.textContent = label
+	button.addEventListener("click", handler)
+	return button
+}
+
+function sharePreviewApply(result) {
+	var image = document.querySelector(".sharePreviewImage")
+	var actions = document.querySelector(".sharePreviewActions")
+	if (image === null || actions === null) return false
+	if (sharePreviewState !== null && sharePreviewState.url) URL.revokeObjectURL(sharePreviewState.url)
+	result.url = URL.createObjectURL(result.blob)
+	sharePreviewState = result
+	image.src = result.url
+	image.alt = "Share card preview for " + result.phrase
+	actions.innerHTML = ""
+	if (shareCanNativeFile(result)) actions.appendChild(sharePreviewButton("Share", sharePreviewNative))
+	if (shareCanCopyImage()) actions.appendChild(sharePreviewButton("Copy image", sharePreviewCopy))
+	actions.appendChild(sharePreviewButton("Save png", sharePreviewSave))
+	actions.appendChild(sharePreviewButton("Refresh", sharePreviewRefresh))
+	return true
+}
+
+function showShareCardPreview(result) {
+	if (typeof closePrintImagePreview === "function") closePrintImagePreview()
+	closeShareCardPreview(false)
+	sharePreviewRestoreFocus = document.activeElement
+
+	var overlay = document.createElement("div")
+	overlay.className = "sharePreviewOverlay"
+	overlay.addEventListener("click", function (event) {
+		if (event.target === overlay) closeShareCardPreview(true)
+	})
+	var dialog = document.createElement("section")
+	dialog.className = "sharePreviewDialog"
+	dialog.setAttribute("role", "dialog")
+	dialog.setAttribute("aria-modal", "true")
+	dialog.setAttribute("aria-label", "Share current calculation")
+	var close = document.createElement("button")
+	close.type = "button"
+	close.className = "sharePreviewClose"
+	close.setAttribute("aria-label", "Close share preview")
+	close.textContent = "×"
+	close.addEventListener("click", function () { closeShareCardPreview(true) })
+	var actions = document.createElement("div")
+	actions.className = "sharePreviewActions"
+	var imageArea = document.createElement("div")
+	imageArea.className = "sharePreviewImageArea"
+	var image = document.createElement("img")
+	image.className = "sharePreviewImage"
+	imageArea.appendChild(image)
+	dialog.appendChild(close)
+	dialog.appendChild(actions)
+	dialog.appendChild(imageArea)
+	overlay.appendChild(dialog)
+	document.body.appendChild(overlay)
+	document.body.classList.add("noScroll")
+	sharePreviewApply(result)
+	close.focus()
+}
+
+function closeShareCardPreview(restoreFocus) {
+	sharePreviewGeneration++
+	var overlay = document.querySelector(".sharePreviewOverlay")
+	if (overlay !== null) overlay.remove()
+	if (sharePreviewState !== null && sharePreviewState.url) URL.revokeObjectURL(sharePreviewState.url)
+	sharePreviewState = null
+	document.body.classList.remove("noScroll")
+	if (restoreFocus !== false && sharePreviewRestoreFocus !== null
+		&& document.documentElement.contains(sharePreviewRestoreFocus)
+		&& typeof sharePreviewRestoreFocus.focus === "function") sharePreviewRestoreFocus.focus()
+	sharePreviewRestoreFocus = null
+}
+
+function sharePreviewNative() {
+	if (sharePreviewState === null || !shareCanNativeFile(sharePreviewState)) return
+	var file = shareResultFile(sharePreviewState)
+	var failed = function (err) {
+		if (err && err.name === "AbortError") return
+		displayCalcNotification("The image could not be shared — Save png is still available", 3000)
+	}
+	try {
+		var request = navigator.share({
+			title: sharePreviewState.cipher + " — " + sharePreviewState.total,
+			text: sharePreviewState.phrase + " = " + sharePreviewState.total,
+			files: [file]
+		})
+		Promise.resolve(request).catch(failed)
+	} catch (err) { failed(err) }
+}
+
+function sharePreviewCopy() {
+	if (sharePreviewState === null || !shareCanCopyImage()) return
+	var copied = function () {
+		displayCalcNotification("Image copied", 1800)
+	}
+	var failed = function () {
+		displayCalcNotification("The image could not be copied — Save png is still available", 3000)
+	}
+	try {
+		var item = new ClipboardItem({ "image/png": sharePreviewState.blob })
+		Promise.resolve(navigator.clipboard.write([item])).then(copied, failed)
+	} catch (err) { failed(err) }
+}
+
+function sharePreviewSave() {
+	if (sharePreviewState === null) return
+	download(sharePreviewState.fileName, sharePreviewState.url)
+}
+
+function sharePreviewRefresh(event) {
+	var button = event && event.currentTarget ? event.currentTarget : null
+	var generation = sharePreviewGeneration
+	if (button !== null) { button.disabled = true; button.textContent = "Refreshing…" }
+	renderShareCardPng().then(function (result) {
+		if (generation !== sharePreviewGeneration) return
+		sharePreviewApply(result)
+	}).catch(function (err) {
+		if (generation !== sharePreviewGeneration) return
+		if (button !== null && document.documentElement.contains(button)) {
+			button.disabled = false
+			button.textContent = "Refresh"
+		}
+		displayCalcNotification(err && err.code === "NO_BREAKDOWN"
+			? "Add a phrase and turn on Word Breakdown to refresh the card"
+			: "The share card could not be refreshed", 2800)
+	})
+}
+
+function openShareCardPreview() {
+	if (shareCardOpening) return
+	shareCardOpening = true
+	var button = document.getElementById("shareResultBtn")
+	if (button !== null) button.setAttribute("aria-busy", "true")
+	renderShareCardPng().then(showShareCardPreview).catch(function (err) {
+		displayCalcNotification(err && err.code === "NO_BREAKDOWN"
+			? "Add a phrase and turn on Word Breakdown to share a card"
+			: "The share card could not be created", 2800)
+	}).finally(function () {
+		shareCardOpening = false
+		if (button !== null) button.removeAttribute("aria-busy")
+	})
 }
 
 function openImageWindow(element, imgName = "", sRatio = window.devicePixelRatio, refresh = false) { // sRatio is scaling, refresh - update the image only
